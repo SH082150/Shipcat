@@ -1,0 +1,73 @@
+{
+  "name": "shipcat",
+  "productName": "Shipcat",
+  "version": "0.2.0",
+  "private": true,
+  "author": "SH082150",
+  "license": "CC-BY-NC-SA-4.0",
+  "type": "module",
+  "bin": {
+    "claudeharbor": "./bin/claudeharbor.ts"
+  },
+  "description": "Shipcat 桌面端与 ClaudeHarbor 内核：在一个配置文件内路由多个 Anthropic Messages 兼容供应商的本地网关。",
+  "main": "ui/main/main.js",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build:ui": "esbuild ui/renderer/app.ts --bundle --format=esm --platform=browser --target=chrome140 --outfile=ui/renderer/app.js",
+    "prestart": "npm run build",
+    "start": "electron .",
+    "predev": "npm run build",
+    "dev": "electron .",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "build:main": "esbuild ui/main/main.ts --bundle --platform=node --format=esm --target=node22 --external:electron --outfile=ui/main/main.js && esbuild ui/main/preload.ts --bundle --platform=node --format=cjs --target=node22 --external:electron --outfile=ui/main/preload.cjs",
+    "build": "npm run build:ui && npm run build:main",
+    "icons": "node scripts/build-icons.mjs",
+    "mascots": "node scripts/build-mascots.mjs",
+    "pack": "electron-builder --dir",
+    "dist": "npm run build && electron-builder"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "build": {
+    "appId": "com.shipcat.app",
+    "productName": "Shipcat",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "ui/main/**",
+      "ui/renderer/**",
+      "ui/shared/**",
+      "core/**",
+      "assets/icons/**",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "assets/icons/Shipcat.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "assets/icons/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

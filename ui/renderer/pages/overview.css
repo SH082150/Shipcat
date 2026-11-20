@@ -1,0 +1,708 @@
+/* ==========================================================================
+   概览页：居中的窄内容列（约 560px），欢迎语、当前配置、建议与通知同宽。
+   主按钮浅色黑底白字 / 深色白底黑字；网关按钮蓝色；橙色只用于品牌 logo。
+   ========================================================================== */
+
+.page--overview {
+  /* 复用 shell 的反色与蓝色 token，深色模式自动翻转。 */
+  --ov-primary-bg: var(--harbor-inverse, #0b0b0b);
+  --ov-primary-fg: var(--harbor-inverse-text, #ffffff);
+  --ov-primary-hover: var(--harbor-inverse-hover, #2c2c2a);
+  --ov-blue: var(--harbor-switch-on, #2a78d6);
+  --ov-blue-hover: #338ced;
+  --ov-blue-fg: var(--harbor-inverse-text, #ffffff);
+  --ov-notice-bg: var(--harbor-surface, #ffffff);
+  --ov-notice-border: var(--harbor-border, rgba(11, 11, 11, 0.1));
+  --ov-font-serif: var(--harbor-font-display);
+
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  /* 与官方同尺寸窗口下的内容列宽度对齐：720 - 2×24 = 672px。 */
+  max-width: 720px;
+  margin: 0 auto;
+  padding-top: 48px;
+  padding-right: 24px;
+  padding-bottom: 56px;
+  padding-left: 24px;
+}
+
+html[data-theme="dark"] .page--overview {
+  --ov-blue-hover: #6aabf1;
+}
+
+/* --------------------------------------------------------------------------
+   顶部错误通知条：原生 details，关闭后 summary 变成“重新预览”小按钮
+   -------------------------------------------------------------------------- */
+
+.ov-notice-slot {
+  min-height: 112px;
+  margin-bottom: 24px;
+}
+
+.ov-notice-slot.has-notice {
+  min-height: 0;
+}
+
+.ov-notice {
+  position: relative;
+  margin: 0;
+}
+
+.ov-notice:not([open]) {
+  margin-bottom: 18px;
+}
+
+.ov-notice-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--harbor-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  user-select: none;
+  transition: background-color 0.14s var(--harbor-ease), color 0.14s var(--harbor-ease);
+}
+
+.ov-notice-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.ov-notice-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.ov-notice[open] .ov-notice-toggle {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  z-index: 2;
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: var(--harbor-text-tertiary);
+}
+
+.ov-notice[open] .ov-notice-toggle:hover {
+  background: var(--harbor-hover);
+  color: var(--harbor-text);
+}
+
+.ov-notice[open] .ov-notice-toggle-label--restore,
+.ov-notice:not([open]) .ov-notice-toggle-label--close {
+  display: none;
+}
+
+.ov-notice:not([open]) .ov-notice-toggle {
+  padding: 4px 9px;
+  border: 1px solid var(--harbor-border);
+  border-radius: var(--harbor-radius-sm);
+  background: transparent;
+}
+
+.ov-notice:not([open]) .ov-notice-toggle:hover {
+  background: var(--harbor-hover);
+  color: var(--harbor-text);
+}
+
+.ov-notice-restore-icon {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  opacity: 0.3;
+}
+
+.ov-notice-body {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 8px;
+  padding: 12px 14px 11px;
+  border: 1px solid var(--ov-notice-border);
+  border-radius: 10px;
+  background: var(--ov-notice-bg);
+}
+
+.ov-notice-body > .icon-placeholder,
+.ov-notice-icon {
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border-radius: 4px;
+  opacity: 1;
+  stroke-width: 1.8;
+}
+
+.ov-notice-copy {
+  min-width: 0;
+}
+
+.ov-notice-title {
+  margin: 0 0 3px;
+  padding-right: 52px;
+  color: var(--harbor-text);
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+
+.ov-notice-text {
+  margin: 0;
+  color: var(--harbor-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.ov-notice-link {
+  color: var(--harbor-text-secondary);
+  font-size: 11.5px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ov-notice-link:hover {
+  color: var(--harbor-text);
+}
+
+.ov-notice-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 5px;
+}
+
+.ov-notice-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.ov-notice-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--harbor-border-strong);
+  border-radius: 6px;
+  background: var(--harbor-surface);
+  color: var(--harbor-text);
+  font-size: 11.5px;
+  font-weight: 550;
+  transition: background-color 0.14s var(--harbor-ease), border-color 0.14s var(--harbor-ease);
+}
+
+.ov-notice-button:hover {
+  background: var(--harbor-surface-muted);
+}
+
+.ov-notice-button:active {
+  transform: scale(0.985);
+}
+
+/* --------------------------------------------------------------------------
+   欢迎区：小 logo 与 serif 标题同一行，不再另外堆说明文字
+   -------------------------------------------------------------------------- */
+
+.ov-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  /* 上方弹性留白与建议列表下方的留白共同把内容组居中。 */
+  margin-top: auto;
+  padding: 0 0 26px;
+  text-align: center;
+}
+
+.ov-notice:not([open]) + .ov-welcome {
+  padding-top: 0;
+}
+
+/* 静态图与 GIF 都是 512×512 画幅、猫本体约占 72%，盒子取 60px 时猫约 43px。 */
+.ov-mascot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin-block: -7px;
+  /* 是一只按钮：点它会随机触发动作，所以去掉按钮默认外观。 */
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 120ms var(--harbor-ease);
+}
+
+.ov-mascot:hover {
+  background: var(--harbor-hover-soft, transparent);
+}
+
+.ov-mascot:active {
+  transform: scale(0.94);
+}
+
+.ov-mascot:focus-visible {
+  outline: 2px solid var(--harbor-focus, currentColor);
+  outline-offset: 2px;
+}
+
+.ov-mascot-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* 像素画放大时保持硬边，不要浏览器的平滑插值。 */
+  image-rendering: pixelated;
+}
+
+/* 深色主题下第 5 只（黑猫）会和背景糊在一起，用极淡的外描边把它托起来。 */
+html[data-theme="dark"] .ov-mascot-img {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.5));
+}
+
+.ov-greeting {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--harbor-text);
+  font-family: var(--ov-font-serif);
+  font-size: clamp(32px, 3vw, 40px);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+/* --------------------------------------------------------------------------
+   当前配置：紧凑的展示容器，仅展示，不承载输入
+   -------------------------------------------------------------------------- */
+
+.ov-profile {
+  position: relative;
+  margin-bottom: 0;
+}
+
+
+.ov-profile-box {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--harbor-border);
+  border-radius: 26px;
+  background: var(--harbor-surface);
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04), 0 16px 40px -28px rgba(20, 20, 20, 0.35);
+}
+
+/* 输入框式的附着条：顶部藏在主卡后面，形成弧形衔接。 */
+.ov-profile-subbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: calc(100% - 20px);
+  height: 56px;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto;
+  padding: 0 16px 0 18px;
+  border: 1px solid var(--harbor-border);
+  border-radius: 16px;
+  background: var(--harbor-surface);
+  color: var(--harbor-text-secondary);
+  font-size: 12.5px;
+  text-align: left;
+  box-shadow: 0 12px 26px -24px rgba(20, 20, 20, 0.4);
+  transition: background-color 0.14s var(--harbor-ease), color 0.14s var(--harbor-ease);
+}
+
+.ov-profile-subbar:hover {
+  background: var(--harbor-hover);
+  color: var(--harbor-text);
+}
+
+.ov-profile-subbar-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.ov-profile-subbar-label {
+  flex: none;
+}
+
+.ov-profile-subbar-chevron {
+  width: 12px;
+  height: 12px;
+  color: var(--harbor-text-tertiary);
+}
+
+.ov-profile-box--empty {
+  padding: 16px 20px;
+  border-radius: 20px;
+}
+
+.ov-profile-main {
+  padding: 20px 22px 12px;
+}
+
+.ov-profile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ov-profile-label {
+  color: var(--harbor-text-tertiary);
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ov-profile-mode {
+  padding: 1px 7px;
+  border: 1px solid var(--harbor-border);
+  border-radius: 999px;
+  color: var(--harbor-text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.ov-profile-name {
+  overflow-wrap: anywhere;
+  margin: 10px 0 4px;
+  color: var(--harbor-text);
+  font-size: 21px;
+  font-weight: 550;
+  line-height: 1.25;
+}
+
+.ov-profile-hint {
+  margin: 0;
+  color: var(--harbor-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ov-profile-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 10px;
+}
+
+.ov-profile-empty-copy {
+  min-width: 0;
+}
+
+.ov-profile-empty-title {
+  margin: 0 0 2px;
+  color: var(--harbor-text);
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.ov-profile-empty-body {
+  max-width: 420px;
+  margin: 0;
+  color: var(--harbor-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* 主按钮：浅色黑底白字，深色白底黑字。 */
+.ov-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--harbor-radius);
+  font-size: 12px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition: background-color 0.14s var(--harbor-ease), transform 0.12s var(--harbor-ease);
+}
+
+.ov-button--primary {
+  background: var(--ov-primary-bg);
+  color: var(--ov-primary-fg);
+}
+
+.ov-button--primary:hover {
+  background: var(--ov-primary-hover);
+}
+
+.ov-button--primary:active {
+  transform: scale(0.985);
+}
+
+/* 卡片底部工具行：标准模式显示直连信息，进阶模式放网关控制。 */
+.ov-profile-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 44px;
+  padding: 6px 16px 14px 20px;
+  background: var(--harbor-surface);
+}
+
+.ov-toolbar-note {
+  color: var(--harbor-text-secondary);
+  font-size: 12px;
+}
+
+.ov-toolbar-hint {
+  color: var(--harbor-text-tertiary);
+  font-size: 11.5px;
+}
+
+/* 蓝色开关：与档案页网关开关一致。 */
+.ov-switch {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.ov-switch-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.ov-switch-track {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(11, 11, 11, 0.2);
+  transition: background-color 0.15s var(--harbor-ease);
+}
+
+.ov-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.25);
+  transition: transform 0.15s var(--harbor-ease);
+}
+
+.ov-switch-input:checked + .ov-switch-track {
+  background: var(--harbor-switch-on, #2a78d6);
+}
+
+.ov-switch-input:checked + .ov-switch-track::after {
+  transform: translateX(16px);
+}
+
+html[data-theme="dark"] .ov-switch-track {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+html[data-theme="dark"] .ov-switch-input:checked + .ov-switch-track {
+  background: var(--harbor-switch-on, #4c8dff);
+}
+
+.ov-gateway-meta {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 7px;
+  color: var(--harbor-text-secondary);
+  font-size: 11.5px;
+}
+
+.ov-gateway-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  opacity: 0.34;
+}
+
+.ov-gateway-label {
+  white-space: nowrap;
+}
+
+.ov-gateway-note {
+  overflow: hidden;
+  color: var(--harbor-text-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* --------------------------------------------------------------------------
+   建议 / 智能提示：细分割线紧凑列表，不是卡片
+   -------------------------------------------------------------------------- */
+
+.ov-suggestions {
+  /* 紧跟配置卡，剩余空间留在列表下方。 */
+  margin-top: 28px;
+  margin-bottom: auto;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ov-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.ov-section-title {
+  margin: 0;
+  padding: 0 2px 2px;
+  color: var(--harbor-text-tertiary);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ov-hint-list {
+  margin: 0 -12px;
+  padding: 0;
+  list-style: none;
+}
+
+.ov-hint {
+  border-bottom: 0;
+}
+
+.ov-hint:last-child {
+  border-bottom: 0;
+}
+
+.ov-hint-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-align: left;
+  transition: background-color 0.14s var(--harbor-ease);
+}
+
+.ov-hint-button:hover {
+  background: var(--harbor-hover);
+}
+
+.ov-hint-icon {
+  width: 30px;
+  height: 30px;
+  margin-top: 0;
+  border-radius: 7px;
+  opacity: 1;
+  stroke-width: 1.5;
+}
+
+.ov-hint-copy {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+
+.ov-hint-title,
+.ov-hint-body {
+  display: block;
+}
+
+.ov-hint-title {
+  margin: 0 0 1px;
+  color: var(--harbor-text);
+  font-size: 12.5px;
+  font-weight: 450;
+}
+
+.ov-hint-body {
+  margin: 0;
+  color: var(--harbor-text-secondary);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   响应式
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .page--overview {
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+
+  .ov-profile-empty {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  .page--overview {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .ov-welcome {
+    gap: 10px;
+  }
+
+  .ov-greeting {
+    font-size: 28px;
+  }
+
+  .ov-notice-actions {
+    padding-left: 24px;
+  }
+
+  .ov-notice-foot {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ov-notice-title {
+    padding-right: 48px;
+  }
+
+  .ov-profile-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .ov-hint-button {
+    flex-wrap: wrap;
+  }
+}

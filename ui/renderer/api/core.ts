@@ -1,0 +1,95 @@
+/**
+ * 渲染层访问 core 的唯一入口：解包主进程结果信封，错误统一抛 CoreRequestError。
+ * 页面/组件不要直接摸 window.claudeHarbor。
+ */
+
+import type {
+  AppError,
+  UsageBucket,
+  UsageBucketRange,
+  AppResult,
+  CoreBridge,
+  GatewayStatus,
+  ModelInput,
+  OverviewData,
+  ProfileCreateInput,
+  ProfileDetail,
+  ProfileSummary,
+  ProfileUpdateInput,
+  ProviderDetail,
+  ProviderInput,
+  ProviderPatch,
+  ProviderSummary,
+  StatusData,
+  UsageAggregateRow,
+  UsageFilter,
+  UsageSyncSummary,
+} from "../../shared/ipc.ts";
+
+export class CoreRequestError extends Error {
+  readonly code: string;
+  readonly details?: unknown;
+
+  constructor(error: AppError) {
+    super(error.message);
+    this.name = "CoreRequestError";
+    this.code = error.code;
+    if (error.details !== undefined) this.details = error.details;
+  }
+}
+
+function bridge(): CoreBridge {
+  const value = (window as unknown as { claudeHarbor?: Partial<CoreBridge> }).claudeHarbor;
+  if (!value?.providers || !value.profiles) {
+    throw new Error("Shipcat bridge is unavailable");
+  }
+  return value as CoreBridge;
+}
+
+async function unwrap<T>(pending: Promise<AppResult<T>>): Promise<T> {
+  const result = await pending;
+  if (result.ok) return result.value;
+  throw new CoreRequestError(result.error);
+}
+
+export const providersApi = {
+  list: (): Promise<ProviderSummary[]> => unwrap(bridge().providers.list()),
+  get: (id: string): Promise<ProviderDetail> => unwrap(bridge().providers.get(id)),
+  create: (input: ProviderInput): Promise<ProviderSummary> => unwrap(bridge().providers.create(input)),
+  update: (id: string, patch: ProviderPatch): Promise<ProviderSummary> =>
+    unwrap(bridge().providers.update(id, patch)),
+  remove: (id: string): Promise<void> => unwrap(bridge().providers.remove(id)),
+};
+
+export const profilesApi = {
+  list: (): Promise<ProfileSummary[]> => unwrap(bridge().profiles.list()),
+  get: (id: string): Promise<ProfileDetail> => unwrap(bridge().profiles.get(id)),
+  create: (input: ProfileCreateInput): Promise<ProfileDetail> => unwrap(bridge().profiles.create(input)),
+  update: (id: string, patch: ProfileUpdateInput): Promise<ProfileDetail> =>
+    unwrap(bridge().profiles.update(id, patch)),
+  remove: (id: string): Promise<void> => unwrap(bridge().profiles.remove(id)),
+  apply: (id: string): Promise<unknown> => unwrap(bridge().profiles.apply(id)),
+  addModel: (id: string, model: ModelInput): Promise<ProfileDetail> =>
+    unwrap(bridge().profiles.addModel(id, model)),
+  updateModel: (id: string, previousName: string, model: ModelInput): Promise<ProfileDetail> =>
+    unwrap(bridge().profiles.updateModel(id, previousName, model)),
+  removeModel: (id: string, modelName: string): Promise<ProfileDetail> =>
+    unwrap(bridge().profiles.removeModel(id, modelName)),
+};
+
+export const gatewayApi = {
+  status: (): Promise<GatewayStatus> => bridge().gateway.status(),
+  start: (id: string): Promise<GatewayStatus> => unwrap(bridge().gateway.start(id)),
+  stop: (): Promise<GatewayStatus> => unwrap(bridge().gateway.stop()),
+  onStatus: (callback: (status: GatewayStatus) => void): (() => void) =>
+    bridge().gateway.onStatus(callback),
+};
+
+export const overviewApi = { get: (): Promise<OverviewData> => unwrap(bridge().overview.get()) };
+export const statusApi = { get: (): Promise<StatusData> => unwrap(bridge().status.get()) };
+export const usageApi = {
+  sync: (): Promise<UsageSyncSummary> => unwrap(bridge().usage.sync()),
+  aggregate: (filter: UsageFilter = {}): Promise<UsageAggregateRow[]> =>
+    unwrap(bridge().usage.aggregate(filter)),
+  buckets: (range: UsageBucketRange): Promise<UsageBucket[]> => unwrap(bridge().usage.buckets(range)),
+};

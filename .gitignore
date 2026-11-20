@@ -1,0 +1,19 @@
+node_modules/
+.DS_Store
+**/.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+/.claudeharbor/
+/AppData/
+.release-check.*/
+*.tmp
+*.dmp
+
+# 构建产物
+/ui/renderer/app.js
+/ui/main/main.js
+/ui/main/preload.cjs
+/release/
+/dist/

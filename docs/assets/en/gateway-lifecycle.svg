@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="680" viewBox="0 0 1400 680" role="img" aria-labelledby="title desc">
+  <title id="title">Six-stage gateway request lifecycle</title>
+  <desc id="desc">Requests pass through receive, authenticate, route, send, receive upstream, and reply; response bodies stream back to Desktop as bytes.</desc>
+  <defs>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#315b7d"/></marker><marker id="goldArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#8b6239"/></marker>
+    <style>
+      .title{font:700 28px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#172b3a}.box{fill:#f5f9fc;stroke:#315b7d;stroke-width:2;rx:12}.response{fill:#f7f1e8;stroke:#8b6239;stroke-width:2;rx:12}.endpoint{fill:#edf3e8;stroke:#5f7746;stroke-width:2;rx:12}
+      .label{font:700 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#172b3a;text-anchor:middle}.small{font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#4b6172;text-anchor:middle}
+      .request{fill:none;stroke:#315b7d;stroke-width:2.5;marker-end:url(#blueArrow)}.reply{fill:none;stroke:#8b6239;stroke-width:2.5;marker-end:url(#goldArrow)}.caption{font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#586d7d}
+    </style>
+  </defs>
+  <rect width="1400" height="680" fill="#ffffff"/><text x="45" y="52" class="title">Six-stage gateway: minimal mutation and byte relay</text>
+  <rect x="45" y="255" width="180" height="120" class="endpoint"/><text x="135" y="295" class="label">Claude Desktop</text><text x="135" y="325" class="small">Alias + local token</text><text x="135" y="350" class="small">JSON / SSE consumer</text>
+  <rect x="285" y="95" width="180" height="130" class="box"/><text x="375" y="130" class="label">1. Receive</text><text x="375" y="159" class="small">Chunked read · 32 MB limit</text><text x="375" y="184" class="small">JSON and model validation</text><text x="375" y="209" class="small">400 / 413</text>
+  <rect x="515" y="95" width="180" height="130" class="box"/><text x="605" y="130" class="label">2. Authenticate</text><text x="605" y="159" class="small">Authorization / x-api-key</text><text x="605" y="184" class="small">Profile local token</text><text x="605" y="209" class="small">Constant-time check · 401</text>
+  <rect x="745" y="95" width="180" height="130" class="box"/><text x="835" y="130" class="label">3. Route</text><text x="835" y="159" class="small">Alias → provider UUID</text><text x="835" y="184" class="small">Real upstreamModel</text><text x="835" y="209" class="small">Read-only memory map</text>
+  <rect x="975" y="95" width="180" height="130" class="box"/><text x="1065" y="130" class="label">4. Send</text><text x="1065" y="159" class="small">Rewrite body.model only</text><text x="1065" y="184" class="small">Replace provider credentials</text><text x="1065" y="209" class="small">Preserve protocol and query</text>
+  <rect x="1205" y="105" width="160" height="110" class="endpoint"/><text x="1285" y="145" class="label">Upstream</text><text x="1285" y="174" class="small">Anthropic Messages</text><text x="1285" y="198" class="small">One request, one upstream</text>
+  <rect x="975" y="405" width="180" height="130" class="response"/><text x="1065" y="440" class="label">5. Receive</text><text x="1065" y="469" class="small">Status · headers · stream</text><text x="1065" y="494" class="small">Common JSON / SSE path</text><text x="1065" y="519" class="small">No automatic failover</text>
+  <rect x="515" y="405" width="330" height="130" class="response"/><text x="680" y="440" class="label">6. Reply and cancellation</text><text x="680" y="469" class="small">Filter hop headers · byte stream</text><text x="680" y="494" class="small">Preserve ping, limits, error bodies</text><text x="680" y="519" class="small">Client close destroys upstream</text>
+  <path d="M170 255 L285 190" class="request"/><path d="M465 160 L515 160" class="request"/><path d="M695 160 L745 160" class="request"/><path d="M925 160 L975 160" class="request"/><path d="M1155 160 L1205 160" class="request"/>
+  <path d="M1285 215 L1065 405" class="reply"/><path d="M975 470 L845 470" class="reply"/><path d="M515 470 L180 375" class="reply"/>
+  <rect x="285" y="585" width="1080" height="55" fill="#f8fafb" stroke="#d4dee5" rx="10"/><text x="310" y="619" class="caption">Auxiliary endpoints: GET /v1/models · POST /v1/messages/count_tokens · HEAD /api/hello · GET /health. No message persistence or full response buffering.</text>
+</svg>

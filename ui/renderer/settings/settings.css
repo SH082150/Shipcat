@@ -1,0 +1,1227 @@
+/* Claude Desktop 风格设置弹窗：细线分隔、无卡片外框、蓝色开关、橙色仅品牌。 */
+
+.ch-settings-overlay {
+  --ch-surface: #ffffff;
+  --ch-sidebar: #f6f6f4;
+  --ch-text: #0b0b0b;
+  --ch-text-secondary: #52514e;
+  --ch-text-muted: #898781;
+  --ch-border: rgba(11, 11, 11, 0.1);
+  --ch-border-strong: rgba(11, 11, 11, 0.2);
+  --ch-hover: rgba(11, 11, 11, 0.05);
+  --ch-active: rgba(11, 11, 11, 0.1);
+  --ch-brand: #d97757;
+  --ch-danger: #b42318;
+  --ch-switch-on: #2a78d6;
+  --ch-switch-off: rgba(11, 11, 11, 0.2);
+  --ch-backdrop: rgba(11, 11, 11, 0.38);
+  --ch-shadow: 0 4px 8px rgba(11, 11, 11, 0.08), 0 12px 28px -2px rgba(11, 11, 11, 0.08);
+  --ch-radius: 14px;
+  --ch-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  color-scheme: light;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 3vw, 40px);
+  background: var(--ch-backdrop);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  color: var(--ch-text);
+  font-family: "Shipcat Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  animation: ch-settings-overlay-in 160ms ease-out both;
+}
+
+.ch-settings-overlay[data-theme="system"],
+.ch-settings-overlay[data-theme="auto"],
+[data-theme="system"] .ch-settings-overlay,
+[data-theme="auto"] .ch-settings-overlay {
+  color-scheme: light dark;
+}
+
+.ch-settings-overlay,
+.ch-settings-overlay *,
+.ch-settings-overlay *::before,
+.ch-settings-overlay *::after {
+  box-sizing: border-box;
+}
+
+.ch-settings-overlay[data-theme="dark"],
+[data-theme="dark"] .ch-settings-overlay,
+.dark .ch-settings-overlay {
+  color-scheme: dark;
+  --ch-surface: #1a1a19;
+  --ch-sidebar: #151515;
+  --ch-text: #f0efec;
+  --ch-text-secondary: #c3c2b7;
+  --ch-text-muted: #898781;
+  --ch-border: rgba(255, 255, 255, 0.1);
+  --ch-border-strong: rgba(255, 255, 255, 0.2);
+  --ch-hover: rgba(255, 255, 255, 0.075);
+  --ch-active: rgba(255, 255, 255, 0.15);
+  --ch-brand: #d97757;
+  --ch-danger: #f17778;
+  --ch-switch-on: #2a78d6;
+  --ch-switch-off: rgba(255, 255, 255, 0.2);
+  --ch-backdrop: rgba(0, 0, 0, 0.55);
+  --ch-shadow: 0 4px 8px rgba(0, 0, 0, 0.45), 0 12px 28px -2px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ch-settings-overlay[data-theme="system"],
+  .ch-settings-overlay[data-theme="auto"],
+  [data-theme="system"] .ch-settings-overlay,
+  [data-theme="auto"] .ch-settings-overlay {
+    color-scheme: dark;
+    --ch-surface: #1d1d1c;
+    --ch-sidebar: #181818;
+    --ch-text: #f2f1ec;
+    --ch-text-secondary: #b5b1a8;
+    --ch-text-muted: #8b877e;
+    --ch-border: rgba(255, 255, 255, 0.1);
+    --ch-border-strong: rgba(255, 255, 255, 0.2);
+    --ch-hover: rgba(255, 255, 255, 0.06);
+    --ch-active: rgba(255, 255, 255, 0.09);
+    --ch-brand: #e08a6b;
+    --ch-danger: #f17778;
+    --ch-switch-on: #4c8dff;
+    --ch-switch-off: rgba(255, 255, 255, 0.22);
+    --ch-backdrop: rgba(0, 0, 0, 0.55);
+    --ch-shadow: 0 26px 64px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.ch-settings {
+  position: relative;
+  display: flex;
+  width: min(880px, 100%);
+  height: min(620px, 100%);
+  overflow: hidden;
+  background: var(--ch-surface);
+  border: 1px solid var(--ch-border);
+  border-radius: var(--ch-radius);
+  box-shadow: var(--ch-shadow);
+  outline: none;
+  animation: ch-settings-dialog-in 200ms var(--ch-ease) both;
+}
+
+.ch-settings:focus,
+.ch-settings:focus-visible {
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   侧栏
+   -------------------------------------------------------------------------- */
+
+.ch-settings-sidebar {
+  display: flex;
+  flex: 0 0 212px;
+  flex-direction: column;
+  padding: 24px 14px 18px;
+  background: var(--ch-sidebar);
+  border-right: 1px solid var(--ch-border);
+}
+
+.ch-settings-sidebar-head {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 10px 22px;
+}
+
+.ch-settings-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ch-settings-brand-logo {
+  display: grid;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+}
+
+.ch-settings-brand-logo-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.ch-settings-brand-name {
+  color: var(--ch-text-muted);
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ch-settings-title {
+  color: var(--ch-text);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.ch-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ch-settings-nav-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ch-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.ch-settings-nav-item:hover {
+  background: var(--ch-hover);
+  color: var(--ch-text);
+}
+
+.ch-settings-nav-item.is-active {
+  background: var(--ch-active);
+  color: var(--ch-text);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   主区域
+   -------------------------------------------------------------------------- */
+
+.ch-settings-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--ch-surface);
+}
+
+.ch-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 30px 8px;
+}
+
+.ch-settings-section-title {
+  margin: 0;
+  color: var(--ch-text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ch-settings-close {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -2px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ch-text-secondary);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.ch-settings-close:hover {
+  background: var(--ch-hover);
+  color: var(--ch-text);
+}
+
+.ch-settings-close-glyph {
+  position: absolute;
+  inset: 0;
+}
+
+.ch-settings-close-glyph::before,
+.ch-settings-close-glyph::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.ch-settings-close-glyph::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.ch-settings-close-glyph::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.ch-settings-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 30px 30px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ch-border-strong) transparent;
+}
+
+.ch-settings-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.ch-settings-body::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background: var(--ch-border-strong);
+  background-clip: padding-box;
+}
+
+.ch-settings-pane:not([hidden]) {
+  animation: ch-settings-pane-in 160ms ease-out both;
+}
+
+/* --------------------------------------------------------------------------
+   章节与行：不用卡片框，只靠留白和 1px 细线
+   -------------------------------------------------------------------------- */
+
+.ch-settings-section {
+  padding: 20px 0;
+  border-top: 1px solid var(--ch-border);
+}
+
+.ch-settings-section:first-child {
+  padding-top: 6px;
+  border-top: 0;
+}
+
+.ch-settings-section-head {
+  padding-bottom: 4px;
+}
+
+.ch-settings-section-heading {
+  margin: 0 0 3px;
+  color: var(--ch-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ch-settings-section-hint {
+  max-width: 58ch;
+  margin: 0;
+  color: var(--ch-text-secondary);
+  font-size: 12.5px;
+}
+
+.ch-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 0;
+}
+
+.ch-settings-row + .ch-settings-row {
+  border-top: 1px solid var(--ch-border);
+}
+
+.ch-settings-row--stack {
+  display: block;
+  padding-top: 10px;
+}
+
+.ch-settings-row-main {
+  min-width: 0;
+}
+
+.ch-settings-row-title {
+  margin: 0 0 2px;
+  color: var(--ch-text);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.ch-settings-row-hint {
+  max-width: 52ch;
+  margin: 0;
+  color: var(--ch-text-secondary);
+  font-size: 12.5px;
+}
+
+.ch-settings-row-control {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   主题卡片：保留预览与三选一，选中边用蓝色
+   -------------------------------------------------------------------------- */
+
+.ch-settings-theme-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ch-settings-theme-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 7px;
+  border: 1px solid var(--ch-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ch-text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.ch-settings-theme-option:hover {
+  border-color: var(--ch-border-strong);
+  background: var(--ch-hover);
+  color: var(--ch-text);
+}
+
+.ch-settings-theme-option.is-selected {
+  border-color: var(--ch-switch-on);
+  box-shadow: 0 0 0 1px var(--ch-switch-on) inset;
+  color: var(--ch-text);
+}
+
+.ch-settings-theme-option.is-selected::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ch-switch-on);
+  box-shadow: 0 0 0 3px var(--ch-surface);
+}
+
+.ch-settings-theme-preview {
+  --ch-preview-bg: #ffffff;
+  --ch-preview-chrome: #f2f1ed;
+  --ch-preview-line: rgba(31, 30, 28, 0.14);
+  position: relative;
+  display: block;
+  height: 54px;
+  overflow: hidden;
+  border: 1px solid var(--ch-border);
+  border-radius: 6px;
+  background: var(--ch-preview-chrome);
+}
+
+.ch-settings-theme-preview[data-preview="light"] {
+  --ch-preview-bg: #ffffff;
+  --ch-preview-chrome: #f2f1ed;
+  --ch-preview-line: rgba(31, 30, 28, 0.14);
+}
+
+.ch-settings-theme-preview[data-preview="dark"] {
+  --ch-preview-bg: #2b2b29;
+  --ch-preview-chrome: #232322;
+  --ch-preview-line: rgba(255, 255, 255, 0.17);
+}
+
+.ch-settings-theme-preview[data-preview="system"] {
+  --ch-preview-bg: linear-gradient(90deg, #ffffff 0 50%, #2b2b29 50% 100%);
+  --ch-preview-chrome: linear-gradient(90deg, #f2f1ed 0 50%, #232322 50% 100%);
+  --ch-preview-line: rgba(128, 126, 122, 0.32);
+}
+
+.ch-settings-theme-preview-window {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: -8px;
+  left: 10px;
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--ch-preview-line);
+  border-radius: 5px 5px 0 0;
+  background: var(--ch-preview-bg);
+}
+
+.ch-settings-theme-preview-window::before {
+  content: "";
+  display: block;
+  height: 9px;
+  border-bottom: 1px solid var(--ch-preview-line);
+}
+
+.ch-settings-theme-preview-window::after {
+  content: "";
+  display: block;
+  width: 62%;
+  height: 4px;
+  margin: 9px 8px;
+  border-radius: 2px;
+  background: var(--ch-preview-line);
+  box-shadow: 0 8px 0 var(--ch-preview-line), 0 16px 0 var(--ch-preview-line);
+}
+
+.ch-settings-theme-label {
+  display: block;
+  padding: 0 2px 1px;
+}
+
+/* --------------------------------------------------------------------------
+   蓝色开关
+   -------------------------------------------------------------------------- */
+
+.ch-settings-switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ch-switch-off);
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.ch-settings-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  transition: transform 160ms var(--ch-ease);
+}
+
+.ch-settings-switch[aria-checked="true"] {
+  background: var(--ch-switch-on);
+}
+
+.ch-settings-switch[aria-checked="true"]::after {
+  transform: translateX(16px);
+}
+
+.ch-settings-switch:hover {
+  filter: brightness(1.03);
+}
+
+/* --------------------------------------------------------------------------
+   选择器、次级按钮、声明与页脚
+   -------------------------------------------------------------------------- */
+
+.ch-settings-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ch-settings-select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 11px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ch-text-secondary);
+  border-bottom: 1.5px solid var(--ch-text-secondary);
+  transform: translateY(-2px) rotate(45deg);
+  pointer-events: none;
+}
+
+.ch-settings-select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 156px;
+  height: 30px;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--ch-border-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ch-text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.ch-settings-select:hover {
+  background: var(--ch-hover);
+}
+
+.ch-settings-select option {
+  background: var(--ch-surface);
+  color: var(--ch-text);
+}
+
+.ch-settings-value {
+  color: var(--ch-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.ch-settings-action {
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--ch-border-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ch-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.ch-settings-action:hover {
+  background: var(--ch-hover);
+}
+
+.ch-settings-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ch-settings-action--danger {
+  border-color: color-mix(in srgb, var(--ch-danger) 35%, transparent);
+  color: var(--ch-danger);
+}
+
+.ch-settings-action--danger:hover {
+  background: color-mix(in srgb, var(--ch-danger) 10%, transparent);
+}
+
+.ch-settings-input {
+  width: min(240px, 100%);
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--ch-border-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ch-text);
+  font: inherit;
+  font-size: 12.5px;
+  transition: border-color 120ms ease;
+}
+
+.ch-settings-input:hover {
+  border-color: var(--ch-text-muted);
+}
+
+.ch-settings-input:focus {
+  border-color: var(--ch-text);
+  outline: none;
+}
+
+.ch-settings-avatar-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ch-settings-avatar {
+  display: grid;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--ch-border);
+  border-radius: 50%;
+  background: var(--ch-sidebar);
+}
+
+.ch-settings-avatar.has-image {
+  border-color: transparent;
+  background: transparent;
+}
+
+.ch-settings-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ch-settings-avatar-empty {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  opacity: 0.4;
+}
+
+.ch-settings-statement {
+  max-width: 58ch;
+  margin: 2px 0 2px;
+  color: var(--ch-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.ch-settings-note {
+  margin: 14px 0 0;
+  color: var(--ch-text-muted);
+  font-size: 12px;
+}
+
+.ch-settings-pane-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ch-border);
+}
+
+.ch-settings-pane-foot .ch-settings-note {
+  margin: 0;
+}
+
+.ch-settings-link {
+  flex: none;
+  padding: 3px 1px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ch-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--ch-border-strong);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: text-decoration-color 120ms ease;
+}
+
+.ch-settings-link:hover {
+  text-decoration-color: currentColor;
+}
+
+.ch-settings-info {
+  margin: 4px 0 0;
+}
+
+.ch-settings-info-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 12px 0;
+}
+
+.ch-settings-info-row + .ch-settings-info-row {
+  border-top: 1px solid var(--ch-border);
+}
+
+.ch-settings-info-label {
+  color: var(--ch-text-secondary);
+  font-size: 12.5px;
+}
+
+.ch-settings-info-value {
+  margin: 0;
+  color: var(--ch-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.ch-settings-back {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--ch-border-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ch-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.ch-settings-back:hover {
+  background: var(--ch-hover);
+}
+
+.ch-settings :focus-visible {
+  outline: 2px solid var(--ch-switch-on);
+  outline-offset: 2px;
+}
+
+.ch-settings ::selection {
+  background: rgba(47, 111, 235, 0.18);
+}
+
+@keyframes ch-settings-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ch-settings-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ch-settings-pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .ch-settings {
+    flex-direction: column;
+    height: min(680px, 100%);
+  }
+
+  .ch-settings-sidebar {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: 14px 18px 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--ch-border);
+  }
+
+  .ch-settings-sidebar-head {
+    flex: none;
+    gap: 4px;
+    padding: 0;
+  }
+
+  .ch-settings-brand-name {
+    display: none;
+  }
+
+  .ch-settings-title {
+    font-size: 15px;
+  }
+
+  .ch-settings-nav {
+    flex-direction: row;
+    gap: 4px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ch-settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ch-settings-nav-item {
+    width: auto;
+    height: 30px;
+    padding: 0 9px;
+    white-space: nowrap;
+  }
+
+  .ch-settings-header {
+    padding: 18px 20px 6px;
+  }
+
+  .ch-settings-body {
+    padding: 4px 20px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ch-settings-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ch-settings-row-control {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ch-settings-select-wrap,
+  .ch-settings-select {
+    width: 100%;
+  }
+
+  .ch-settings-pane-foot {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-settings-overlay,
+  .ch-settings,
+  .ch-settings-pane:not([hidden]) {
+    animation: none;
+  }
+
+  .ch-settings-overlay *,
+  .ch-settings-overlay *::before,
+  .ch-settings-overlay *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
+/* --------------------------------------------------------------------------
+   “更改配置文件”管理弹窗
+   单列、无侧栏；与设置弹窗同尺寸（880×620）。
+   一行一个配置文件，行右侧红底“移除”，顶部“添加配置文件”。
+   -------------------------------------------------------------------------- */
+
+.ch-picker-overlay {
+  z-index: 1010;
+}
+
+.ch-picker {
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 100%);
+  height: min(620px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--ch-border);
+  border-radius: var(--ch-radius);
+  background: var(--ch-surface);
+  box-shadow: var(--ch-shadow);
+  animation: ch-picker-in 0.16s var(--ch-ease) both;
+}
+
+@keyframes ch-picker-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 顶部 */
+
+.ch-picker-header {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid var(--ch-border);
+}
+
+.ch-picker-heading {
+  min-width: 0;
+}
+
+.ch-picker-title {
+  margin: 0;
+  color: var(--ch-text);
+  font-family: var(--harbor-font-display);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.ch-picker-subtitle {
+  margin: 6px 0 0;
+  color: var(--ch-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ch-picker-head-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.ch-picker-add {
+  height: 30px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: var(--harbor-radius-sm, 6px);
+  background: var(--ch-text);
+  color: var(--ch-surface);
+  font-size: 12px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition: opacity 0.12s ease;
+}
+
+.ch-picker-add:hover {
+  opacity: 0.86;
+}
+
+/* 列表 */
+
+.ch-picker-list {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 14px;
+  overflow-y: auto;
+}
+
+.ch-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--ch-border);
+}
+
+.ch-picker-row:last-child {
+  border-bottom: 0;
+}
+
+.ch-picker-row:hover {
+  background: var(--ch-hover);
+}
+
+.ch-picker-row-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ch-picker-row-name {
+  overflow: hidden;
+  color: var(--ch-text);
+  font-size: 13px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ch-picker-row-summary {
+  overflow: hidden;
+  color: var(--ch-text-muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ch-picker-remove {
+  flex: none;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: var(--harbor-radius-sm, 6px);
+  background: #b42318;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 550;
+  transition: background-color 0.12s ease;
+}
+
+.ch-picker-remove:hover {
+  background: #981b12;
+}
+
+/* 空态 */
+
+.ch-picker-empty {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.ch-picker-empty-title {
+  margin: 0;
+  color: var(--ch-text);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.ch-picker-empty-hint {
+  margin: 0;
+  color: var(--ch-text-muted);
+  font-size: 11.5px;
+}
+
+/* 底部 */
+
+.ch-picker-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--ch-border);
+}
+
+.ch-picker-note {
+  margin: 0;
+  color: var(--ch-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .ch-picker-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ch-picker-head-actions {
+    align-self: stretch;
+    justify-content: flex-end;
+  }
+
+  .ch-picker-foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .ch-picker-foot-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-picker {
+    animation: none;
+  }
+
+  .ch-picker *,
+  .ch-picker *::before,
+  .ch-picker *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   确认弹窗（复用设置弹窗的遮罩与明暗 token）
+   -------------------------------------------------------------------------- */
+
+.ch-confirm-overlay {
+  z-index: 1300;
+}
+
+.ch-confirm {
+  width: min(440px, 100%);
+  padding: 20px 22px 18px;
+  border: 1px solid var(--ch-border);
+  border-radius: var(--ch-radius);
+  background: var(--ch-surface);
+  box-shadow: var(--ch-shadow);
+  animation: ch-settings-dialog-in 200ms var(--ch-ease) both;
+}
+
+.ch-confirm-title {
+  margin: 0;
+  color: var(--ch-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ch-confirm-message {
+  margin: 8px 0 0;
+  color: var(--ch-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.ch-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.ch-confirm-button {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--ch-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ch-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  transition: background-color 120ms ease;
+}
+
+.ch-confirm-button:hover {
+  background: var(--ch-hover);
+}
+
+.ch-confirm-button--primary {
+  border-color: var(--ch-text);
+  background: var(--ch-text);
+  color: var(--ch-surface);
+}
+
+.ch-confirm-button--danger {
+  border-color: #b42318;
+  background: #b42318;
+  color: #ffffff;
+}
+
+.ch-confirm-button--danger:hover {
+  background: #981b12;
+}

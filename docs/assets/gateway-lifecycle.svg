@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="680" viewBox="0 0 1400 680" role="img" aria-labelledby="title desc">
+  <title id="title">六段网关请求生命周期</title>
+  <desc id="desc">请求依次经过接收、鉴权、路由、发送、接收上游和返回；响应体以字节流返回 Desktop。</desc>
+  <defs>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#315b7d"/></marker>
+    <marker id="goldArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#8b6239"/></marker>
+    <style>
+      .title{font:700 28px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#172b3a}
+      .box{fill:#f5f9fc;stroke:#315b7d;stroke-width:2;rx:12}
+      .response{fill:#f7f1e8;stroke:#8b6239;stroke-width:2;rx:12}
+      .endpoint{fill:#edf3e8;stroke:#5f7746;stroke-width:2;rx:12}
+      .label{font:700 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#172b3a;text-anchor:middle}
+      .small{font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#4b6172;text-anchor:middle}
+      .request{fill:none;stroke:#315b7d;stroke-width:2.5;marker-end:url(#blueArrow)}
+      .reply{fill:none;stroke:#8b6239;stroke-width:2.5;marker-end:url(#goldArrow)}
+      .caption{font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#586d7d}
+    </style>
+  </defs>
+  <rect width="1400" height="680" fill="#ffffff"/>
+  <text x="45" y="52" class="title">六段网关：最小改写与字节透传</text>
+
+  <rect x="45" y="255" width="180" height="120" class="endpoint"/>
+  <text x="135" y="295" class="label">Claude Desktop</text>
+  <text x="135" y="325" class="small">模型别名 + 本地令牌</text>
+  <text x="135" y="350" class="small">JSON / SSE 消费方</text>
+
+  <rect x="285" y="95" width="180" height="130" class="box"/>
+  <text x="375" y="130" class="label">① 接收</text>
+  <text x="375" y="159" class="small">分块读取 · 32 MB 上限</text>
+  <text x="375" y="184" class="small">JSON 与 model 校验</text>
+  <text x="375" y="209" class="small">400 / 413</text>
+
+  <rect x="515" y="95" width="180" height="130" class="box"/>
+  <text x="605" y="130" class="label">② 鉴权</text>
+  <text x="605" y="159" class="small">Authorization / x-api-key</text>
+  <text x="605" y="184" class="small">profile 本地令牌</text>
+  <text x="605" y="209" class="small">常量时间比较 · 401</text>
+
+  <rect x="745" y="95" width="180" height="130" class="box"/>
+  <text x="835" y="130" class="label">③ 路由</text>
+  <text x="835" y="159" class="small">别名 → provider UUID</text>
+  <text x="835" y="184" class="small">真实 upstreamModel</text>
+  <text x="835" y="209" class="small">只读内存路由表</text>
+
+  <rect x="975" y="95" width="180" height="130" class="box"/>
+  <text x="1065" y="130" class="label">④ 发送</text>
+  <text x="1065" y="159" class="small">只改 body.model</text>
+  <text x="1065" y="184" class="small">替换供应商凭证</text>
+  <text x="1065" y="209" class="small">保留协议与查询参数</text>
+
+  <rect x="1205" y="105" width="160" height="110" class="endpoint"/>
+  <text x="1285" y="145" class="label">上游供应商</text>
+  <text x="1285" y="174" class="small">Anthropic Messages</text>
+  <text x="1285" y="198" class="small">单请求 · 单上游</text>
+
+  <rect x="975" y="405" width="180" height="130" class="response"/>
+  <text x="1065" y="440" class="label">⑤ 接收上游</text>
+  <text x="1065" y="469" class="small">状态码 · 响应头 · 流</text>
+  <text x="1065" y="494" class="small">JSON / SSE 共用边界</text>
+  <text x="1065" y="519" class="small">不自动故障转移</text>
+
+  <rect x="515" y="405" width="330" height="130" class="response"/>
+  <text x="680" y="440" class="label">⑥ 返回与连接取消</text>
+  <text x="680" y="469" class="small">滤逐跳头 · 响应体字节管道</text>
+  <text x="680" y="494" class="small">保留 SSE ping、限流和错误原文</text>
+  <text x="680" y="519" class="small">Desktop 断开 → 销毁上游请求</text>
+
+  <path d="M170 255 L285 190" class="request"/>
+  <path d="M465 160 L515 160" class="request"/>
+  <path d="M695 160 L745 160" class="request"/>
+  <path d="M925 160 L975 160" class="request"/>
+  <path d="M1155 160 L1205 160" class="request"/>
+  <path d="M1285 215 L1065 405" class="reply"/>
+  <path d="M975 470 L845 470" class="reply"/>
+  <path d="M515 470 L180 375" class="reply"/>
+
+  <rect x="285" y="585" width="1080" height="55" fill="#f8fafb" stroke="#d4dee5" rx="10"/>
+  <text x="310" y="619" class="caption">辅助端点：GET /v1/models · POST /v1/messages/count_tokens · HEAD /api/hello · GET /health。请求消息不落盘，响应不整体缓冲。</text>
+</svg>

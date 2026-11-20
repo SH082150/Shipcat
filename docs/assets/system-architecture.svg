@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">ClaudeHarborCLI 总体架构</title>
+  <desc id="desc">CLI 通过内核管理独立供应商数据库、Harbor sidecar 和 Claude profile；Desktop 经本地网关访问多个上游。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#315b7d"/></marker>
+    <style>
+      .title{font:700 28px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#172b3a}
+      .box{fill:#f5f9fc;stroke:#315b7d;stroke-width:2;rx:14}
+      .core{fill:#eaf3f8;stroke:#315b7d;stroke-width:2;rx:14}
+      .client{fill:#f7f1e8;stroke:#8b6239;stroke-width:2;rx:14}
+      .label{font:700 19px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#172b3a;text-anchor:middle}
+      .small{font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#41576a;text-anchor:middle}
+      .arrow{fill:none;stroke:#315b7d;stroke-width:2.2;marker-end:url(#arrow)}
+      .runtime{fill:none;stroke:#8b6239;stroke-width:2.5;marker-start:url(#arrow);marker-end:url(#arrow)}
+      .read{fill:none;stroke:#718394;stroke-width:2;stroke-dasharray:7 6;marker-end:url(#arrow)}
+      .caption{font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#586d7d}
+    </style>
+  </defs>
+  <rect width="1200" height="720" fill="#ffffff"/>
+  <text x="50" y="52" class="title">ClaudeHarborCLI：控制面与运行时分离</text>
+
+  <rect x="50" y="100" width="230" height="88" class="box"/>
+  <text x="165" y="137" class="label">CLI / 未来 UI</text>
+  <text x="165" y="165" class="small">参数、展示、用户操作</text>
+
+  <rect x="50" y="250" width="230" height="110" class="core"/>
+  <text x="165" y="286" class="label">Core 控制面</text>
+  <text x="165" y="315" class="small">validate · archive · check</text>
+  <text x="165" y="339" class="small">生成、同步、门禁</text>
+
+  <rect x="380" y="240" width="250" height="120" class="box"/>
+  <text x="505" y="276" class="label">Harbor sidecar 库</text>
+  <text x="505" y="305" class="small">profile superset</text>
+  <text x="505" y="330" class="small">路由、端口、本地令牌</text>
+
+  <rect x="50" y="470" width="230" height="120" class="box"/>
+  <text x="165" y="506" class="label">独立供应商数据库</text>
+  <text x="165" y="535" class="small">UUID.json + _meta.json</text>
+  <text x="165" y="560" class="small">端点、API key、鉴权</text>
+
+  <rect x="790" y="100" width="280" height="130" class="client"/>
+  <text x="930" y="137" class="label">Claude configLibrary</text>
+  <text x="930" y="166" class="small">派生 profile 子集</text>
+  <text x="930" y="192" class="small">主索引 entries + appliedId</text>
+
+  <rect x="800" y="330" width="260" height="100" class="client"/>
+  <text x="930" y="372" class="label">Claude Desktop</text>
+  <text x="930" y="400" class="small">读取并激活 profile</text>
+
+  <rect x="450" y="485" width="250" height="105" class="core"/>
+  <text x="575" y="523" class="label">本地网关</text>
+  <text x="575" y="551" class="small">启动时构建只读路由表</text>
+  <text x="575" y="575" class="small">127.0.0.1:&lt;port&gt;</text>
+
+  <rect x="900" y="485" width="240" height="115" class="box"/>
+  <text x="1020" y="522" class="label">Anthropic 兼容上游</text>
+  <text x="1020" y="551" class="small">供应商 A / B / C</text>
+  <text x="1020" y="576" class="small">真实模型与 API key</text>
+
+  <path d="M165 188 L165 250" class="arrow"/>
+  <path d="M280 295 L380 295" class="arrow"/>
+  <path d="M165 360 L165 470" class="arrow"/>
+  <path d="M630 265 L790 190" class="arrow"/>
+  <text x="675" y="222" class="caption">生成与同步</text>
+  <path d="M930 230 L930 330" class="arrow"/>
+  <text x="944" y="282" class="caption">读取 profile</text>
+
+  <path d="M800 380 L700 510" class="runtime"/>
+  <text x="690" y="414" class="caption">别名请求 / 字节响应</text>
+  <path d="M700 535 L900 535" class="runtime"/>
+  <text x="760" y="510" class="caption">真实模型与供应商凭证</text>
+  <text x="760" y="570" class="caption">JSON / SSE 字节透传</text>
+
+  <path d="M505 360 L545 485" class="read"/>
+  <path d="M280 530 L450 530" class="read"/>
+  <text x="340" y="514" class="caption">启动时读取</text>
+  <text x="50" y="685" class="caption">实线表示配置或运行时数据流；虚线表示网关启动时读取管理档案。</text>
+</svg>

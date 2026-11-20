@@ -1,0 +1,450 @@
+/* ==========================================================================
+   用量页：额度 + 历史用量热力图。
+   不使用卡片与阴影；只用细分割线、留白与字重分层。
+   橙色仅属于品牌，本页不出现；开关用蓝色，主按钮浅色黑底白字 / 深色白底黑字。
+   ========================================================================== */
+
+.page--usage {
+  --usage-fg: var(--harbor-text, #0b0b0b);
+  --usage-muted: var(--harbor-text-secondary, #52514e);
+  --usage-faint: var(--harbor-text-tertiary, #898781);
+  --usage-line: color-mix(in srgb, var(--usage-fg) 12%, transparent);
+  --usage-line-strong: color-mix(in srgb, var(--usage-fg) 24%, transparent);
+  --usage-hover: color-mix(in srgb, var(--usage-fg) 5%, transparent);
+  --usage-blue: #2a78d6;
+  --usage-blue-soft: color-mix(in srgb, var(--usage-blue) 11%, transparent);
+  --usage-primary-bg: #0b0b0b;
+  --usage-primary-fg: #ffffff;
+  --usage-font-display: var(--harbor-font-display);
+  --usage-cell-empty: color-mix(in srgb, var(--usage-fg) 7%, transparent);
+  --usage-level-1: color-mix(in srgb, var(--usage-blue) 24%, transparent);
+  --usage-level-2: color-mix(in srgb, var(--usage-blue) 44%, transparent);
+  --usage-level-3: color-mix(in srgb, var(--usage-blue) 68%, transparent);
+  --usage-level-4: color-mix(in srgb, var(--usage-blue) 94%, transparent);
+}
+
+html[data-theme="dark"] .page--usage {
+  --usage-blue: #2a78d6;
+  --usage-primary-bg: #ffffff;
+  --usage-primary-fg: #0b0b0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .page--usage {
+    --usage-blue: #2a78d6;
+    --usage-primary-bg: #ffffff;
+    --usage-primary-fg: #0b0b0b;
+  }
+}
+
+.page--usage .page-header h1 {
+  font-family: var(--harbor-font-display);
+}
+
+.page--usage .usage-block {
+  padding: 2px 0 24px;
+}
+
+.page--usage .usage-block + .usage-block {
+  padding-top: 22px;
+  border-top: 0;
+}
+
+.page--usage .usage-block-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.page--usage .usage-block-copy {
+  min-width: 0;
+}
+
+.page--usage .usage-block-copy h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 6px;
+  color: var(--usage-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.page--usage .usage-block-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.26;
+}
+
+.page--usage .usage-block-copy p {
+  max-width: 64ch;
+  margin: 0;
+  color: var(--usage-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.page--usage .usage-block-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ---- 额度：配置文件、余额、窗口 ------------------------------------------ */
+
+.page--usage .usage-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page--usage .usage-profile-label {
+  color: var(--usage-faint);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.page--usage .usage-profile-select {
+  max-width: 180px;
+  padding: 3px 4px;
+  border: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--usage-fg);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.page--usage .usage-profile-select:hover {
+  border-bottom-color: var(--usage-fg);
+}
+
+.page--usage .button--primary {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--usage-primary-bg);
+  color: var(--usage-primary-fg);
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  transition: opacity 0.14s var(--harbor-ease, ease), transform 0.12s var(--harbor-ease, ease);
+}
+
+.page--usage .button--primary:hover {
+  opacity: 0.86;
+}
+
+.page--usage .button--primary:active {
+  transform: scale(0.985);
+}
+
+.page--usage .usage-quota-grid {
+  display: grid;
+  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+  gap: 44px;
+  align-items: start;
+}
+
+.page--usage .usage-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 4px;
+}
+
+.page--usage .usage-balance-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.page--usage .usage-label {
+  color: var(--usage-faint);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.page--usage .usage-value {
+  color: var(--usage-fg);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1.05;
+}
+
+.page--usage .usage-quota-windows {
+  display: flex;
+  flex-direction: column;
+}
+
+.page--usage .usage-quota-window {
+  padding: 13px 0 15px;
+}
+
+.page--usage .usage-quota-window + .usage-quota-window {
+  border-top: 0;
+}
+
+.page--usage .usage-window-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 9px;
+}
+
+.page--usage .usage-window-label {
+  color: var(--usage-fg);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.page--usage .usage-window-value {
+  color: var(--usage-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--usage .usage-meter {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: var(--usage-cell-empty);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.page--usage .usage-meter::-webkit-progress-bar {
+  border-radius: 999px;
+  background: var(--usage-cell-empty);
+}
+
+.page--usage .usage-meter::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--usage-blue);
+}
+
+.page--usage .usage-meter.is-unknown {
+  position: relative;
+}
+
+.page--usage .usage-meter.is-unknown .usage-meter-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+}
+
+.page--usage .usage-window-reset {
+  margin-top: 7px;
+  color: var(--usage-faint);
+  font-size: 11px;
+}
+
+.page--usage .usage-footnote,
+.page--usage .usage-quota-note {
+  margin: 18px 0 0;
+  color: var(--usage-faint);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* ---- 历史用量：分段开关、热力图、图例 -------------------------------- */
+
+.page--usage .usage-range-switch {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.page--usage .usage-range-button {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: var(--harbor-radius-sm, 6px);
+  color: var(--usage-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.14s var(--harbor-ease, ease), color 0.14s var(--harbor-ease, ease);
+}
+
+.page--usage .usage-range-button:hover {
+  color: var(--usage-fg);
+  background: var(--usage-hover);
+}
+
+.page--usage .usage-range-button[aria-pressed="true"] {
+  color: var(--usage-blue);
+  background: var(--usage-blue-soft);
+  font-weight: 600;
+}
+
+.page--usage .usage-heatmap-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 10px;
+  color: var(--usage-muted);
+  font-size: 11.5px;
+}
+
+.page--usage .usage-ledger {
+  color: var(--usage-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.page--usage .usage-heatmap {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  grid-template-rows: repeat(14, minmax(0, 1fr));
+  gap: 3px;
+  width: min(100%, 480px);
+  aspect-ratio: 24 / 14;
+}
+
+.page--usage .usage-cell {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 2px;
+  background: var(--usage-cell-empty);
+}
+
+.page--usage .usage-cell--empty,
+.page--usage .usage-cell.is-level-0 {
+  background: var(--usage-cell-empty);
+}
+
+.page--usage .usage-cell.is-level-1 {
+  background: var(--usage-level-1);
+}
+
+.page--usage .usage-cell.is-level-2 {
+  background: var(--usage-level-2);
+}
+
+.page--usage .usage-cell.is-level-3 {
+  background: var(--usage-level-3);
+}
+
+.page--usage .usage-cell.is-level-4 {
+  background: var(--usage-level-4);
+}
+
+.page--usage .usage-cell:hover {
+  outline: 1px solid var(--usage-blue);
+  outline-offset: 1px;
+}
+
+.page--usage .usage-heatmap-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-top: 14px;
+  color: var(--usage-faint);
+  font-size: 11px;
+}
+
+.page--usage .usage-legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.page--usage .usage-legend-scale {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.page--usage .usage-legend-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--usage-cell-empty);
+}
+
+.page--usage .usage-legend-cell.is-level-1 {
+  background: var(--usage-level-1);
+}
+
+.page--usage .usage-legend-cell.is-level-2 {
+  background: var(--usage-level-2);
+}
+
+.page--usage .usage-legend-cell.is-level-3 {
+  background: var(--usage-level-3);
+}
+
+.page--usage .usage-legend-cell.is-level-4 {
+  background: var(--usage-level-4);
+}
+
+.page--usage .usage-cells-note {
+  color: var(--usage-faint);
+}
+
+.page--usage .usage-demo-note {
+  margin-left: auto;
+  color: var(--usage-muted);
+  font-style: normal;
+}
+
+@media (max-width: 980px) {
+  .page--usage .usage-quota-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .page--usage .usage-balance {
+    flex-direction: row;
+    gap: 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  .page--usage .usage-block-head {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .page--usage .usage-block-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .page--usage .usage-range-switch {
+    align-self: flex-start;
+  }
+
+  .page--usage .usage-heatmap {
+    gap: 2px;
+    width: 100%;
+  }
+
+  .page--usage .usage-demo-note {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page--usage .button--primary,
+  .page--usage .usage-range-button {
+    transition: none;
+  }
+}
