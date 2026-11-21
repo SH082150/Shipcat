@@ -209,8 +209,8 @@ test("usage.css：24×14 网格、空灰、蓝色开关、黑白主按钮、细�
   assert.match(css, /--usage-blue/);
   assert.match(css, /\[data-theme="dark"\]/);
   assert.match(css, /border-top:\s*0/);
-  assert.match(css, /\.usage-heat-row\s*\{[\s\S]*?align-items:\s*stretch/);
-  assert.match(css, /\.usage-overall\s*\{[\s\S]*?height:\s*100%/);
+  assert.match(css, /\.usage-heat-row\s*\{[\s\S]*?align-items:\s*start/);
+  assert.match(css, /\.usage-overall\s*\{[\s\S]*?position:\s*absolute/);
   assert.match(css, /\.usage-overall\s*\{[\s\S]*?min-height:\s*0[\s\S]*?padding:\s*13px 18px/);
   assert.match(css, /\.usage-overall-total\s*\{[\s\S]*?font-size:\s*28px/);
   assert.match(css, /\.usage-overall-rows\s*\{[\s\S]*?margin:\s*8px 0 0/);
@@ -341,8 +341,8 @@ test("用量页总使用量卡：无数据时按同一格式显示 0；按天卡
   assert.match(source, /usage-table-wrap/);
 
   const css = read("ui/renderer/pages/usage.css");
-  assert.match(css, /\.usage-heat-row\s*\{[\s\S]*?align-items:\s*stretch/);
-  assert.match(css, /\.usage-overall\s*\{[\s\S]*?height:\s*100%/);
+  assert.match(css, /\.usage-heat-row\s*\{[\s\S]*?align-items:\s*start/);
+  assert.match(css, /\.usage-overall\s*\{[\s\S]*?position:\s*absolute/);
   assert.match(css, /\.usage-chart-svg/);
   assert.match(css, /\.usage-table-wrap\s*\{[\s\S]*?overflow-y:\s*auto/);
 });

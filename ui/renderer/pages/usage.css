@@ -139,22 +139,28 @@ html[data-theme="dark"] .page--usage {
 /* ---- 热力图 + 总使用量卡 ---------------------------------------------- */
 
 .page--usage .usage-heat-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 28px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .page--usage .usage-heatmap-host {
   min-width: 0;
 }
 
+/* 卡片钉死在热力图右侧：上下与热力图图区严格对齐，不再受内容高度影响。 */
 .page--usage .usage-overall {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
+  width: 300px;
   min-width: 0;
   min-height: 0;
-  height: 100%;
   padding: 13px 18px;
   border-radius: 12px;
   background: var(--harbor-surface-muted);
@@ -643,6 +649,8 @@ html:not([data-theme="dark"]) .page--usage .usage-mode-switch button.is-active {
   }
 
   .page--usage .usage-overall {
+    position: static;
+    width: auto;
     height: auto;
   }
 }
