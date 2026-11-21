@@ -524,17 +524,17 @@ test("profiles v2 布局：内容 gutter 与全宽分隔线分层，不使用负
   assert.doesNotMatch(css, /calc\([^)]*100vw/);
 });
 
-test("profiles v2 尺寸：标题、按钮、输入框与行高整体收紧", () => {
+test("profiles v2 尺寸：标题、按钮、输入框与行高（间距放宽版）", () => {
   const css = read("ui/renderer/pages/profiles.css");
 
   assert.match(block(css, ".profiles-heading h1 {"), /font-size:\s*32px/);
   assert.match(block(css, ".profile-button {"), /height:\s*32px/);
   assert.match(block(css, ".profiles-hero {"), /padding:\s*22px 24px 20px/);
   assert.match(block(css, ".profile-row {"), /padding:\s*0/);
-  assert.match(block(css, ".profiles-rows .profile-grid {"), /padding:\s*12px 16px/);
+  assert.match(block(css, ".profiles-rows .profile-grid {"), /padding:\s*15px 18px/);
   assert.match(block(css, ".profile-detail-heading h1 {"), /font-size:\s*32px/);
-  assert.match(block(css, ".profile-section {"), /padding:\s*16px 0/);
-  assert.match(block(css, ".profile-field-grid {"), /min-height:\s*38px/);
+  assert.match(block(css, ".profile-section {"), /padding:\s*24px 0/);
+  assert.match(block(css, ".profile-field-grid {"), /min-height:\s*40px/);
   assert.match(block(css, ".profile-input {"), /height:\s*30px/);
   assert.match(block(css, "\n.profile-switch {"), /width:\s*32px/);
   assert.match(block(css, ".profile-claude-row--draft {"), /gap:\s*8px/);
