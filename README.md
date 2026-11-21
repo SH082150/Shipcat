@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.2.3 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
+版本：0.2.4 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
 
 ## 摘要
 
@@ -268,6 +268,14 @@ npm run typecheck
 
 ### 更新日志
 
+#### v0.2.4
+
+- 后台静默运行：新增菜单栏托盘（显示 / 退出），系统页可隐藏 Dock 图标（Windows 为隐藏任务栏图标）；关闭窗口后驻留后台的开关现在会持久保存，重启不再丢失。
+- 找回机制：再次启动应用会唤回原有窗口，不会启动第二个实例；托盘创建失败时不会隐藏 Dock，避免应用无法找回。
+- 头像：选择图片后支持拖动与缩放裁剪，输出 512×512 头像；可选图片上限从 2MB 放宽到 8MB。
+- 档案页：整体放宽间距（表单行、节间距、模型行与表格行高），页头与当前使用卡之间留白加大。
+- 用量页：总使用量卡新增缓存命中率（保留两位小数），并与热力图严格等高。
+
 #### v0.2.3
 
 - 用量页改版：热力图右侧新增与图等高的总使用量卡（输入 / 输出 / 缓存读 / 调用次数 / 网页搜索），悬停格子即切换为该时段明细；新增"按天用量"图表（7 / 30 / 90 天，柱状与表格两种视图，悬停显示分类明细）；移除底部额度区与设置页相关入口。
@@ -305,7 +313,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.2.3 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
+**Version: 0.2.4 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
 
 ### 1. Introduction
 
@@ -435,6 +443,14 @@ npm run typecheck
 ```
 
 ### Changelog
+
+#### v0.2.4
+
+- Background mode: a menu bar tray (show / quit) and a Hide Dock icon switch on the System page (Hide taskbar icon on Windows); "keep running after closing the window" is now persisted across launches.
+- Recovery: launching the app again brings the existing window forward instead of starting a second instance; if the tray cannot be created, the Dock icon is never hidden.
+- Avatar: picked images can be dragged and zoomed before cropping to a 512×512 avatar; the size limit rises from 2 MB to 8 MB.
+- Profiles: overall spacing loosened (form rows, section gaps, model rows, table row height), with more breathing room between the page header and the active-profile card.
+- Usage: the total-usage card gains a cache hit rate (two decimals) and stays exactly as tall as the heatmap.
 
 #### v0.2.3
 
