@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.2.0 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
+版本：0.2.1 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
 
 ## 摘要
 
@@ -268,6 +268,13 @@ npm run typecheck
 
 ### 更新日志
 
+#### v0.2.1
+
+- 档案页：模型与 Claude 透传的“添加”按钮统一到标题行右侧；透传改为行内“项/值”草稿，支持任意键名，值按 JSON 解析。
+- 网关：回程把响应中的上游模型名写回客户端请求的别名，非流式 JSON 与 SSE 均覆盖，事件边界与 ping 保持原样。
+- 双端同步：监听 Claude 配置目录，巡检漂移；概览新增“检查档案配置”建议，档案列表标记“待同步”，编辑页弹出设置页同款的“需要同步”浮窗并锁定表单，处理完才允许编辑。
+- 修复：编辑已有档案时“添加模型”无响应；档案名称含空白字符时的误报。
+
 #### v0.2.0
 
 - 新增 Shipcat 桌面端（Electron）：概览、供应商、配置文件、用量统计四个管理页与设置弹窗，内置网关启停、激活切换、主题、语言、开机自启与"关闭窗口后驻留后台"开关；欢迎区提供按小时轮换的像素小猫与多类别问候语。
@@ -292,7 +299,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.2.0 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
+**Version: 0.2.1 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
 
 ### 1. Introduction
 
@@ -422,6 +429,13 @@ npm run typecheck
 ```
 
 ### Changelog
+
+#### v0.2.1
+
+- Profiles: model and Claude-passthrough "add" actions moved to the section header; passthrough is now an inline key/value draft with arbitrary keys and JSON-parsed values.
+- Gateway: the response model name is rewritten back to the client-requested alias for both buffered JSON and SSE, while event boundaries and ping frames stay intact.
+- Two-way sync: watches the Claude config directory, reports drift, adds a "Check profile sync" suggestion on Overview, marks affected profiles as "Sync needed", and locks the edit form behind a settings-style "Sync needed" dialog until resolved.
+- Fixed: "Add model" doing nothing when editing an existing profile; false whitespace errors in profile names.
 
 #### v0.2.0
 

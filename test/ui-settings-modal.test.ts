@@ -429,7 +429,7 @@ test("了解更多进入关于章节，客户端信息在高亮菜单中展示",
     const info = textOf(about);
     assert.match(info, /Shipcat/);
     assert.match(info, /本地网关/);
-    assert.match(info, /0\.2\.0/);
+    assert.match(info, /0\.2\.1/);
 
     byRole(root, "nav-general").click();
     assert.equal(general.hidden, false);

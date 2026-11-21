@@ -309,7 +309,7 @@ test("菜单顺序为常规、隐私、用量、系统、关于，且不显示�
     assert.equal(roleCount(root, "nav-client"), 0);
 
     const sidebar = byRole(root, "sidebar");
-    assert.doesNotMatch(textOf(sidebar), /0\.2\.0/);
+    assert.doesNotMatch(textOf(sidebar), /0\.2\.1/);
     assert.doesNotMatch(textOf(sidebar), /版本/);
     assert.match(textOf(byRole(root, "title")), /设置/);
   } finally {
@@ -413,7 +413,7 @@ test("常规页的了解更多进入关于章节，并同步菜单高亮", () =>
     assert.equal(byRole(root, "nav-about").getAttribute("aria-current"), "page");
     const info = textOf(byRole(root, "pane-about"));
     assert.match(info, /Shipcat/);
-    assert.match(info, /0\.2\.0/);
+    assert.match(info, /0\.2\.1/);
   } finally {
     modal.cleanup();
   }
@@ -517,11 +517,11 @@ test("更改配置文件弹窗：单列列出配置，可从文件选择添加�
   }
 });
 
-test("系统页显示 0.2.0、蓝色开机自启开关与通知开关", () => {
+test("系统页显示 0.2.1、蓝色开机自启开关与通知开关", () => {
   const modal = mount({ section: "system" });
   try {
     const { root } = modal;
-    assert.equal(textOf(byRole(root, "app-version")), "0.2.0");
+    assert.equal(textOf(byRole(root, "app-version")), "0.2.1");
 
     const launch = byRole(root, "launch-at-login");
     assert.equal(launch.getAttribute("role"), "switch");
