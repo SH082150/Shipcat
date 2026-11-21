@@ -25,7 +25,7 @@ import {
 import type { MetaEntry } from "../types.ts";
 
 export interface ScanAction {
-  readonly kind: "removed" | "imported" | "file-rebuilt";
+  readonly kind: "removed" | "imported" | "import-skipped" | "file-rebuilt";
   readonly id: string;
   readonly name: string;
   readonly message: string;
@@ -60,8 +60,20 @@ export function scan(opts?: { home?: string }): ScanResult {
   }
 
   // Claude 多出（从未连接，或 sidecar 遗失降级）→ 自动建只读 sidecar。
+  // _meta 有条目但 profile 文件缺失（悬空条目）时无法导入，跳过并告警，
+  // 不阻断其余条目的处置与后续激活。
+  const danglingLib = claudePaths(opts?.home).configLibrary;
   for (const entry of claude.entries) {
     if (localIds.has(entry.id)) continue;
+    if (!existsSync(join(danglingLib, `${entry.id}.json`))) {
+      actions.push({
+        kind: "import-skipped",
+        id: entry.id,
+        name: entry.name,
+        message: `已跳过「${entry.name}」（Claude 索引存在但 profile 文件缺失，无法导入；可在 Claude Desktop 中清理该条目）`,
+      });
+      continue;
+    }
     importFromClaude(entry.id, opts);
     actions.push({
       kind: "imported",

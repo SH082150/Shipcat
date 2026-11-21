@@ -69,7 +69,7 @@ Claude Desktop 的第三方 inference gateway 能力为本地路由提供了标�
 └── <profile-UUID>.json            # 由 sidecar 推导的客户端子集
 ```
 
-双边存储并不意味着两侧可以任意漂移。系统以 Claude 侧 profile 元数据作为主索引，并在激活、网关启动和状态检查前执行探测：Claude 条目消失时，本地孤儿 sidecar 会被移除；Claude 出现未关联条目时，系统建立 `readOnly` 镜像；条目仍存在但 Claude 文件缺失时，系统从 sidecar 重新推导文件。创建和条目修改会立即生成相应的 Claude 数据，激活只负责一致性检查和切换 `appliedId`，不与网关进程耦合。由此，Claude 侧决定"当前存在哪些可供客户端使用的 profile"，Harbor 侧决定"这些受管 profile 应当如何生成和路由"，两侧职责明确而又通过 UUID 保持对应。
+双边存储并不意味着两侧可以任意漂移。系统以 Claude 侧 profile 元数据作为主索引，并在激活、网关启动和状态检查前执行探测：Claude 条目消失时，本地孤儿 sidecar 会被移除；Claude 出现未关联条目时，系统建立 `readOnly` 镜像（索引存在但文件缺失的悬空条目则跳过并告警，不阻断流程）；条目仍存在但 Claude 文件缺失时，系统从 sidecar 重新推导文件。创建和条目修改会立即生成相应的 Claude 数据，激活只负责一致性检查和切换 `appliedId`，不与网关进程耦合。由此，Claude 侧决定"当前存在哪些可供客户端使用的 profile"，Harbor 侧决定"这些受管 profile 应当如何生成和路由"，两侧职责明确而又通过 UUID 保持对应。
 
 #### 2.3 别名即档位与自由路由
 
