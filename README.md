@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.2.1 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
+版本：0.2.2 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
 
 ## 摘要
 
@@ -127,7 +127,7 @@ ui/
 └── shared/ipc.ts          # 通道契约
 ```
 
-主要能力：概览页显示当前激活配置、网关开关与建议条目；供应商与配置文件页提供完整的增删改查；用量页同步官方账本并以热力图呈现；设置页包含主题（浅色 / 深色 / 跟随系统）、语言、头像、开机自启与"关闭窗口后驻留后台"开关。欢迎区每小时轮换一只像素小猫，点击可触发眨眼或摇尾巴动画。
+主要能力：概览页显示按时段问候语、建议条目与错误通知条；供应商与配置文件页提供完整的增删改查，档案页内置网关开关与激活切换；用量页同步官方账本，以热力图与按天图表（柱状/表格两种视图）呈现，悬停热力图格子可查看该时段明细；设置页包含主题（浅色 / 深色 / 跟随系统）、语言、头像、开机自启与"关闭窗口后驻留后台"开关。欢迎区每小时轮换一只像素小猫，点击可触发眨眼或摇尾巴动画。
 
 打包使用 electron-builder：`npm run pack` 产出未压缩目录便于检查，`npm run dist` 产出 macOS 的 dmg/zip 与 Windows 的 NSIS 安装包。
 
@@ -145,7 +145,7 @@ ui/
 
 ### 5. 验证方法
 
-验证分为纯函数测试、文件系统测试、真实 socket 集成测试、隔离安装验收和 macOS 客户端联调。纯函数与文件系统测试覆盖 UUID 索引、原子写入、权限、校验和双侧生命周期；网关测试使用本地假上游检查鉴权、模型改写、查询保留、JSON/SSE 透传、错误矩阵和客户端断连；隔离安装验收通过安装后的 `claudeharbor` 命令完成双供应商建库、profile 创建、路由添加、激活、模型发现和实际 HTTP 转发。当前测试命令包含 417 项用例，macOS 上 413 项通过、0 项失败、4 项跳过；类型检查无错误。真机联调已覆盖模型发现、真实对话、多供应商调用、工作流子智能体以及按"最便宜"要求选择 haiku 档位的行为，但这些结论仍受当前 Claude Desktop 版本约束，客户端升级后应重新验证。Windows 侧的路径探测、`%APPDATA%` 壳判定、权限降级与 rename 重试已由隔离测试覆盖，真机验收项见 [docs/windows-port.md](docs/windows-port.md)。
+验证分为纯函数测试、文件系统测试、真实 socket 集成测试、隔离安装验收和 macOS 客户端联调。纯函数与文件系统测试覆盖 UUID 索引、原子写入、权限、校验和双侧生命周期；网关测试使用本地假上游检查鉴权、模型改写、查询保留、JSON/SSE 透传、错误矩阵和客户端断连；隔离安装验收通过安装后的 `claudeharbor` 命令完成双供应商建库、profile 创建、路由添加、激活、模型发现和实际 HTTP 转发。当前测试命令包含 428 项用例，macOS 上 424 项通过、0 项失败、4 项跳过；类型检查无错误。真机联调已覆盖模型发现、真实对话、多供应商调用、工作流子智能体以及按"最便宜"要求选择 haiku 档位的行为，但这些结论仍受当前 Claude Desktop 版本约束，客户端升级后应重新验证。Windows 侧的路径探测、`%APPDATA%` 壳判定、权限降级与 rename 重试已由隔离测试覆盖，真机验收项见 [docs/windows-port.md](docs/windows-port.md)。
 
 ### 6. 后续优化空间
 
@@ -208,7 +208,7 @@ node bin/claudeharbor.ts activate MyGateway
 node bin/claudeharbor.ts gateway-run MyGateway
 ```
 
-保持 `gateway-run` 所在终端运行，然后启动 Claude Desktop 并选择已激活的 profile。`activate` 只切换配置，不启动网关；按 `Ctrl-C` 停止网关。使用桌面端时，网关的启停与激活切换可在概览页直接完成。
+保持 `gateway-run` 所在终端运行，然后启动 Claude Desktop 并选择已激活的 profile。`activate` 只切换配置，不启动网关；按 `Ctrl-C` 停止网关。使用桌面端时，网关的启停与激活切换可在档案页直接完成。
 
 ### 附录 B：命令接口
 
@@ -268,6 +268,12 @@ npm run typecheck
 
 ### 更新日志
 
+#### v0.2.2
+
+- 用量页改版：热力图右侧新增与图等高的总使用量卡（输入 / 输出 / 缓存读 / 调用次数 / 网页搜索），悬停格子即切换为该时段明细；新增"按天用量"图表（7 / 30 / 90 天，柱状与表格两种视图，悬停显示分类明细）；移除底部额度区与设置页相关入口。
+- 维护性清理：移除死工具函数、不可达的排序与开关事件链路、约 180 条零引用 CSS 规则与 65 个孤儿 i18n 文案；设置页删除未接线的"侧边栏用量""系统通知"与存储管理按钮。
+- 文案：错误信息不再直接透出内部异常原文；鉴权方案、档案类型等枚举值改为中文用户文案；统一"档案 / 供应商 / 网关路由"术语。
+
 #### v0.2.1
 
 - 档案页：模型与 Claude 透传的“添加”按钮统一到标题行右侧；透传改为行内“项/值”草稿，支持任意键名，值按 JSON 解析。
@@ -299,7 +305,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.2.1 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
+**Version: 0.2.2 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
 
 ### 1. Introduction
 
@@ -359,7 +365,7 @@ Creation, route edits, renaming, deletion, activation, and gateway startup have 
 
 #### 2.6 The Shipcat desktop app
 
-Shipcat is an Electron shell that calls the public APIs of `core/index.ts` directly instead of duplicating profile or routing logic, so the CLI and the GUI share the same consistency gates and lifecycle rules. The UI and the kernel communicate through the channel contract in `ui/shared/ipc.ts`; the main process (`ui/main/`) owns the gateway lifecycle, file dialogs, weather queries, and system capabilities, while the renderer (`ui/renderer/`) is organized by page module: overview, providers, profiles, usage, settings, shell components (sidebar, menus, dialogs, a pixel-art kitten mascot), navigation/theme state, and a greeting generator that rotates time-, weather-, holiday-, and kitten-themed greetings. The overview page shows the active profile, hosts the gateway toggle, and hourly rotates one of several pixel kittens that blink or wag their tail when clicked. Packaging uses electron-builder (`npm run pack` for an unpacked directory, `npm run dist` for macOS dmg/zip and Windows NSIS installers).
+Shipcat is an Electron shell that calls the public APIs of `core/index.ts` directly instead of duplicating profile or routing logic, so the CLI and the GUI share the same consistency gates and lifecycle rules. The UI and the kernel communicate through the channel contract in `ui/shared/ipc.ts`; the main process (`ui/main/`) owns the gateway lifecycle, file dialogs, weather queries, and system capabilities, while the renderer (`ui/renderer/`) is organized by page module: overview, providers, profiles, usage, settings, shell components (sidebar, menus, dialogs, a pixel-art kitten mascot), navigation/theme state, and a greeting generator that rotates time-, weather-, holiday-, and kitten-themed greetings. The overview page shows time-based greetings, suggestions, and an error banner; the providers and profiles pages offer full CRUD, and the profiles page hosts the gateway toggle and activation switching. The usage page syncs the official ledger and presents it as a heatmap plus a per-day chart (bar or table view), with per-cell detail on hover. Settings include theme (light / dark / system), language, avatar, launch-at-login, and "keep running after window close". The welcome area rotates an hourly pixel kitten that blinks or wags its tail when clicked. Packaging uses electron-builder (`npm run pack` for an unpacked directory, `npm run dist` for macOS dmg/zip and Windows NSIS installers).
 
 ### 3. Modes and boundaries
 
@@ -375,7 +381,7 @@ Local validation and routing failures produce explicit Anthropic-shaped errors; 
 
 ### 5. Verification
 
-Verification covers pure functions, filesystem behavior, real-socket gateway integration, isolated installation, and macOS client integration. Tests exercise UUID indexes, atomic writes, permissions, lifecycle reconciliation, authentication, model rewriting, query preservation, JSON/SSE relay, error handling, and client cancellation. The isolated installation test uses the installed CLI to configure two providers, create and activate a profile, discover models, and forward a real HTTP request to a local fake upstream. The current suite reports 417 tests: 413 pass with four skipped and zero failures on macOS; type checking completes without errors. Client integration has covered model discovery, conversation, multiple providers, workflow subagents, and haiku-tier selection, but compatibility remains tied to the tested Claude Desktop version. Windows data-root discovery, `%APPDATA%` shell detection, permission degradation, and rename retries are covered by isolated tests; the real-machine checklist is in [docs/windows-port.md](docs/windows-port.md).
+Verification covers pure functions, filesystem behavior, real-socket gateway integration, isolated installation, and macOS client integration. Tests exercise UUID indexes, atomic writes, permissions, lifecycle reconciliation, authentication, model rewriting, query preservation, JSON/SSE relay, error handling, and client cancellation. The isolated installation test uses the installed CLI to configure two providers, create and activate a profile, discover models, and forward a real HTTP request to a local fake upstream. The current suite reports 428 tests: 424 pass with four skipped and zero failures on macOS; type checking completes without errors. Client integration has covered model discovery, conversation, multiple providers, workflow subagents, and haiku-tier selection, but compatibility remains tied to the tested Claude Desktop version. Windows data-root discovery, `%APPDATA%` shell detection, permission degradation, and rename retries are covered by isolated tests; the real-machine checklist is in [docs/windows-port.md](docs/windows-port.md).
 
 ### 6. Future work
 
@@ -419,7 +425,7 @@ claudeharbor --help
 
 Moving to another computer or repository directory requires no source changes: run `node bin/claudeharbor.ts` from the repository root, and data roots are derived for the current user and OS. On Windows, run `node bin/claudeharbor.ts paths` first and use `--claude-root <Claude-3p directory>` if auto-detection fails. Never commit a real `~/.claudeharbor`, Claude-3p data directory, or Usage mirror; they contain credentials, user paths, or usage records.
 
-Quit Claude Desktop before changing profiles. After configuring providers and routes, run `claudeharbor profile check <profile>`, `claudeharbor activate <profile>`, and `claudeharbor gateway-run <profile>`. Keep the gateway terminal running while using an advanced profile. With the desktop app, gateway start/stop and activation switching are available directly on the overview page. Public core APIs are exported through `core/index.ts`: `platform`, `paths`, `fs`, `providers`, `profiles`, `generate`, `claudeMeta`, `check`, `validate`, `gateway`, and `usage`.
+Quit Claude Desktop before changing profiles. After configuring providers and routes, run `claudeharbor profile check <profile>`, `claudeharbor activate <profile>`, and `claudeharbor gateway-run <profile>`. Keep the gateway terminal running while using an advanced profile. With the desktop app, gateway start/stop and activation switching are available directly on the profiles page. Public core APIs are exported through `core/index.ts`: `platform`, `paths`, `fs`, `providers`, `profiles`, `generate`, `claudeMeta`, `check`, `validate`, `gateway`, and `usage`.
 
 For development, run `npm ci` once to install development dependencies; this is unnecessary when only running the CLI.
 
@@ -429,6 +435,12 @@ npm run typecheck
 ```
 
 ### Changelog
+
+#### v0.2.2
+
+- Usage page rework: a total-usage card as tall as the heatmap now sits on its right (input / output / cache read / request count / web searches), switching to that cell's detail on hover; a new "tokens per day" chart offers 7 / 30 / 90-day ranges with bar and table views and hover breakdowns; the quota section and its settings entries are removed.
+- Maintenance: removed dead utility exports, unreachable sort/toggle event chains, about 180 orphaned CSS rules, and 65 unused i18n strings; the settings page drops the unwired "usage in sidebar", "notifications", and storage-manage entries.
+- Copy: internal error text no longer surfaces raw exceptions; enum values such as auth scheme and profile type now render as user-facing labels; terminology unified to "profile / provider / gateway routing".
 
 #### v0.2.1
 
