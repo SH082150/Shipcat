@@ -54,6 +54,11 @@ export async function runGatewayRun(
   const pOpts = opts.home === undefined ? undefined : { home: opts.home };
 
   const core = (await import("../core/index.ts")) as Record<string, unknown>;
+  const claudeBlock = core.claudeBlock as
+    | {
+        readCustomHeaders(claude?: Record<string, unknown>): Record<string, string> | undefined;
+      }
+    | undefined;
   const profiles = core.profiles as
     | { get(idOrName: string, o?: { home?: string }): unknown }
     | undefined;
@@ -140,7 +145,7 @@ export async function runGatewayRun(
       token: profile.gatewayToken,
       entries,
       resolveProvider,
-      customHeaders: profile.claude?.inferenceCustomHeaders,
+      customHeaders: claudeBlock?.readCustomHeaders?.(profile.claude),
     });
   } catch (err) {
     console.error(`错误：网关启动失败：${err instanceof Error ? err.message : String(err)}`);

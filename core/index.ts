@@ -10,6 +10,7 @@ export * as providers from "./archive/providers/index.ts";
 export * as profiles from "./archive/profiles/index.ts";
 export * as generate from "./archive/generate/index.ts";
 export * as claudeMeta from "./archive/claude-meta/index.ts";
+export * as claudeBlock from "./archive/claude-block/index.ts";
 export * as check from "./check/index.ts";
 export * as fs from "./archive/fs/index.ts";
 export * as paths from "./archive/paths/index.ts";

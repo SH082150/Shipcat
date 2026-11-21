@@ -20,7 +20,7 @@ import type { HarborPaths } from "../paths/index.ts";
 import { atomicWriteJson, NORMAL_MODE, readJson, SECRET_MODE } from "../fs/index.ts";
 import { list as listProviders, getById } from "../providers/index.ts";
 import { generateDesktopProfile } from "../generate/index.ts";
-import { normalizeClaudeBlock } from "../claude-fields/index.ts";
+import { normalizeClaudeBlock } from "../claude-block/index.ts";
 import {
   removeEntry as claudeMetaRemoveEntry,
   upsertEntry as claudeMetaUpsertEntry,

@@ -79,64 +79,13 @@ interface ProfileBase {
 }
 
 /**
- * Claude 透传块：所有已验证的 Desktop profile 级字段，键名与 Desktop
- * 完全一致，全部可选（不设不存）。由 CLI 管理的键
- * （inferenceProvider / inferenceCredentialKind / inferenceGatewayBaseUrl /
- * inferenceGatewayApiKey / inferenceGatewayAuthScheme / inferenceModels）
- * 不属于这里，生成时被覆盖。
+ * Claude 透传块：Desktop profile 级的附加字段，原样合并进生成的 profile。
+ * 键名不做枚举——3p 客户端升级随时可能新增字段，本程序不维护字段目录；
+ * CLI 管理的键（inferenceProvider / inferenceCredentialKind /
+ * inferenceGatewayBaseUrl / inferenceGatewayApiKey /
+ * inferenceGatewayAuthScheme / inferenceModels）由生成器覆盖。
  */
-export interface ClaudePassthrough {
-  /** 流式响应只发 keep-alive 时的额外等待秒数；Desktop 默认 300。 */
-  readonly inferenceStreamIdleTimeoutSec?: number;
-  /** 每个模型请求额外携带的头。 */
-  readonly inferenceCustomHeaders?: Record<string, string>;
-  /** 工件/文件预览加载的 HTTPS origin（Artifact preview iframe origin）。 */
-  readonly userContentRendererUrl?: string;
-  /** 以网关模式运行 Claude Code（gateway provider only）。 */
-  readonly inferenceGatewayManagedClaudeCode?: boolean;
-  /** 发送会话细节供服务端 Auto 模式检查。 */
-  readonly inferenceGatewayAutoModeServerChecks?: boolean;
-  /** 模型目录优先 1M 上下文变体。 */
-  readonly modelPrefer1mContext?: boolean;
-  /** 模型未单独设 maxEffort 时的默认思考强度。 */
-  readonly defaultModelEffort?: "low" | "medium" | "high" | "xhigh" | "max";
-  /** 新会话总是从默认模型开始。 */
-  readonly alwaysStartWithDefaultModel?: boolean;
-  /** 启用模型定价。 */
-  readonly inferenceModelPricingEnabled?: boolean;
-  /** 定价倍率 0–1。 */
-  readonly inferenceModelPricingMultiplier?: number;
-  /** 按模型 ID 的定价表。 */
-  readonly inferenceModelPricing?: readonly Record<string, unknown>[];
-  /** 模型目录地址（必须 HTTPS）。 */
-  readonly modelCatalogUrl?: string;
-  /** 出口代理地址。 */
-  readonly egressProxyUrl?: string;
-  /** 出口代理 PAC 地址。 */
-  readonly egressProxyPacUrl?: string;
-  /** Cowork 虚拟机 IPv6。 */
-  readonly coworkVmIpv6Enabled?: boolean;
-  /** 隐藏部署模式选择器。 */
-  readonly disableDeploymentModeChooser?: boolean;
-  /** 部署显示名。 */
-  readonly deploymentDisplayName?: string;
-  /** 桌面主页模式。 */
-  readonly desktopHome?: string;
-  /** SSH 传输方式。 */
-  readonly sshTransport?: string;
-  /** 工具搜索。 */
-  readonly toolSearchEnabled?: boolean;
-  /** 跳过 web_fetch 预检。 */
-  readonly skipWebFetchPreflight?: boolean;
-  /** 内置浏览器。 */
-  readonly builtinBrowserEnabled?: boolean;
-  /** 桌面扩展。 */
-  readonly isDesktopExtensionEnabled?: boolean;
-  /** cowork 出口白名单。 */
-  readonly coworkEgressAllowedHosts?: readonly string[];
-  /** Claude.ai 导入。 */
-  readonly claudeAiImport?: { enabled?: boolean; exportEnabled?: boolean };
-}
+export type ClaudePassthrough = Record<string, unknown>;
 
 /**
  * 标准配置：直连，不启动本地网关。有且仅有一个供应商（所有条目的

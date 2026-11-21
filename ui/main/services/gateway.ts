@@ -48,14 +48,13 @@ export class GatewayService {
     };
 
     try {
+      const customHeaders = core.claudeBlock.readCustomHeaders(profile.claude);
       const handle = await core.gateway.startGateway({
         port: profile.port,
         token: profile.gatewayToken,
         entries,
         resolveProvider,
-        ...(profile.claude?.inferenceCustomHeaders === undefined
-          ? {}
-          : { customHeaders: profile.claude.inferenceCustomHeaders }),
+        ...(customHeaders === undefined ? {} : { customHeaders }),
       });
       this.handle = handle as Handle;
       this.emit({ running: true, profileId: profileIdOrName, port: handle.port });

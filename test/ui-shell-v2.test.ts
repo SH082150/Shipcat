@@ -147,7 +147,7 @@ test("page contract: 详情、字段弹窗与热力图导出满足 shell 适配�
 
   assert.equal(typeof providersPage.renderDetail, "function");
   assert.equal(typeof profilesPage.renderDetail, "function");
-  assert.equal(typeof profilesPage.createFieldModal, "function");
+  assert.equal(typeof profilesPage.renderClaudeFieldEntry, "function");
   assert.equal(typeof usagePage.renderHeatmap, "function");
 
   const provider = providersPage.DEMO_PROVIDERS[0];
@@ -230,7 +230,7 @@ test("app shell v2: 详情路由与通用页面动作接线，且保留侧栏状
   assert.match(app, /providersModule,\s*"renderDetail"/);
   assert.match(app, /profilesModule,\s*"renderDetail"/);
   assert.match(app, /renderer\(context, detailId\)/);
-  assert.match(app, /profilesModule,\s*"createFieldModal"/);
+  assert.match(app, /renderClaudeFieldEntry/);
   assert.match(app, /usageModule,\s*"renderHeatmap"/);
   assert.match(app, /case "toggle":/);
   assert.match(app, /case "search-toggle":/);

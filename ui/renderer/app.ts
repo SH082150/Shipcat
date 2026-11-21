@@ -79,8 +79,11 @@ import { PROVIDER_CREATE_ID, render as renderProviders } from "./pages/providers
 import * as providersModule from "./pages/providers.ts";
 import {
   PROFILE_CREATE_ID,
+  claudeEmptyText,
+  modelsEmptyText,
   render as renderProfiles,
   renderAddModelEntry,
+  renderClaudeFieldEntry,
 } from "./pages/profiles.ts";
 import type {
   ProfileDraft,
@@ -124,12 +127,6 @@ interface DetailRenderer {
   (context: PageContext, id: string, detail?: unknown, providers?: unknown): unknown;
 }
 
-type FieldModalFactory = (options?: {
-  language?: Language;
-  onAdd?: (field: { key: string; value: string }) => void;
-  onClose?: () => void;
-}) => unknown;
-
 interface HeatmapRenderer {
   (range: string): unknown;
 }
@@ -149,11 +146,6 @@ const DETAIL_RENDERERS: Readonly<Partial<Record<PageId, DetailRenderer | null>>>
   providers: resolvePageExport<DetailRenderer>(providersModule, "renderDetail"),
   profiles: resolvePageExport<DetailRenderer>(profilesModule, "renderDetail"),
 };
-
-const createFieldModal = resolvePageExport<FieldModalFactory>(
-  profilesModule,
-  "createFieldModal",
-);
 
 const renderHeatmap = resolvePageExport<HeatmapRenderer>(usageModule, "renderHeatmap");
 
@@ -214,9 +206,6 @@ let clientInfo: ClientInfo = withCustomName(localClientInfo);
 let menuOpen = false;
 let settingsOverlay: HTMLElement | null = null;
 let languageOverlay: HTMLElement | null = null;
-let fieldModal: HTMLElement | null = null;
-let disposeFieldTrap: (() => void) | null = null;
-let fieldRestore: HTMLElement | null = null;
 let confirmOverlay: HTMLElement | null = null;
 let disposeConfirmTrap: (() => void) | null = null;
 let disposeLanguageTrap: (() => void) | null = null;
@@ -537,6 +526,17 @@ root.addEventListener("click", (event) => {
       if (profileId && key) void removeClaudeField(profileId, key);
       return;
     }
+    case "remove-claude-draft": {
+      event.preventDefault();
+      const entry = actionable.closest<HTMLElement>('[data-role="claude-field-entry"]');
+      const host = entry?.closest<HTMLElement>('[data-role="page-profile-detail"]');
+      entry?.remove();
+      if (host) {
+        syncClaudeCount(host);
+        restoreClaudeEmpty(host);
+      }
+      return;
+    }
     case "delete-profile": {
       const profileId = actionable.dataset.profileId?.trim() ?? route.detailId ?? "";
       const name = workspace.querySelector<HTMLElement>(".profile-detail-heading h1")?.textContent ?? "该档案";
@@ -567,6 +567,10 @@ root.addEventListener("click", (event) => {
       appendAddModelEntry();
       return;
     }
+    case "add-model": {
+      appendDetailModelEntry();
+      return;
+    }
     case "remove-profile-model": {
       event.preventDefault();
       const item = actionable.closest<HTMLElement>('[data-role="model-item"]');
@@ -590,12 +594,15 @@ root.addEventListener("click", (event) => {
     }
     case "remove-add-model": {
       event.preventDefault();
-      const pageElement = workspace.querySelector<HTMLElement>('[data-role="page-profile-add"]');
       const entry = actionable.closest<HTMLElement>('[data-role="profile-add-model-entry"]');
+      const host = entry?.closest<HTMLElement>(
+        '[data-role="page-profile-add"], [data-role="page-profile-detail"]',
+      );
       entry?.remove();
-      const count = pageElement?.querySelectorAll('[data-role="profile-add-model-entry"]').length ?? 0;
-      const counter = pageElement?.querySelector<HTMLElement>('[data-role="profile-add-model-count"]');
-      if (counter) counter.textContent = `${count} ${language === "zh" ? "项" : "items"}`;
+      if (host) {
+        syncModelCount(host);
+        restoreModelsEmpty(host);
+      }
       return;
     }
     case "save-provider":
@@ -675,7 +682,7 @@ root.addEventListener("click", (event) => {
       return;
     }
     case "add-field": {
-      handleAddField(actionable);
+      appendClaudeFieldEntry();
       return;
     }
     case "add-provider": {
@@ -724,12 +731,6 @@ root.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.defaultPrevented) return;
   const primary = event.metaKey || event.ctrlKey;
-
-  if (event.key === "Escape" && fieldModal && !settingsOverlay) {
-    event.preventDefault();
-    closeFieldModal();
-    return;
-  }
 
   if (primary && event.key === ",") {
     event.preventDefault();
@@ -820,7 +821,6 @@ window.addEventListener("hashchange", () => {
   route = next;
   page = next.page;
   menuOpen = false;
-  closeFieldModal();
   renderSidebarView();
   void renderWorkspace(true);
   syncChrome();
@@ -832,7 +832,6 @@ window.addEventListener("beforeunload", () => {
   if (typeof disposeGatewayStatus === "function") disposeGatewayStatus();
   if (greetingTimer !== null) window.clearInterval(greetingTimer);
   if (mascotTimer !== null) window.clearTimeout(mascotTimer);
-  closeFieldModal();
   disposeLanguageTrap?.();
   disposeLanguageTrap = null;
   languageOverlay?.remove();
@@ -1232,67 +1231,6 @@ function closeSortMenu(): boolean {
   return true;
 }
 
-function handleAddField(trigger?: HTMLElement): void {
-  closeFieldModal();
-  if (!createFieldModal) return;
-  const profileId = route.detailId;
-  if (!profileId) return;
-
-  let created: unknown;
-  try {
-    created = createFieldModal({
-      language,
-      onAdd: (field) => {
-        void addClaudeField(profileId, field);
-      },
-    });
-  } catch {
-    return;
-  }
-
-  const node = toModalNode(created);
-  if (!node) return;
-
-  node.dataset.modal = "field";
-  fieldModal = node;
-  fieldRestore = trigger ?? null;
-  document.body.appendChild(node);
-  disposeFieldTrap = trapFocus(node, { initialFocus: '[data-role="field-key"]' });
-}
-
-function toModalNode(value: unknown): HTMLElement | null {
-  if (value === null || value === undefined) return null;
-  if (value instanceof HTMLElement) return value;
-  if (typeof value === "string") {
-    const host = document.createElement("div");
-    host.className = "modal-host";
-    host.innerHTML = value;
-    return host;
-  }
-  if (value instanceof Node) {
-    const host = document.createElement("div");
-    host.className = "modal-host";
-    host.appendChild(value);
-    return host;
-  }
-  return null;
-}
-
-function closeFieldModal(): void {
-  disposeFieldTrap?.();
-  disposeFieldTrap = null;
-  if (fieldModal && !fieldModal.isConnected) {
-    fieldModal = null;
-    fieldRestore = null;
-    return;
-  }
-  fieldModal?.remove();
-  fieldModal = null;
-  const restore = fieldRestore;
-  fieldRestore = null;
-  restore?.focus();
-}
-
 function handleUsageRange(button: HTMLElement): void {
   const range = button.dataset.usageRange?.trim();
   if (!range) return;
@@ -1346,7 +1284,6 @@ function navigateRoute(next: Route, focusNav: boolean): void {
   route = normalized;
   page = normalized.page;
   menuOpen = false;
-  closeFieldModal();
 
   const hash = routeHash(route);
   if (window.location.hash !== hash) {
@@ -1489,6 +1426,29 @@ async function submitProfileForm(creating: boolean): Promise<void> {
     const profileId = route.detailId;
     const page = workspace.querySelector<HTMLElement>('[data-role="page-profile-detail"]');
     if (!profileId || !page) return;
+    const newModels = [...page.querySelectorAll<HTMLElement>('[data-role="profile-add-model-entry"]')].map(
+      readModelForm,
+    );
+    if (newModels.some((model) => model.name.length === 0)) {
+      showFloatingNotice({ title: "请填写模型 ID", tone: "danger" });
+      return;
+    }
+    const claudeDrafts = [...page.querySelectorAll<HTMLElement>('[data-role="claude-field-entry"]')].map(
+      (row) => ({
+        key: row.querySelector<HTMLInputElement>('[data-field="claudeKey"]')?.value.trim() ?? "",
+        value: row.querySelector<HTMLInputElement>('[data-field="claudeValue"]')?.value ?? "",
+      }),
+    );
+    if (claudeDrafts.some((draft) => draft.key.length === 0)) {
+      showFloatingNotice({ title: "请填写项目名称", tone: "danger" });
+      return;
+    }
+    if (claudeDrafts.length > 0) {
+      const detail = await profilesApi.get(profileId);
+      const merged: Record<string, unknown> = { ...(detail.claude ?? {}) };
+      for (const draft of claudeDrafts) merged[draft.key] = draft.value;
+      await profilesApi.update(profileId, { claude: merged });
+    }
     if (page.dataset.mode === "advanced") {
       const portRaw = page.querySelector<HTMLInputElement>('[data-field="port"]')?.value.trim() ?? "";
       const gatewayToken = page.querySelector<HTMLInputElement>('[data-field="gatewayToken"]')?.value ?? "";
@@ -1509,28 +1469,14 @@ async function submitProfileForm(creating: boolean): Promise<void> {
       const model = readModelForm(item);
       await profilesApi.updateModel(profileId, previousName, model);
     }
+    for (const model of newModels) {
+      await profilesApi.addModel(profileId, model);
+    }
     showFloatingNotice({ title: "已保存档案", tone: "success" });
     await renderWorkspace();
   } catch (error) {
     showFloatingNotice({
       title: creating ? "添加档案失败" : "保存档案失败",
-      message: error instanceof Error ? error.message : String(error),
-      tone: "danger",
-    });
-  }
-}
-
-async function addClaudeField(profileId: string, field: { key: string; value: string }): Promise<void> {
-  try {
-    const detail = await profilesApi.get(profileId);
-    await profilesApi.update(profileId, {
-      claude: { ...(detail.claude ?? {}), [field.key]: field.value },
-    });
-    showFloatingNotice({ title: "已添加透传字段", tone: "success" });
-    await renderWorkspace();
-  } catch (error) {
-    showFloatingNotice({
-      title: "添加透传字段失败",
       message: error instanceof Error ? error.message : String(error),
       tone: "danger",
     });
@@ -1606,20 +1552,91 @@ function openConfirmDialog(options: ConfirmDialogOptions): void {
 
 let profileProviderCache: readonly ProviderOption[] = [];
 
+function countLabel(count: number): string {
+  return `${count} ${language === "zh" ? "项" : "items"}`;
+}
+
+/** 同步模型区计数：新建页数空白条目，编辑页数已有模型卡片 + 待保存条目。 */
+function syncModelCount(host: HTMLElement): void {
+  const detail = host.dataset.role === "page-profile-detail";
+  const selector = detail
+    ? '[data-role="model-item"], [data-role="profile-add-model-entry"]'
+    : '[data-role="profile-add-model-entry"]';
+  const counter = host.querySelector<HTMLElement>(
+    detail ? '[data-role="profile-detail-model-count"]' : '[data-role="profile-add-model-count"]',
+  );
+  if (counter) counter.textContent = countLabel(host.querySelectorAll(selector).length);
+}
+
+/** 编辑页删掉最后一个待保存条目后，把“还没有模型”的空状态补回来。 */
+function restoreModelsEmpty(host: HTMLElement): void {
+  if (host.dataset.role !== "page-profile-detail") return;
+  const list = host.querySelector<HTMLElement>(".profile-models");
+  if (!list || list.children.length > 0) return;
+  list.insertAdjacentHTML(
+    "beforeend",
+    `<div class="profiles-gutter"><p class="profile-models-empty">${modelsEmptyText(language)}</p></div>`,
+  );
+}
+
 function appendAddModelEntry(): void {
   const pageElement = workspace.querySelector<HTMLElement>('[data-role="page-profile-add"]');
   const list = pageElement?.querySelector<HTMLElement>('[data-role="profile-add-model-list"]');
-  if (!list) return;
+  if (!pageElement || !list) return;
   const index = list.querySelectorAll('[data-role="profile-add-model-entry"]').length;
   list.insertAdjacentHTML("beforeend", renderAddModelEntry(index, language, profileProviderCache));
-  const counter = pageElement?.querySelector<HTMLElement>('[data-role="profile-add-model-count"]');
-  if (counter) {
-    counter.textContent = `${index + 1} ${language === "zh" ? "项" : "items"}`;
-  }
+  syncModelCount(pageElement);
   list
     .querySelector<HTMLElement>(`[data-model-index="${index}"]`)
     ?.querySelector<HTMLInputElement>('[data-field="modelName"]')
     ?.focus();
+}
+
+/** 编辑页插入空白模型条目：先落在页面上，点“保存修改”时才写入配置库。 */
+function appendDetailModelEntry(): void {
+  const pageElement = workspace.querySelector<HTMLElement>('[data-role="page-profile-detail"]');
+  const list = pageElement?.querySelector<HTMLElement>(".profile-models");
+  if (!pageElement || !list) return;
+  list.querySelector<HTMLElement>(".profile-models-empty")?.closest<HTMLElement>(".profiles-gutter")?.remove();
+  const index = list.children.length;
+  list.insertAdjacentHTML("beforeend", renderAddModelEntry(index, language, profileProviderCache));
+  syncModelCount(pageElement);
+  list
+    .querySelector<HTMLElement>(`[data-role="profile-add-model-entry"][data-model-index="${index}"]`)
+    ?.querySelector<HTMLInputElement>('[data-field="modelName"]')
+    ?.focus();
+}
+
+/** 同步 Claude 透传计数：已有条目 + 待保存草稿。 */
+function syncClaudeCount(host: HTMLElement): void {
+  const counter = host.querySelector<HTMLElement>('[data-role="profile-claude-count"]');
+  if (!counter) return;
+  const rows = host.querySelectorAll('[data-role="claude-field-row"], [data-role="claude-field-entry"]');
+  counter.textContent = countLabel(rows.length);
+}
+
+/** 删掉透传区最后一条后，把空状态文案补回来。 */
+function restoreClaudeEmpty(host: HTMLElement): void {
+  const list = host.querySelector<HTMLElement>('[data-role="profile-claude-list"]');
+  if (!list || list.children.length > 0) return;
+  list.insertAdjacentHTML(
+    "beforeend",
+    `<p class="profile-claude-empty">${claudeEmptyText(language)}</p>`,
+  );
+}
+
+/** 编辑页插入透传草稿行：左项右值，点“保存修改”时才合并进 claude 块。 */
+function appendClaudeFieldEntry(): void {
+  const pageElement = workspace.querySelector<HTMLElement>('[data-role="page-profile-detail"]');
+  const list = pageElement?.querySelector<HTMLElement>('[data-role="profile-claude-list"]');
+  if (!pageElement || !list) return;
+  list.querySelector<HTMLElement>(".profile-claude-empty")?.remove();
+  list.insertAdjacentHTML("beforeend", renderClaudeFieldEntry(language));
+  syncClaudeCount(pageElement);
+  const inputs = list.querySelectorAll<HTMLInputElement>(
+    '[data-role="claude-field-entry"] [data-field="claudeKey"]',
+  );
+  inputs[inputs.length - 1]?.focus();
 }
 
 function openSettings(detail: OpenSettingsDetail): void {

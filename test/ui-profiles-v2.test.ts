@@ -1,5 +1,5 @@
 /**
- * 渲染函数只返回字符串，弹窗用最小 DOM 桩驱动。
+ * 渲染函数只返回字符串；交互由 app.ts 的事件委托处理。
  */
 
 import assert from "node:assert/strict";
@@ -11,7 +11,7 @@ import type { ClientInfo } from "../ui/renderer/components/events.ts";
 import type { PageContext } from "../ui/renderer/pages/types.ts";
 import {
   PROFILES_STYLESHEET,
-  createFieldModal,
+  renderClaudeFieldEntry,
   demoProfiles,
   parseProfileRoute,
   profileHref,
@@ -104,10 +104,12 @@ test("添加档案页：模型区是标题行+右侧按钮，点击后插入空�
 
   // 模型区初始只有标题行与右侧“添加模型”按钮，不预置标题条目。
   assert.match(html, /<h2 id="profile-create-models">模型<\/h2>/);
-  assert.match(html, /data-role="profile-add-model-count">0 项<\/span>/);
-  assert.match(html, /data-action="add-profile-model"/);
+  assert.match(
+    html,
+    /<div class="profile-section-tools">\s*<span class="profile-count" data-role="profile-add-model-count">0 项<\/span>\s*<button type="button" class="profile-button profile-button--ghost profile-section-action" data-action="add-profile-model">/,
+  );
   assert.match(html, /data-role="profile-add-model-list"><\/div>/);
-  assert.match(html, /class="profile-button profile-button--dashed profile-add-model"/);
+  assert.doesNotMatch(html, /profile-button--dashed/);
   assert.doesNotMatch(html, /未命名模型/);
 
   // 空白条目由按钮插入，供应商为现有供应商下拉。
@@ -303,15 +305,54 @@ test("profiles v2 详情：返回、名称、类型、状态、模式与高级�
   assert.match(html, /data-field="gatewayAuthScheme"/);
   assert.match(html, /4318/);
 
-  assert.ok(buttonTag(html, "add-field").length > 0, "右上角需要添加条目");
-  assert.match(buttonTag(html, "add-field"), /添加条目/);
-  assert.ok(!/disabled/.test(buttonTag(html, "add-field")), "高级配置的添加条目应可用");
+  assert.ok(buttonTag(html, "add-field").length > 0, "Claude 透传标题行需要添加项按钮");
+  assert.match(buttonTag(html, "add-field"), /添加项/);
+  assert.ok(!/disabled/.test(buttonTag(html, "add-field")), "高级配置的添加项应可用");
+  assert.match(html, /Claude 透传[\s\S]*?data-action="add-field"[\s\S]*?添加项/, "按钮应位于 Claude 透传标题行");
 
   assert.match(html, /data-role="savebar"/);
   assert.ok(buttonTag(html, "save-profile").length > 0);
   assert.match(buttonTag(html, "save-profile"), /保存修改/);
   assert.equal((html.match(/data-role="model-item"/g) ?? []).length, profile.models?.length ?? 0);
   assert.match(html, /添加模型/);
+});
+
+test("profiles v2 详情：模型区按钮在标题行最右侧，空状态提示还没有模型", () => {
+  const advanced = profileByMode("advanced");
+  const html = renderDetail(context("zh"), advanced.id);
+  assert.match(
+    html,
+    /<div class="profile-section-tools">\s*<span class="profile-count" data-role="profile-detail-model-count">2 项<\/span>\s*<button type="button" class="profile-button profile-button--ghost profile-section-action" data-action="add-model">/,
+  );
+
+  const emptyData: ProfilesDemo = {
+    ...demoProfiles,
+    profiles: [
+      ...demoProfiles.profiles,
+      { id: "prf-empty", name: "空档案", mode: "standard", applied: false, models: [] },
+    ],
+  };
+  const emptyHtml = renderDetail(context("zh"), "prf-empty", emptyData);
+  assert.match(emptyHtml, /data-role="profile-detail-model-count">0 项</);
+  assert.match(emptyHtml, /profile-models-empty">还没有模型</);
+  assert.doesNotMatch(emptyHtml, /profile-button--dashed/);
+});
+
+test("profiles v2 详情：透传区标题行有添加项，草稿行左项右值各半", () => {
+  const html = renderDetail(context("zh"), profileByMode("advanced").id);
+  assert.match(
+    html,
+    /<h2 id="profile-claude-title">Claude 透传<\/h2>[\s\S]*?<div class="profile-section-tools">\s*<span class="profile-count" data-role="profile-claude-count">0 项<\/span>\s*<button type="button" class="profile-button profile-button--ghost profile-section-action" data-action="add-field">/,
+  );
+  assert.match(html, /data-role="profile-claude-list"/);
+  assert.match(html, /profile-claude-empty">没有自定义透传字段。</);
+
+  const entry = renderClaudeFieldEntry("zh");
+  assert.match(entry, /data-role="claude-field-entry"/);
+  assert.match(entry, /class="profile-input profile-claude-input" type="text" data-field="claudeKey"/);
+  assert.match(entry, /class="profile-input profile-claude-input" type="text" data-field="claudeValue"/);
+  assert.match(entry, /data-action="remove-claude-draft"/);
+  assert.match(entry, /aria-label="删除条目"/);
 });
 
 test("profiles v2 详情：模型项可展开并包含按模式显示的字段", () => {
@@ -369,8 +410,8 @@ test("profiles v2 详情：readOnly 的所有控件 disabled，保存不可用",
   assert.match(inputTag(html, "supports1m"), /disabled/);
   assert.match(selectTag(html, "anthropicFamilyTier"), /disabled/);
   assert.match(selectTag(html, "maxEffort"), /disabled/);
-  assert.match(buttonTag(html, "add-field"), /disabled/);
   assert.match(buttonTag(html, "add-model"), /disabled/);
+  assert.equal(buttonTag(html, "add-field"), "", "只读档案没有透传区，也就没有添加项按钮");
   assert.match(buttonTag(html, "save-profile"), /disabled/);
 });
 
@@ -397,233 +438,10 @@ test("profiles v2 路由接口：profileHref / parseProfileRoute / 样式表路�
 });
 
 /* ------------------------------------------------------------------ */
-/* 最小 DOM 桩：只覆盖 createFieldModal 用到的接口                      */
+/* 宿主接线                                                            */
 /* ------------------------------------------------------------------ */
 
-type Init = Record<string, unknown>;
-type Listener = (event: FakeEvent) => void;
-
-class FakeEvent {
-  readonly type: string;
-  target: FakeElement | null = null;
-  currentTarget: FakeElement | null = null;
-  defaultPrevented = false;
-  propagationStopped = false;
-  key = "";
-
-  constructor(type: string, init: Init = {}) {
-    this.type = type;
-    Object.assign(this, init);
-  }
-
-  preventDefault(): void {
-    this.defaultPrevented = true;
-  }
-
-  stopPropagation(): void {
-    this.propagationStopped = true;
-  }
-}
-
-class FakeElement {
-  readonly tagName: string;
-  readonly ownerDocument: FakeDocument;
-  className = "";
-  textContent = "";
-  hidden = false;
-  tabIndex = -1;
-  disabled = false;
-  id = "";
-  type = "";
-  value = "";
-  checked = false;
-  placeholder = "";
-  parentNode: FakeElement | null = null;
-  children: FakeElement[] = [];
-  private attributes = new Map<string, string>();
-  private listeners = new Map<string, Listener[]>();
-
-  constructor(tag: string, ownerDocument: FakeDocument) {
-    this.tagName = tag.toUpperCase();
-    this.ownerDocument = ownerDocument;
-  }
-
-  get classList() {
-    const element = this;
-    const tokens = (): string[] => element.className.split(/\s+/).filter(Boolean);
-    return {
-      add(...values: string[]): void {
-        element.className = [...new Set([...tokens(), ...values])].join(" ");
-      },
-      remove(...values: string[]): void {
-        element.className = tokens()
-          .filter((token) => !values.includes(token))
-          .join(" ");
-      },
-      contains(token: string): boolean {
-        return tokens().includes(token);
-      },
-    };
-  }
-
-  setAttribute(name: string, value: string): void {
-    this.attributes.set(name, String(value));
-    if (name === "class") this.className = String(value);
-    if (name === "id") this.id = String(value);
-    if (name === "type") this.type = String(value);
-    if (name === "value") this.value = String(value);
-    if (name === "placeholder") this.placeholder = String(value);
-    if (name === "disabled") this.disabled = true;
-    if (name === "checked") this.checked = true;
-  }
-
-  getAttribute(name: string): string | null {
-    return this.attributes.get(name) ?? null;
-  }
-
-  hasAttribute(name: string): boolean {
-    return this.attributes.has(name);
-  }
-
-  appendChild<T extends FakeElement>(child: T): T {
-    child.parentNode = this;
-    this.children.push(child);
-    return child;
-  }
-
-  append(...nodes: (FakeElement | string)[]): void {
-    for (const node of nodes) {
-      if (typeof node === "string") {
-        this.textContent += node;
-      } else {
-        this.appendChild(node);
-      }
-    }
-  }
-
-  remove(): void {
-    if (!this.parentNode) return;
-    this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
-    this.parentNode = null;
-  }
-
-  addEventListener(type: string, listener: Listener): void {
-    const list = this.listeners.get(type) ?? [];
-    list.push(listener);
-    this.listeners.set(type, list);
-  }
-
-  removeEventListener(type: string, listener: Listener): void {
-    const list = this.listeners.get(type) ?? [];
-    this.listeners.set(
-      type,
-      list.filter((item) => item !== listener),
-    );
-  }
-
-  dispatchEvent(event: FakeEvent): boolean {
-    event.target = this;
-    let node: FakeElement | null = this;
-    while (node) {
-      event.currentTarget = node;
-      for (const listener of [...(node.listeners.get(event.type) ?? [])]) listener(event);
-      if (event.propagationStopped) break;
-      node = node.parentNode;
-    }
-    return !event.defaultPrevented;
-  }
-
-  click(): void {
-    this.dispatchEvent(new FakeEvent("click"));
-  }
-
-  focus(): void {
-    if (this.hidden || this.disabled) return;
-    this.ownerDocument.activeElement = this;
-  }
-}
-
-class FakeDocument {
-  readonly body: FakeElement;
-  activeElement: FakeElement;
-
-  constructor() {
-    this.body = new FakeElement("body", this);
-    this.activeElement = this.body;
-  }
-
-  createElement(tag: string): FakeElement {
-    return new FakeElement(tag, this);
-  }
-}
-
-function installDom(): FakeDocument {
-  const document = new FakeDocument();
-  (globalThis as Record<string, unknown>).document = document;
-  return document;
-}
-
-function uninstallDom(): void {
-  delete (globalThis as Record<string, unknown>).document;
-}
-
-function findAll(root: FakeElement, predicate: (element: FakeElement) => boolean): FakeElement[] {
-  const found: FakeElement[] = [];
-  const visit = (element: FakeElement): void => {
-    if (predicate(element)) found.push(element);
-    element.children.forEach(visit);
-  };
-  visit(root);
-  return found;
-}
-
-function byRole(root: FakeElement, role: string): FakeElement {
-  const [element] = findAll(root, (node) => node.getAttribute("data-role") === role);
-  assert.ok(element, `缺少 data-role="${role}"`);
-  return element;
-}
-
-function byAction(root: FakeElement, action: string): FakeElement {
-  const [element] = findAll(root, (node) => node.getAttribute("data-action") === action);
-  assert.ok(element, `缺少 data-action="${action}"`);
-  return element;
-}
-
-function textOf(element: FakeElement): string {
-  return `${element.textContent}${element.children.map(textOf).join("")}`;
-}
-
-function mountFieldModal() {
-  const document = installDom();
-  const added: { key: string; value: string }[] = [];
-  let closes = 0;
-  const root = createFieldModal({
-    onAdd: (field) => added.push(field),
-    onClose: () => {
-      closes += 1;
-    },
-  }) as unknown as FakeElement;
-  document.body.appendChild(root);
-
-  return {
-    document,
-    root,
-    added,
-    get closes() {
-      return closes;
-    },
-    cleanup: () => {
-      root.remove();
-      uninstallDom();
-    },
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/* 字段弹窗                                                            */
-/* ------------------------------------------------------------------ */
-
-test("profiles v2 宿主接线：open-profile、可切换搜索框、英文文案与弹窗导出", () => {
+test("profiles v2 宿主接线：open-profile、可切换搜索框与英文文案", () => {
   const html = render(context("zh"));
   assert.match(html, /data-action="open-profile"/);
   assert.match(html, /data-role="page-search" data-page-search data-open="false"/);
@@ -639,108 +457,7 @@ test("profiles v2 宿主接线：open-profile、可切换搜索框、英文文�
   assert.match(enDetail, /Gateway token/);
   assert.match(enDetail, /Add field/);
   assert.match(enDetail, /Save changes/);
-  assert.equal(typeof createFieldModal, "function");
-});
-
-test("字段弹窗：居中小弹窗、项目/值并列输入与取消/添加按钮", () => {
-  const modal = mountFieldModal();
-  try {
-    const { root } = modal;
-    assert.equal(root.classList.contains("profile-field-overlay"), true);
-
-    const [dialog] = findAll(root, (element) => element.getAttribute("role") === "dialog");
-    assert.ok(dialog, "缺少 role=dialog");
-    assert.equal(dialog.getAttribute("aria-modal"), "true");
-    assert.ok(dialog.getAttribute("aria-labelledby"));
-
-    const grid = byRole(root, "field-grid");
-    assert.equal(grid.children.length, 2, "项目/值两个输入框并列");
-    const key = byRole(root, "field-key");
-    const value = byRole(root, "field-value");
-    assert.equal(key.tagName, "INPUT");
-    assert.equal(value.tagName, "INPUT");
-    assert.equal(key.type, "text");
-    assert.equal(value.type, "text");
-    assert.ok(key.placeholder.length > 0);
-    assert.ok(value.placeholder.length > 0);
-    assert.match(textOf(dialog), /项目/);
-    assert.match(textOf(dialog), /值/);
-
-    assert.match(textOf(byAction(root, "cancel-field")), /取消/);
-    assert.match(textOf(byAction(root, "confirm-field")), /添加/);
-  } finally {
-    modal.cleanup();
-  }
-});
-
-test("字段弹窗：确认收集键值并只关闭一次；空项目不提交", () => {
-  const modal = mountFieldModal();
-  try {
-    const { root, added } = modal;
-    const key = byRole(root, "field-key");
-    const value = byRole(root, "field-value");
-    const error = byRole(root, "field-error");
-    const confirm = byAction(root, "confirm-field");
-
-    assert.equal(error.hidden, true);
-    confirm.click();
-    assert.deepEqual(modal.added, []);
-    assert.equal(modal.closes, 0);
-    assert.equal(error.hidden, false);
-
-    key.value = "  customKey ";
-    value.value = " customValue ";
-    confirm.click();
-    assert.deepEqual(added, [{ key: "customKey", value: "customValue" }]);
-    assert.equal(modal.closes, 1);
-    assert.equal(root.parentNode, null);
-
-    confirm.click();
-    assert.equal(modal.closes, 1);
-  } finally {
-    modal.cleanup();
-  }
-});
-
-test("字段弹窗：Esc、遮罩与取消都能关闭，点击内容不关闭", () => {
-  const first = mountFieldModal();
-  try {
-    const { root } = first;
-    const key = byRole(root, "field-key");
-    const event = new FakeEvent("keydown", { key: "Escape" });
-    key.dispatchEvent(event);
-    assert.equal(event.defaultPrevented, true);
-    assert.equal(first.closes, 1);
-    assert.equal(root.parentNode, null);
-
-    key.dispatchEvent(new FakeEvent("keydown", { key: "Escape" }));
-    assert.equal(first.closes, 1);
-  } finally {
-    first.cleanup();
-  }
-
-  const second = mountFieldModal();
-  try {
-    const { root } = second;
-    const [dialog] = findAll(root, (element) => element.getAttribute("role") === "dialog");
-    assert.ok(dialog);
-    dialog.click();
-    assert.equal(second.closes, 0, "点击弹窗内容不应关闭");
-    root.click();
-    assert.equal(second.closes, 1, "点击遮罩应关闭");
-  } finally {
-    second.cleanup();
-  }
-
-  const third = mountFieldModal();
-  try {
-    const { root } = third;
-    byAction(root, "cancel-field").click();
-    assert.equal(third.closes, 1);
-    assert.equal(root.parentNode, null);
-  } finally {
-    third.cleanup();
-  }
+  assert.equal(typeof renderClaudeFieldEntry, "function");
 });
 
 /* ------------------------------------------------------------------ */
@@ -770,7 +487,8 @@ test("profiles.css：黑白主按钮、蓝色开关、细分隔线与粘性保�
   assert.match(css, /\.profiles-page \.profile-field-row|\.profile-field-row\s*\{/);
   assert.match(css, /border-bottom:\s*0/);
   assert.match(css, /\.profile-savebar\s*\{[\s\S]*?position:\s*sticky/);
-  assert.match(css, /\.profile-field-overlay\s*\{[\s\S]*?align-items:\s*center[\s\S]*?justify-content:\s*center/);
+  assert.match(css, /\.profile-claude-row--draft\s*\{[\s\S]*?gap:/);
+  assert.match(css, /\.profile-claude-input\s*\{[\s\S]*?flex:\s*1 1 0/);
   assert.match(css, /\.profile-input:disabled|\.profile-switch input:disabled/);
   assert.match(css, /prefers-reduced-motion/);
 });
@@ -829,5 +547,6 @@ test("profiles v2 尺寸：标题、按钮、输入框与行高整体收紧", ()
   assert.match(block(css, ".profile-field-grid {"), /min-height:\s*38px/);
   assert.match(block(css, ".profile-input {"), /height:\s*30px/);
   assert.match(block(css, "\n.profile-switch {"), /width:\s*32px/);
-  assert.match(block(css, ".profile-field-dialog {"), /padding:\s*18px/);
+  assert.match(block(css, ".profile-claude-row--draft {"), /gap:\s*8px/);
+  assert.match(block(css, ".profile-claude-input {"), /max-width:\s*none/);
 });

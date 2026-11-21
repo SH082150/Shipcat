@@ -196,18 +196,14 @@ interface Copy {
   readonly basicInfo: string;
   readonly models: string;
   readonly addModel: string;
+  readonly modelsEmpty: string;
   readonly save: string;
   readonly saveNote: string;
   readonly readOnlyNote: string;
-  readonly fieldTitle: string;
-  readonly fieldHint: string;
-  readonly fieldKey: string;
-  readonly fieldValue: string;
   readonly fieldKeyPlaceholder: string;
   readonly fieldValuePlaceholder: string;
-  readonly cancel: string;
-  readonly add: string;
   readonly requiredKey: string;
+  readonly removeField: string;
   readonly notFoundTitle: string;
   readonly notFoundBody: string;
   readonly modelId: string;
@@ -261,22 +257,18 @@ const COPY: Record<Language, Copy> = {
     gatewayToken: "网关 Token",
     authScheme: "鉴权方案",
     back: "返回",
-    addField: "添加条目",
+    addField: "添加项",
     basicInfo: "基本信息",
     models: "模型",
     addModel: "添加模型",
+    modelsEmpty: "还没有模型",
     save: "保存修改",
     saveNote: "保存后立即写入本机配置库，并同步到 Claude 侧。",
     readOnlyNote: "只读配置 · 所有字段不可编辑",
-    fieldTitle: "添加条目",
-    fieldHint: "选择或输入 Claude 透传字段；布尔填 true/false，JSON 直接粘贴。",
-    fieldKey: "项目",
-    fieldValue: "值",
     fieldKeyPlaceholder: "例如 modelCatalogUrl",
-    fieldValuePlaceholder: "例如 https://…",
-    cancel: "取消",
-    add: "添加",
+    fieldValuePlaceholder: "例如 300 或 https://…",
     requiredKey: "请填写项目名称。",
+    removeField: "删除条目",
     notFoundTitle: "找不到这个配置",
     notFoundBody: "配置可能已被删除，或链接中的 ID 不正确。",
     modelId: "Model ID",
@@ -336,18 +328,14 @@ const COPY: Record<Language, Copy> = {
     basicInfo: "Details",
     models: "Models",
     addModel: "Add model",
+    modelsEmpty: "No models yet",
     save: "Save changes",
     saveNote: "Saved to the local store and synced to Claude immediately.",
     readOnlyNote: "Read-only profile · every field is disabled",
-    fieldTitle: "Add field",
-    fieldHint: "Pick or type a Claude passthrough field; booleans use true/false, JSON is pasted directly.",
-    fieldKey: "Key",
-    fieldValue: "Value",
     fieldKeyPlaceholder: "e.g. modelCatalogUrl",
-    fieldValuePlaceholder: "e.g. https://…",
-    cancel: "Cancel",
-    add: "Add",
+    fieldValuePlaceholder: "e.g. 300 or https://…",
     requiredKey: "Enter a key.",
+    removeField: "Remove field",
     notFoundTitle: "Profile not found",
     notFoundBody: "It may have been removed, or the ID in the link is incorrect.",
     modelId: "Model ID",
@@ -562,14 +550,14 @@ function renderCreateProfile(context: PageContext, providers?: readonly Provider
       <div class="profiles-gutter">
         <div class="profile-section-head">
           <h2 id="profile-create-models">${escapeHtml(copy.models)}</h2>
-          <span class="profile-count" data-role="profile-add-model-count">0 ${escapeHtml(copy.countSuffix)}</span>
+          <div class="profile-section-tools">
+            <span class="profile-count" data-role="profile-add-model-count">0 ${escapeHtml(copy.countSuffix)}</span>
+            <button type="button" class="profile-button profile-button--ghost profile-section-action" data-action="add-profile-model">${iconSvg("plus", "profile-button-icon")}<span>${escapeHtml(copy.addModel)}</span></button>
+          </div>
         </div>
       </div>
       <div class="profile-models">
         <div class="profile-add-model-list" data-role="profile-add-model-list"></div>
-      </div>
-      <div class="profiles-gutter">
-        <button type="button" class="profile-button profile-button--dashed profile-add-model" data-action="add-profile-model">${iconSvg("plus", "profile-button-icon")}<span>${escapeHtml(copy.addModel)}</span></button>
       </div>
     </section>
 
@@ -628,6 +616,16 @@ export function renderAddModelEntry(index: number, language: Language, providers
   </details>`;
 }
 
+/** 空白模型条目的空状态文案；渲染层与事件层共用同一份拷贝。 */
+export function modelsEmptyText(language: Language): string {
+  return COPY[language].modelsEmpty;
+}
+
+/** 透传区空状态文案；事件层删除最后一条草稿后用它恢复。 */
+export function claudeEmptyText(language: Language): string {
+  return COPY[language].claudeEmpty;
+}
+
 export function renderDetail(
   context: PageContext,
   id: string,
@@ -647,7 +645,6 @@ export function renderDetail(
     <header class="profiles-band profile-detail-top">
       <div class="profiles-gutter profile-detail-top-inner">
         <a class="profile-back" href="#profiles" data-action="profiles-back">${iconSvg("back", "profile-back-icon")}<span>${escapeHtml(copy.back)}</span></a>
-        <button type="button" class="profile-button profile-button--ghost" data-action="add-field" data-profile-id="${profile.id}"${readOnly ? " disabled" : ""}>${iconSvg("plus", "profile-button-icon")}<span>${escapeHtml(copy.addField)}</span></button>
       </div>
     </header>
 
@@ -680,19 +677,22 @@ export function renderDetail(
       <div class="profiles-gutter">
         <div class="profile-section-head">
           <h2 id="profile-claude-title">${escapeHtml(copy.claudeFields)}</h2>
-          <span class="profile-count">${Object.keys(profile.claude ?? {}).length} ${escapeHtml(copy.countSuffix)}</span>
+          <div class="profile-section-tools">
+            <span class="profile-count" data-role="profile-claude-count">${Object.keys(profile.claude ?? {}).length} ${escapeHtml(copy.countSuffix)}</span>
+            <button type="button" class="profile-button profile-button--ghost profile-section-action" data-action="add-field">${iconSvg("plus", "profile-button-icon")}<span>${escapeHtml(copy.addField)}</span></button>
+          </div>
         </div>
       </div>
-      <div class="profiles-gutter profile-claude-list">
+      <div class="profiles-gutter profile-claude-list" data-role="profile-claude-list">
         ${
           Object.keys(profile.claude ?? {}).length === 0
             ? `<p class="profile-claude-empty">${escapeHtml(copy.claudeEmpty)}</p>`
             : Object.entries(profile.claude ?? {})
                 .map(
-                  ([key, value]) => `<div class="profile-claude-row" data-claude-key="${escapeHtml(key)}">
+                  ([key, value]) => `<div class="profile-claude-row" data-role="claude-field-row" data-claude-key="${escapeHtml(key)}">
                     <span class="profile-claude-key">${escapeHtml(key)}</span>
                     <span class="profile-claude-value">${escapeHtml(typeof value === "string" ? value : JSON.stringify(value))}</span>
-                    <button type="button" class="profile-model-remove" data-action="remove-claude-field" data-claude-key="${escapeHtml(key)}" aria-label="${escapeHtml(copy.removeModel)}">${iconSvg("trash", "profile-model-remove-icon")}</button>
+                    <button type="button" class="profile-model-remove" data-action="remove-claude-field" data-claude-key="${escapeHtml(key)}" aria-label="${escapeHtml(copy.removeField)}">${iconSvg("trash", "profile-model-remove-icon")}</button>
                   </div>`,
                 )
                 .join("")
@@ -705,18 +705,18 @@ export function renderDetail(
       <div class="profiles-gutter">
         <div class="profile-section-head">
           <h2 id="profile-models-title">${escapeHtml(copy.models)}</h2>
-          <span class="profile-count">${models.length} ${escapeHtml(copy.countSuffix)}</span>
+          <div class="profile-section-tools">
+            <span class="profile-count" data-role="profile-detail-model-count">${models.length} ${escapeHtml(copy.countSuffix)}</span>
+            <button type="button" class="profile-button profile-button--ghost profile-section-action" data-action="add-model"${readOnly ? " disabled" : ""}>${iconSvg("plus", "profile-button-icon")}<span>${escapeHtml(copy.addModel)}</span></button>
+          </div>
         </div>
       </div>
       <div class="profile-models">
         ${
           models.length > 0
             ? models.map((model, index) => renderModel(model, index, profile, readOnly, copy, providerOptions)).join("")
-            : `<div class="profiles-gutter"><p class="profile-models-empty">${escapeHtml(copy.notActivated)}</p></div>`
+            : `<div class="profiles-gutter"><p class="profile-models-empty">${escapeHtml(copy.modelsEmpty)}</p></div>`
         }
-      </div>
-      <div class="profiles-gutter">
-        <button type="button" class="profile-button profile-button--dashed profile-add-model" data-action="add-model"${readOnly ? " disabled" : ""}>${iconSvg("plus", "profile-button-icon")}<span>${escapeHtml(copy.addModel)}</span></button>
       </div>
     </section>
 
@@ -733,174 +733,14 @@ export function renderDetail(
   </article>`;
 }
 
-export interface FieldModalOptions {
-  readonly onAdd?: (field: { readonly key: string; readonly value: string }) => void;
-  readonly onClose?: () => void;
-  readonly language?: Language;
-}
-
-const CLAUDE_FIELD_KEYS = [
-  "inferenceStreamIdleTimeoutSec",
-  "inferenceCustomHeaders",
-  "userContentRendererUrl",
-  "inferenceGatewayManagedClaudeCode",
-  "inferenceGatewayAutoModeServerChecks",
-  "modelPrefer1mContext",
-  "defaultModelEffort",
-  "alwaysStartWithDefaultModel",
-  "inferenceModelPricingEnabled",
-  "inferenceModelPricingMultiplier",
-  "inferenceModelPricing",
-  "modelCatalogUrl",
-  "egressProxyUrl",
-  "egressProxyPacUrl",
-  "coworkVmIpv6Enabled",
-  "disableDeploymentModeChooser",
-  "deploymentDisplayName",
-  "desktopHome",
-  "sshTransport",
-  "toolSearchEnabled",
-  "skipWebFetchPreflight",
-  "builtinBrowserEnabled",
-  "isDesktopExtensionEnabled",
-  "coworkEgressAllowedHosts",
-  "claudeAiImport",
-] as const;
-
-let fieldModalSeq = 0;
-
-/** 居中的“项目 / 值”小弹窗；调用方负责挂到 body。Esc 与遮罩点击均可关闭。 */
-export function createFieldModal(options: FieldModalOptions = {}): HTMLElement {
-  const copy = COPY[options.language ?? "zh"];
-  const doc = document;
-  const seq = ++fieldModalSeq;
-  const titleId = `profile-field-title-${seq}`;
-  let closed = false;
-
-  const create = <K extends keyof HTMLElementTagNameMap>(
-    tag: K,
-    className?: string,
-  ): HTMLElementTagNameMap[K] => {
-    const element = doc.createElement(tag);
-    if (className) element.className = className;
-    return element;
-  };
-
-  const overlay = create("div", "profile-field-overlay");
-  overlay.setAttribute("data-role", "field-overlay");
-
-  const dialog = create("div", "profile-field-dialog");
-  dialog.setAttribute("role", "dialog");
-  dialog.setAttribute("aria-modal", "true");
-  dialog.setAttribute("aria-labelledby", titleId);
-  dialog.setAttribute("data-role", "field-dialog");
-  overlay.appendChild(dialog);
-
-  const title = create("h2", "profile-field-title");
-  title.id = titleId;
-  title.textContent = copy.fieldTitle;
-  dialog.appendChild(title);
-
-  const hint = create("p", "profile-field-hint");
-  hint.textContent = copy.fieldHint;
-  dialog.appendChild(hint);
-
-  const grid = create("div", "profile-field-grid");
-  grid.setAttribute("data-role", "field-grid");
-  dialog.appendChild(grid);
-
-  const keyControl = create("label", "profile-field-control");
-  const keyCaption = create("span", "profile-field-caption");
-  keyCaption.textContent = copy.fieldKey;
-  const keyInput = create("input", "profile-field-input");
-  keyInput.type = "text";
-  keyInput.setAttribute("data-role", "field-key");
-  keyInput.setAttribute("placeholder", copy.fieldKeyPlaceholder);
-  keyInput.setAttribute("autocomplete", "off");
-  keyInput.setAttribute("list", "profile-claude-fields");
-  const keyList = create("datalist");
-  keyList.id = "profile-claude-fields";
-  for (const key of CLAUDE_FIELD_KEYS) {
-    const option = create("option");
-    option.value = key;
-    keyList.appendChild(option);
-  }
-  dialog.appendChild(keyList);
-  keyControl.append(keyCaption, keyInput);
-  grid.appendChild(keyControl);
-
-  const valueControl = create("label", "profile-field-control");
-  const valueCaption = create("span", "profile-field-caption");
-  valueCaption.textContent = copy.fieldValue;
-  const valueInput = create("input", "profile-field-input");
-  valueInput.type = "text";
-  valueInput.setAttribute("data-role", "field-value");
-  valueInput.setAttribute("placeholder", copy.fieldValuePlaceholder);
-  valueInput.setAttribute("autocomplete", "off");
-  valueControl.append(valueCaption, valueInput);
-  grid.appendChild(valueControl);
-
-  const error = create("p", "profile-field-error");
-  error.setAttribute("data-role", "field-error");
-  error.textContent = copy.requiredKey;
-  error.hidden = true;
-  dialog.appendChild(error);
-
-  const actions = create("div", "profile-field-actions");
-  const cancel = create("button", "profile-button profile-button--ghost");
-  cancel.type = "button";
-  cancel.setAttribute("data-action", "cancel-field");
-  cancel.textContent = copy.cancel;
-  const confirm = create("button", "profile-button profile-button--primary");
-  confirm.type = "button";
-  confirm.setAttribute("data-action", "confirm-field");
-  confirm.textContent = copy.add;
-  actions.append(cancel, confirm);
-  dialog.appendChild(actions);
-
-  const close = (): void => {
-    if (closed) return;
-    closed = true;
-    overlay.remove();
-    options.onClose?.();
-  };
-
-  const submit = (): void => {
-    const key = keyInput.value.trim();
-    if (!key) {
-      error.hidden = false;
-      keyInput.focus();
-      return;
-    }
-    options.onAdd?.({ key, value: valueInput.value.trim() });
-    close();
-  };
-
-  cancel.addEventListener("click", close);
-  confirm.addEventListener("click", submit);
-  for (const input of [keyInput, valueInput]) {
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        submit();
-      }
-    });
-  }
-  overlay.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      close();
-    }
-  });
-  overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) close();
-  });
-
-  setTimeout(() => {
-    if (!closed) keyInput.focus();
-  }, 0);
-
-  return overlay;
+/** 编辑页“添加项”插入的草稿行：左项右值，保存时合并进 claude 块。 */
+export function renderClaudeFieldEntry(language: Language): string {
+  const copy = COPY[language];
+  return `<div class="profile-claude-row profile-claude-row--draft" data-role="claude-field-entry">
+    <input class="profile-input profile-claude-input" type="text" data-field="claudeKey" placeholder="${escapeHtml(copy.fieldKeyPlaceholder)}" autocomplete="off" spellcheck="false">
+    <input class="profile-input profile-claude-input" type="text" data-field="claudeValue" placeholder="${escapeHtml(copy.fieldValuePlaceholder)}" autocomplete="off" spellcheck="false">
+    <button type="button" class="profile-model-remove" data-action="remove-claude-draft" aria-label="${escapeHtml(copy.removeField)}">${iconSvg("trash", "profile-model-remove-icon")}</button>
+  </div>`;
 }
 
 /* ------------------------------------------------------------------ */
