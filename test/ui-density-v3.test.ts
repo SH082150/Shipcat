@@ -35,7 +35,6 @@ test("usage heatmap and its legend use a blue intensity scale", () => {
   for (const level of [1, 2, 3, 4]) {
     assert.match(css, new RegExp(`--usage-level-${level}:\\s*color-mix\\(in srgb, var\\(--usage-blue\\)`));
   }
-  assert.match(css, /\.usage-meter::-webkit-progress-value\s*\{[\s\S]*?background:\s*var\(--usage-blue\)/);
   assert.match(css, /\.usage-heatmap\s*\{[\s\S]*?width:\s*min\(100%, 480px\)/);
   assert.match(css, /\.usage-cell:hover\s*\{[\s\S]*?outline:\s*1px solid var\(--usage-blue\)/);
 });

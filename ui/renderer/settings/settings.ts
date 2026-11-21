@@ -10,9 +10,6 @@
  * 样式由同目录 settings.css 提供，需由宿主的页面/构建自行引入。
  */
 
-import { createProfilePickerModal } from "./profile-picker.ts";
-import { trapFocus } from "../components/focus-trap.ts";
-import { DEMO_USAGE_PROFILES } from "../state/usage-profiles.ts";
 import type { ClientInfo } from "../components/events.ts";
 
 export const SETTINGS_SECTIONS = ["general", "privacy", "usage", "system", "about"] as const;
@@ -28,8 +25,6 @@ export interface SettingsModalOptions {
   initialTheme: SettingsTheme;
   initialSection?: SettingsSection;
   clientInfo?: ClientInfo;
-  /** “添加配置文件”调用系统文件选择框；返回 null 表示用户取消。 */
-  pickUsageProfileFile?: () => Promise<string | null>;
   /** 自定义用户名；空串表示未设置，界面回退到本机用户名。 */
   customName?: string;
   /** 本机用户名，用作输入框占位与提示。 */
@@ -77,12 +72,6 @@ const MENU_LABELS: Record<(typeof SETTINGS_SECTIONS)[number], string> = {
   system: "系统",
   about: "关于",
 };
-
-/** 额度监控选择器：全部 + 每一条用量配置文件。 */
-const QUOTA_PROFILES: readonly (readonly [string, string])[] = [
-  ["auto", "全部配置文件"],
-  ...DEMO_USAGE_PROFILES.map((profile) => [profile.id, profile.name] as const),
-];
 
 let titleSeq = 0;
 
@@ -480,7 +469,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   storageRow.control.appendChild(manageButton);
 
   /* ------------------------------------------------------------------ */
-  /* 用量：侧边栏显示开关 + 额度监控配置文件                              */
+  /* 用量：侧边栏显示开关                                                  */
   /* ------------------------------------------------------------------ */
 
   const usagePane = createPane("pane-usage");
@@ -499,75 +488,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   usageSidebarRow.control.appendChild(
     createSwitch("usage-sidebar-toggle", "在侧边栏显示用量", true),
   );
-
-  const quotaSection = createSection(usagePane);
-  createSectionHead(quotaSection, "额度监控", "选择用于读取额度的配置文件。");
-  const quotaRow = createRow(
-    quotaSection,
-    "监控配置文件",
-    "额度与用量仅在本机读取，不会上传。",
-    "quota-row",
-  );
-  const selectWrap = create("div", "ch-settings-select-wrap");
-  const quotaSelect = create("select", "ch-settings-select");
-  quotaSelect.tabIndex = 0;
-  quotaSelect.setAttribute("data-role", "quota-profile");
-  quotaSelect.setAttribute("aria-label", "额度监控配置文件");
-  for (const [value, label] of QUOTA_PROFILES) {
-    const option = create("option");
-    option.value = value;
-    option.textContent = label;
-    quotaSelect.appendChild(option);
-  }
-  quotaSelect.value = "auto";
-  quotaSelect.addEventListener("change", () => {
-    quotaSelect.setAttribute("data-value", quotaSelect.value);
-  });
-  quotaSelect.setAttribute("data-value", quotaSelect.value);
-  selectWrap.appendChild(quotaSelect);
-  quotaRow.control.appendChild(selectWrap);
-
-  const changeProfileButton = create("button", "ch-settings-action");
-  changeProfileButton.type = "button";
-  changeProfileButton.tabIndex = 0;
-  changeProfileButton.setAttribute("data-role", "change-profile");
-  changeProfileButton.setAttribute("aria-label", "更改配置文件");
-  changeProfileButton.textContent = "更改配置文件";
-  quotaRow.control.appendChild(changeProfileButton);
-
-  // “更改配置文件”选择弹窗：纯 UI 占位，同一时间只挂一个实例；
-  // 设置弹窗自身关闭时一并清掉，避免留下孤儿遮罩。
-  let pickerOverlay: HTMLElement | null = null;
-  let disposePickerTrap: (() => void) | null = null;
-  const releasePicker = (): void => {
-    disposePickerTrap?.();
-    disposePickerTrap = null;
-  };
-  const closePicker = (): void => {
-    releasePicker();
-    pickerOverlay?.remove();
-    pickerOverlay = null;
-  };
-  changeProfileButton.addEventListener("click", () => {
-    if (pickerOverlay) return;
-    pickerOverlay = createProfilePickerModal({
-      profiles: DEMO_USAGE_PROFILES,
-      onPickFile: options.pickUsageProfileFile,
-      onClose: () => {
-        releasePicker();
-        pickerOverlay = null;
-        changeProfileButton.focus();
-      },
-    });
-    pickerOverlay.setAttribute(
-      "data-theme",
-      overlay.getAttribute("data-theme") ?? "light",
-    );
-    document.body.appendChild(pickerOverlay);
-    disposePickerTrap = trapFocus(pickerOverlay);
-  });
-
-  createNote(quotaSection, "用量数据由所选配置文件提供，仅在本机读取。");
 
   /* ------------------------------------------------------------------ */
   /* 系统：版本、开机自启、通知开关                                        */
@@ -721,7 +641,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   function close(): void {
     if (closed) return;
     closed = true;
-    closePicker();
     overlay.remove();
     previousFocus?.focus();
     options.onClose();

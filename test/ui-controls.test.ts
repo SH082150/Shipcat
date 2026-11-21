@@ -57,11 +57,6 @@ test("provider search sits left of add and expands leftwards on demand", () => {
   assert.match(css, /\.pv-search\[data-open="true"\] \.pv-search-field\s*\{[\s\S]*?width:\s*280px/);
 });
 
-test("usage account settings opens the usage settings section", () => {
-  const usage = read("pages/usage.ts");
-  assert.match(usage, /label:\s*copy\.accountSettings,[\s\S]*?action:\s*"settings",[\s\S]*?section:\s*"usage"/);
-});
-
 test("settings exposes About in the sidebar and keeps client-info as an alias", () => {
   const settings = read("settings/settings.ts");
   assert.match(settings, /SETTINGS_SECTIONS = \["general", "privacy", "usage", "system", "about"\]/);

@@ -230,7 +230,6 @@ function assertFocused(actual: FakeElement, expected: FakeElement, label: string
 interface MountOptions {
   theme?: SettingsTheme;
   section?: SettingsSection;
-  pickFile?: () => Promise<string | null>;
   customName?: string;
   localUsername?: string;
   avatar?: string;
@@ -250,7 +249,6 @@ function mount(options: MountOptions = {}) {
   const root = createSettingsModal({
     initialTheme: options.theme ?? "light",
     ...(options.section ? { initialSection: options.section } : {}),
-    ...(options.pickFile ? { pickUsageProfileFile: options.pickFile } : {}),
     ...(options.customName !== undefined ? { customName: options.customName } : {}),
     ...(options.localUsername ? { localUsername: options.localUsername } : {}),
     ...(options.avatar !== undefined ? { avatar: options.avatar } : {}),
@@ -443,10 +441,10 @@ test("隐私页给出本地优先声明与 Storage/Manage 行，Manage 仅切换
   }
 });
 
-test("用量页提供侧边栏用量开关与额度监控配置文件选择器", () => {
+test("用量页只保留侧边栏用量开关", () => {
   const modal = mount({ section: "usage" });
   try {
-    const { document, root } = modal;
+    const { root } = modal;
     const toggle = byRole(root, "usage-sidebar-toggle");
     assert.equal(toggle.getAttribute("role"), "switch");
     assert.equal(toggle.getAttribute("aria-checked"), "true");
@@ -456,62 +454,8 @@ test("用量页提供侧边栏用量开关与额度监控配置文件选择器",
     assert.equal(toggle.getAttribute("aria-checked"), "true");
     assert.equal(modal.closes, 0);
 
-    const select = byRole(root, "quota-profile");
-    assert.equal(select.tagName, "SELECT");
-    assert.equal(select.getAttribute("aria-label"), "额度监控配置文件");
-    const options = findAll(select, (element) => element.tagName === "OPTION");
-    assert.ok(options.length >= 2, "配置文件选择器至少应有全部配置文件与一条具体配置");
-    assert.match(textOf(options[0] as FakeElement), /全部配置文件/);
-    assert.equal(select.value, "auto");
-    select.value = "usage-deepseek";
-    select.change();
-    assert.equal(select.value, "usage-deepseek");
-    assert.equal(modal.closes, 0);
-
-    const changeProfile = byRole(root, "change-profile");
-    assert.equal(changeProfile.tagName, "BUTTON");
-    assert.equal(textOf(changeProfile), "更改配置文件");
-    changeProfile.click();
-    assert.equal(modal.closes, 0, "打开选择弹窗不应关闭设置");
-    const picker = byRole(document.body, "profile-picker");
-    key(picker, "Escape");
-    assert.equal(picker.parentNode, null, "Esc 应关闭选择弹窗");
-  } finally {
-    modal.cleanup();
-  }
-});
-
-test("更改配置文件弹窗：单列列出配置，可从文件选择添加与移除", async () => {
-  const modal = mount({ section: "usage", pickFile: async () => "/tmp/demo-usage.ts" });
-  try {
-    const { document, root } = modal;
-    byRole(root, "change-profile").click();
-    const picker = byRole(document.body, "profile-picker");
-
-    const items = findAll(picker, (el) => el.getAttribute("data-role") === "profile-item");
-    assert.equal(items.length, 2, "演示数据应有两条用量配置文件");
-    assert.match(textOf(items[0]!), /Claude 官方额度/);
-
-    byRole(picker, "picker-add").click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    const grown = findAll(picker, (el) => el.getAttribute("data-role") === "profile-item");
-    assert.equal(grown.length, 3, "选择文件后应多出一行");
-    assert.match(textOf(grown[2]!), /demo-usage\.ts/);
-    assert.doesNotMatch(textOf(grown[2]!), /新配置文件/, "添加来自文件选择，不生成空白配置");
-
-    const removes = findAll(picker, (el) => el.getAttribute("data-role") === "picker-remove");
-    assert.equal(removes.length, 3, "每行都应带移除按钮");
-    removes[0]!.click();
-    assert.equal(
-      findAll(picker, (el) => el.getAttribute("data-role") === "profile-item").length,
-      2,
-      "移除后应少一行",
-    );
-    assert.equal(picker.parentNode, document.body, "移除不应关闭弹窗");
-
-    byRole(picker, "picker-close").click();
-    assert.equal(picker.parentNode, null, "关闭后弹窗移除");
-    assert.equal(modal.closes, 0, "关闭配置文件弹窗不关闭设置弹窗");
+    assert.equal(findAll(root, (el) => el.getAttribute("data-role") === "quota-profile").length, 0);
+    assert.equal(findAll(root, (el) => el.getAttribute("data-role") === "change-profile").length, 0);
   } finally {
     modal.cleanup();
   }
@@ -576,7 +520,7 @@ test("Esc、关闭按钮、遮罩关闭与焦点归还保持不变", async () =>
 
   const third = mount({ section: "usage" });
   try {
-    byRole(third.root, "quota-profile").click();
+    byRole(third.root, "usage-sidebar-toggle").click();
     assert.equal(third.closes, 0);
     third.root.click();
     assert.equal(third.closes, 1);
@@ -627,9 +571,9 @@ test("焦点陷阱跟随当前章节，只在可见控件间循环", async () =>
     const { document, root } = usage;
     await flushFocus();
     const navGeneral = byRole(root, "nav-general");
-    const changeProfile = byRole(root, "change-profile");
-    changeProfile.focus();
-    key(changeProfile, "Tab");
+    const usageToggle = byRole(root, "usage-sidebar-toggle");
+    usageToggle.focus();
+    key(usageToggle, "Tab");
     assertFocused(document.activeElement, navGeneral, "用量页末项应循环到导航首项");
   } finally {
     usage.cleanup();

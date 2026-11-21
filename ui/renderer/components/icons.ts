@@ -15,7 +15,6 @@ export type IconName =
   | "usage"
   | "sidebar"
   | "history"
-  | "quota"
   | "back"
   | "chevron-down"
   | "chevron-right"
@@ -44,8 +43,6 @@ const PATHS: Record<IconName, string> = {
   sidebar:
     '<rect x="3.2" y="4.5" width="17.6" height="15" rx="2.4"/><path d="M9 4.5v15"/><path d="M5.8 8.4h1.9"/>',
   history: '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.6V12l3.2 2"/>',
-  quota:
-    '<rect x="4" y="7.2" width="16" height="12.8" rx="2.2"/><path d="M4 7.2h16"/><path d="M9 11l3 2.8 3-2.8"/><path d="M12 13.8v3.2"/><path d="M9.8 14.7h4.4"/><path d="M9.8 16.3h4.4"/>',
   back: '<path d="M19 12H5"/><path d="m11 6-6 6 6 6"/>',
   "chevron-down": '<path d="m6 9 6 6 6-6"/>',
   "chevron-right": '<path d="m9 6 6 6-6 6"/>',

@@ -60,7 +60,8 @@ test("overview shows at most two suggestions and keeps them under the profile ca
 
 test("usage leads with history and uses the brand accent blue", () => {
   const html = renderUsage(context);
-  assert.ok(html.indexOf('data-role="usage-history"') < html.indexOf('data-role="usage-quota"'));
+  assert.ok(html.indexOf('data-role="usage-history"') < html.indexOf('data-role="usage-daily"'));
+  assert.doesNotMatch(html, /data-role="usage-quota"/);
   const css = read("pages/usage.css");
   assert.match(css, /--usage-blue:\s*#2a78d6/i);
   assert.match(css, /--usage-level-4:\s*color-mix\(in srgb, var\(--usage-blue\)/);
@@ -68,7 +69,6 @@ test("usage leads with history and uses the brand accent blue", () => {
 
 test("usage removes repeated prototype explanations while retaining data provenance", () => {
   const html = renderUsage(context);
-  assert.equal(html.includes('class="usage-footnote usage-quota-note"'), false);
   assert.equal(html.includes('class="page-note"'), false);
   assert.equal(html.includes('class="usage-cells-note"'), false);
   assert.match(html, /usage-ledger/);

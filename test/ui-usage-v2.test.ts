@@ -9,6 +9,7 @@ import {
   USAGE_RANGE_META,
   buildUsageViewData,
   createDemoCells,
+  createDemoDaily,
   render,
   renderHeatmap,
   renderRangeCaption,
@@ -119,22 +120,12 @@ test("createDemoCells：确定性演示强度，不是随机数，也不是真�
   assert.ok(count(demo, /data-level="[1-4]"/g) > 0);
 });
 
-test("用量页结构：额度区占位 + 历史用量热力图，绝不伪造数值", () => {
+test("用量页结构：历史用量热力图 + 总使用量卡 + 按天用量，绝不伪造数值", () => {
   const html = render(context("zh"));
 
   assert.match(html, /data-role="page-usage"/);
   assert.match(html, /<h1[^>]*>用量<\/h1>/);
-
-  // 额度区：配置文件选择器、余额/剩余额度占位、进度条位置。
-  assert.match(html, /data-role="usage-quota"/);
-  assert.match(html, /data-usage-profile/);
-  assert.match(html, /<option[^>]*value="usage-claude"/);
-  assert.match(html, /账户余额/);
-  assert.match(html, /剩余额度/);
-  assert.equal(count(html, /role="progressbar"/g), 3, "三个额度窗口各留一个进度条位置");
-  assert.equal(count(html, /aria-valuetext="[^"]*"/g), 3);
-  assert.doesNotMatch(html, /aria-valuenow=/, "未知额度不得伪造进度值");
-  assert.match(html, /—/);
+  assert.doesNotMatch(html, /data-role="usage-quota"/, "额度区已移除");
 
   // 历史用量：账本措辞，明确不是网关流量统计。
   assert.match(html, /data-role="usage-history"/);
@@ -148,8 +139,9 @@ test("用量页结构：额度区占位 + 历史用量热力图，绝不伪造�
   for (const range of USAGE_RANGES) {
     assert.match(html, new RegExp(`<button[^>]*data-usage-range="${range}"`));
   }
-  assert.equal(count(html, /aria-pressed="true"/g), 1);
-  assert.match(html, /data-usage-range="1h"[^>]*aria-pressed="true"/);
+  assert.equal(count(html, /data-usage-range="1h"[^>]*aria-pressed="true"/g), 1);
+  assert.equal(count(html, /data-chart-range="30"[^>]*aria-pressed="true"/g), 1);
+  assert.equal(count(html, /data-chart-mode="chart"[^>]*aria-pressed="true"/g), 1);
 
   // 热力图与文案。
   assert.equal(count(html, /data-usage-cell="/g), 336);
@@ -158,6 +150,12 @@ test("用量页结构：额度区占位 + 历史用量热力图，绝不伪造�
   assert.match(html, /示例强度，非真实统计/);
   assert.match(html, />Less</);
   assert.match(html, />More</);
+  assert.match(html, /data-role="usage-overall"/);
+  assert.match(html, /总使用量/);
+  assert.match(html, /真实消耗 tokens/);
+  assert.match(html, /data-role="usage-daily-card"/);
+  assert.match(html, /每日 Tokens/);
+  assert.equal(count(html, /data-chart-range="/g), 3);
 
   assert.doesNotMatch(html, /style="/i);
   assert.doesNotMatch(html, /onclick=/i);
@@ -176,39 +174,21 @@ test("用量页英文：14 days、ledger 说明与按钮文案", () => {
   assert.match(html, /data-usage-range="30min"/);
 });
 
-test("UsageViewData：清晰的未来接口，默认余额与进度全部为 null", () => {
+test("UsageViewData：默认账本未同步，按天示例数据可用", () => {
   const data = buildUsageViewData("zh");
 
-  assert.equal(data.selectedProfileId, "usage-claude");
-  assert.equal(data.profiles[0]?.id, "usage-claude");
-  assert.equal(data.quota.status, "unlinked");
-  assert.equal(data.quota.balanceUsd, null);
-  assert.equal(data.quota.remainingUsd, null);
-  assert.equal(data.quota.windows.length, 3);
-  assert.ok(data.quota.windows.every((window) => window.usedPercent === null));
-  assert.ok(data.quota.windows.every((window) => window.resetAt === null));
   assert.equal(data.ledger.lastSyncedAt, null);
   assert.equal(data.demo, true);
+  assert.equal(data.daily?.length, 90);
 
   const custom: UsageViewData = {
-    profiles: [{ id: "acme", label: "Acme <Corp>" }],
-    selectedProfileId: "acme",
-    quota: {
-      status: "ready",
-      balanceUsd: 12.5,
-      remainingUsd: 8,
-      windows: [
-        { id: "five_hour", label: "5h", usedPercent: 42, resetAt: "2026-01-01T05:00:00.000Z" },
-      ],
-    },
     ledger: { lastSyncedAt: "2026-01-01T00:00:00.000Z", recordCount: 10 },
+    daily: createDemoDaily(30),
     demo: false,
   };
   const html = render(context("zh"), custom);
-  assert.match(html, /Acme &lt;Corp&gt;/);
-  assert.doesNotMatch(html, /<Corp>/);
-  assert.match(html, /aria-valuenow="42"/);
-  assert.match(html, /42%/);
+  assert.match(html, /data-role="usage-overall"/);
+  assert.match(html, /data-role="usage-daily-card"/);
   assert.doesNotMatch(html, /示例强度/);
   assert.equal(count(html, /data-usage-cell="/g), 336);
   assert.equal(count(html, /data-level="[1-4]"/g), 0, "无热力图数据时不得伪造强度");
@@ -223,10 +203,13 @@ test("usage.css：24×14 网格、空灰、蓝色开关、黑白主按钮、细�
   assert.match(css, /\.usage-cell--empty/);
   assert.match(css, /\.usage-range-button\[aria-pressed="true"\]/);
   assert.match(css, /--usage-blue/);
-  assert.match(css, /\.button--primary/);
   assert.match(css, /\[data-theme="dark"\]/);
   assert.match(css, /border-top:\s*0/);
-  assert.doesNotMatch(css, /border-radius:\s*1[024]px[\s\S]{0,80}box-shadow/, "减少卡片");
+  assert.match(css, /\.usage-heat-row\s*\{[\s\S]*?align-items:\s*stretch/);
+  assert.match(css, /\.usage-overall\s*\{[\s\S]*?height:\s*100%/);
+  assert.match(css, /\.usage-chart-svg/);
+  assert.match(css, /\.usage-data-table/);
+  assert.match(css, /\.usage-table-wrap\s*\{[\s\S]*?overflow-y:\s*auto/);
 });
 
 test("usage.ts：注入页面样式并原地切换热力图，不重绘页头", () => {
@@ -239,4 +222,113 @@ test("usage.ts：注入页面样式并原地切换热力图，不重绘页头", 
   assert.match(source, /aria-pressed/);
   assert.match(source, /renderRangeCaption/);
   assert.doesNotMatch(source, /window\.location|navigate\(/);
+});
+
+test("用量页总使用量卡：真实消耗合计、四行明细与无缓存写行", () => {
+  const cells: HeatmapCell[] = [
+    {
+      at: "2026-11-18T04:00:00.000Z",
+      value: 1000,
+      level: 2,
+      detail: {
+        inputTokens: 600,
+        outputTokens: 200,
+        cacheReadTokens: 150,
+        cacheWriteTokens: 50,
+        webSearchRequests: 0,
+        calls: 3,
+        errors: 1,
+        costUsd: 1.25,
+        models: { "model-a": 1000 },
+        surfaces: { chat: 3 },
+      },
+    },
+    {
+      at: "2026-11-18T05:00:00.000Z",
+      value: 500,
+      level: 1,
+      detail: {
+        inputTokens: 300,
+        outputTokens: 100,
+        cacheReadTokens: 80,
+        cacheWriteTokens: 20,
+        webSearchRequests: 1,
+        calls: 2,
+        errors: 0,
+        costUsd: 0,
+        models: { "model-b": 500 },
+        surfaces: { code: 2 },
+      },
+    },
+  ];
+  const data: UsageViewData = {
+    ledger: { lastSyncedAt: null, recordCount: null },
+    heatmap: { "1h": cells },
+    daily: createDemoDaily(30),
+    demo: false,
+  };
+
+  const html = render(context("zh"), data);
+  assert.match(html, /data-role="usage-overall"/);
+  assert.match(html, /总使用量/);
+  assert.match(html, /真实消耗 tokens/);
+  assert.match(html, /最近 14 天/);
+  assert.match(html, /usage-overall-total">1\.5K</, "真实消耗 = 输入 + 输出 + 缓存读 + 缓存写");
+  assert.match(html, /输入（未缓存）/);
+  assert.match(html, /调用次数/);
+  assert.match(html, />900</);
+  assert.match(html, />300</);
+  assert.match(html, />230</);
+  assert.match(html, /1 次网页搜索/);
+  assert.doesNotMatch(html, /缓存写<\/dt>/, "缓存写不单独占一行");
+  assert.doesNotMatch(html, /\$1\.25/, "卡片不再展示费用");
+  assert.doesNotMatch(html, /model-a/);
+  assert.equal(count(html, /data-usage-cell="/g), 336);
+
+  assert.match(html, /data-role="usage-daily-card"/);
+  assert.match(html, /每日 Tokens/);
+  assert.equal(count(html, /data-chart-range="/g), 3);
+  assert.match(html, /data-chart-range="30"[^>]*aria-pressed="true"/);
+  assert.match(html, /data-chart-mode="chart"[^>]*aria-pressed="true"/);
+  assert.match(html, /data-chart-mode="table"/);
+  assert.match(html, /usage-chart-svg/);
+  assert.match(html, /usage-bar--chat/);
+  assert.match(html, /usage-bar--cowork/);
+  assert.match(html, /usage-bar--code/);
+  assert.match(html, /usage-chart-tip/);
+
+  const english = render(context("en"), data);
+  assert.match(english, /Total usage/);
+  assert.match(english, /real consumption tokens/);
+  assert.match(english, /Last 14 days/);
+  assert.match(english, /1 web search/);
+});
+
+test("用量页总使用量卡：无数据时按同一格式显示 0；按天卡片支持图表/表格与滚动", () => {
+  const empty: UsageViewData = {
+    ledger: { lastSyncedAt: null, recordCount: null },
+    demo: false,
+  };
+  const html = render(context("zh"), empty);
+  assert.doesNotMatch(html, /无记录/, "没有数据也保持同一套卡片格式");
+  assert.match(html, /usage-overall-total">0</);
+  assert.match(html, /0 次网页搜索/);
+  assert.doesNotMatch(html, /\$0\.00/);
+
+  const source = read("ui/renderer/pages/usage.ts");
+  assert.match(source, /addEventListener\("pointermove"/);
+  assert.match(source, /addEventListener\("mousemove"/);
+  assert.match(source, /function showCellOverall/);
+  assert.match(source, /function formatCellScope/);
+  assert.match(source, /data-chart-range/);
+  assert.match(source, /data-chart-mode/);
+  assert.match(source, /function updateDailyCard/);
+  assert.match(source, /usage-chart-tip/);
+  assert.match(source, /usage-table-wrap/);
+
+  const css = read("ui/renderer/pages/usage.css");
+  assert.match(css, /\.usage-heat-row\s*\{[\s\S]*?align-items:\s*stretch/);
+  assert.match(css, /\.usage-overall\s*\{[\s\S]*?height:\s*100%/);
+  assert.match(css, /\.usage-chart-svg/);
+  assert.match(css, /\.usage-table-wrap\s*\{[\s\S]*?overflow-y:\s*auto/);
 });

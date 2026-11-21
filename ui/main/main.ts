@@ -21,7 +21,6 @@ const THEME_CHANNELS = {
 };
 const THEME_SOURCES = new Set(["system", "light", "dark"]);
 
-const USAGE_PROFILE_CHANNELS = { pick: "claude-harbor:usage-profile:pick" };
 const WEATHER_CHANNEL = "claude-harbor:weather:get";
 const SYSTEM_CHANNELS = {
   get: "claude-harbor:system:get",
@@ -133,14 +132,6 @@ ipcMain.handle(AVATAR_CHANNELS.pick, async (event) => {
     console.error("Failed to read avatar image:", error);
     return null;
   }
-});
-
-ipcMain.handle(USAGE_PROFILE_CHANNELS.pick, async (event) => {
-  const window = BrowserWindow.fromWebContents(event.sender) ?? mainWindow;
-  const options = { title: "选择用量配置文件", buttonLabel: "选择", properties: ["openFile"] as Array<"openFile"> };
-  const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
-  if (result.canceled || result.filePaths.length === 0) return null;
-  return result.filePaths[0];
 });
 
 let weatherCache: { at: number; value: unknown } | null = null;

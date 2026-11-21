@@ -11,5 +11,10 @@ export { syncLedger } from "./sync/index.ts";
 export type { SyncLedgerOptions } from "./sync/index.ts";
 export { aggregateUsage } from "./query/index.ts";
 export { aggregateUsageBuckets } from "./query/buckets.ts";
-export type { UsageBucket, UsageBucketRange, AggregateBucketOptions } from "./query/buckets.ts";
+export type {
+  UsageBucket,
+  UsageBucketDetail,
+  UsageBucketRange,
+  AggregateBucketOptions,
+} from "./query/buckets.ts";
 export type { AggregateUsageOptions } from "./query/index.ts";

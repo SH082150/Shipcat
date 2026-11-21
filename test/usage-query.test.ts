@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { aggregateUsage } from "../core/usage/index.ts";
+import { aggregateUsage, aggregateUsageBuckets } from "../core/usage/index.ts";
 
 function makeHome(): string {
   const home = mkdtempSync(join(tmpdir(), "claudeharbor-usage-query-"));
@@ -236,6 +236,56 @@ test("aggregateUsage：空镜像与未知版本行返回空聚合", () => {
       "{broken-json",
     ]);
     assert.deepEqual(aggregateUsage({}, { home }), []);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("aggregateUsageBuckets：每格带输入/输出/缓存、调用、错误、成本、模型与界面明细", () => {
+  const home = makeHome();
+  try {
+    writeMirror(home, "2026-11-18", [
+      ledgerLine(localTs("2026-11-18", 12), {
+        surface: "code",
+        isError: true,
+        models: {
+          "model-a": {
+            inputTokens: 100,
+            outputTokens: 20,
+            cacheReadTokens: 30,
+            cacheWriteTokens: 4,
+            webSearchRequests: 2,
+            cost: { usd: 0.25, basis: "list" },
+          },
+          "model-b": {
+            inputTokens: 10,
+            outputTokens: 5,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 1,
+            webSearchRequests: 0,
+          },
+        },
+      }),
+    ]);
+
+    const now = new Date(2026, 10, 18, 12, 10);
+    const buckets = aggregateUsageBuckets("1h", { home, now });
+    assert.equal(buckets.length, 336);
+
+    const cell = buckets[0];
+    assert.ok(cell);
+    assert.equal(cell.value, 170);
+    assert.equal(cell.detail?.inputTokens, 110);
+    assert.equal(cell.detail?.outputTokens, 25);
+    assert.equal(cell.detail?.cacheReadTokens, 30);
+    assert.equal(cell.detail?.cacheWriteTokens, 5);
+    assert.equal(cell.detail?.webSearchRequests, 2);
+    assert.equal(cell.detail?.calls, 1);
+    assert.equal(cell.detail?.errors, 1);
+    assert.equal(cell.detail?.costUsd, 0.25);
+    assert.deepEqual(Object.keys(cell.detail?.models ?? {}), ["model-a", "model-b"]);
+    assert.deepEqual(cell.detail?.surfaces, { code: 1 });
+    assert.equal(buckets[1]?.detail, null, "没有记录的格子明细必须为 null");
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

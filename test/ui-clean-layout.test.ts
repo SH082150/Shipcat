@@ -38,7 +38,5 @@ test("provider and usage sections keep only meaningful list boundaries", () => {
   assert.match(block(providers, ".pv-empty {"), /border-bottom:\s*0/);
   const usage = read("pages/usage.css");
   assert.match(block(usage, ".page--usage .usage-block + .usage-block {"), /border-top:\s*0/);
-  assert.match(block(usage, ".page--usage .usage-quota-window + .usage-quota-window {"), /border-top:\s*0/);
-  assert.match(block(usage, ".page--usage .usage-profile-select {"), /border-bottom:\s*0/);
   assert.match(block(usage, ".page--usage .usage-range-switch {"), /border:\s*0/);
 });

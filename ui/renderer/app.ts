@@ -95,6 +95,7 @@ import type {
 } from "./pages/profiles.ts";
 import * as profilesModule from "./pages/profiles.ts";
 import { buildUsageViewData, render as renderUsage } from "./pages/usage.ts";
+import type { HeatmapCell } from "./pages/usage.ts";
 import * as usageModule from "./pages/usage.ts";
 import type { PageContext } from "./pages/types.ts";
 
@@ -109,7 +110,6 @@ interface ClaudeHarborBridge {
   clientInfo?: ClientInfo;
   getClientInfo?(): ClientInfo | Promise<ClientInfo>;
   openSettings?(detail: OpenSettingsDetail): void;
-  pickUsageProfileFile?(): Promise<string | null>;
   pickAvatarFile?(): Promise<string | null>;
   getWeather?(): Promise<GreetingWeather | null>;
   system?: {
@@ -1174,21 +1174,40 @@ async function renderUsagePage(context: PageContext): Promise<string> {
   try {
     const sync = await usageApi.sync();
     const ranges = ["30min", "1h", "1d"] as const;
-    const buckets = await Promise.all(ranges.map((range) => usageApi.buckets(range)));
+    const [rows, ...buckets] = await Promise.all([
+      usageApi.aggregate({}),
+      ...ranges.map((range) => usageApi.buckets(range)),
+    ]);
     const heatmap = Object.fromEntries(
       ranges.map((range, index) => [
         range,
-        (buckets[index] ?? []).map((bucket) => ({
-          at: new Date(bucket.start).toISOString(),
-          value: bucket.value,
-          level: bucket.level,
-          label: bucket.label,
-        })),
+        (buckets[index] ?? []).map(
+          (bucket): HeatmapCell => ({
+            at: new Date(bucket.start).toISOString(),
+            value: bucket.value,
+            level: bucket.level,
+            label: bucket.label,
+            detail: bucket.detail,
+          }),
+        ),
       ]),
-    ) as Record<(typeof ranges)[number], { at: string; value: number | null; level: number; label: string }[]>;
+    ) as Record<(typeof ranges)[number], HeatmapCell[]>;
+
+    const dailyMap = new Map<string, { chat: number; cowork: number; code: number }>();
+    for (const row of rows) {
+      if (row.surface !== "chat" && row.surface !== "cowork" && row.surface !== "code") continue;
+      const entry = dailyMap.get(row.day) ?? { chat: 0, cowork: 0, code: 0 };
+      entry[row.surface] += row.totals.inputTokens + row.totals.outputTokens;
+      dailyMap.set(row.day, entry);
+    }
+    const daily = [...dailyMap.entries()]
+      .map(([day, values]) => ({ day, ...values }))
+      .sort((a, b) => a.day.localeCompare(b.day));
+
     return renderUsage(context, {
       ...base,
       heatmap,
+      daily,
       demo: false,
       ledger: { lastSyncedAt: sync.lastSyncAt, recordCount: null },
     });
@@ -1780,7 +1799,6 @@ function openSettings(detail: OpenSettingsDetail): void {
     customName: userIdentity.name,
     localUsername: localClientInfo.username ?? "",
     avatar: userIdentity.avatar,
-    pickUsageProfileFile: () => bridge?.pickUsageProfileFile?.() ?? Promise.resolve(null),
     pickAvatarFile: () => bridge?.pickAvatarFile?.() ?? Promise.resolve(null),
     onUsernameChange: updateUserName,
     onAvatarChange: updateUserAvatar,

@@ -16,7 +16,6 @@ const SYSTEM_CHANNELS = {
 };
 
 const FILE_CHANNELS = {
-  usageProfile: "claude-harbor:usage-profile:pick",
   avatar: "claude-harbor:avatar:pick",
 };
 
@@ -43,7 +42,6 @@ contextBridge.exposeInMainWorld("claudeHarbor", {
     if (typeof callback !== "function") throw new TypeError("onThemeChange expects a function");
     return subscribe(THEME_CHANNELS.changed, (value) => callback(String(value)));
   },
-  pickUsageProfileFile: () => invoke(FILE_CHANNELS.usageProfile),
   pickAvatarFile: () => invoke(FILE_CHANNELS.avatar),
   getWeather: () => invoke(WEATHER_CHANNEL),
   system: {

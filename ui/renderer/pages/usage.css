@@ -1,5 +1,5 @@
 /* ==========================================================================
-   用量页：额度 + 历史用量热力图。
+   用量页：历史用量热力图 + 总使用量卡 + 按天 Tokens 图表。
    不使用卡片与阴影；只用细分割线、留白与字重分层。
    橙色仅属于品牌，本页不出现；开关用蓝色，主按钮浅色黑底白字 / 深色白底黑字。
    ========================================================================== */
@@ -13,8 +13,9 @@
   --usage-hover: color-mix(in srgb, var(--usage-fg) 5%, transparent);
   --usage-blue: #2a78d6;
   --usage-blue-soft: color-mix(in srgb, var(--usage-blue) 11%, transparent);
-  --usage-primary-bg: #0b0b0b;
-  --usage-primary-fg: #ffffff;
+  --usage-chat: #3f7ff2;
+  --usage-cowork: #e8863f;
+  --usage-code: #12a189;
   --usage-font-display: var(--harbor-font-display);
   --usage-cell-empty: color-mix(in srgb, var(--usage-fg) 7%, transparent);
   --usage-level-1: color-mix(in srgb, var(--usage-blue) 24%, transparent);
@@ -25,15 +26,11 @@
 
 html[data-theme="dark"] .page--usage {
   --usage-blue: #2a78d6;
-  --usage-primary-bg: #ffffff;
-  --usage-primary-fg: #0b0b0b;
 }
 
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) .page--usage {
     --usage-blue: #2a78d6;
-    --usage-primary-bg: #ffffff;
-    --usage-primary-fg: #0b0b0b;
   }
 }
 
@@ -48,6 +45,10 @@ html[data-theme="dark"] .page--usage {
 .page--usage .usage-block + .usage-block {
   padding-top: 22px;
   border-top: 0;
+}
+
+.page--usage .usage-block--continuous {
+  padding-top: 0;
 }
 
 .page--usage .usage-block-head {
@@ -83,179 +84,6 @@ html[data-theme="dark"] .page--usage {
   margin: 0;
   color: var(--usage-muted);
   font-size: 12.5px;
-  line-height: 1.6;
-}
-
-.page--usage .usage-block-actions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 16px;
-}
-
-/* ---- 额度：配置文件、余额、窗口 ------------------------------------------ */
-
-.page--usage .usage-profile {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.page--usage .usage-profile-label {
-  color: var(--usage-faint);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-}
-
-.page--usage .usage-profile-select {
-  max-width: 180px;
-  padding: 3px 4px;
-  border: 0;
-  border-bottom: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--usage-fg);
-  font: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.page--usage .usage-profile-select:hover {
-  border-bottom-color: var(--usage-fg);
-}
-
-.page--usage .button--primary {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: var(--usage-primary-bg);
-  color: var(--usage-primary-fg);
-  font-size: 12px;
-  font-weight: 550;
-  letter-spacing: 0.01em;
-  transition: opacity 0.14s var(--harbor-ease, ease), transform 0.12s var(--harbor-ease, ease);
-}
-
-.page--usage .button--primary:hover {
-  opacity: 0.86;
-}
-
-.page--usage .button--primary:active {
-  transform: scale(0.985);
-}
-
-.page--usage .usage-quota-grid {
-  display: grid;
-  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
-  gap: 44px;
-  align-items: start;
-}
-
-.page--usage .usage-balance {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding-top: 4px;
-}
-
-.page--usage .usage-balance-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.page--usage .usage-label {
-  color: var(--usage-faint);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-}
-
-.page--usage .usage-value {
-  color: var(--usage-fg);
-  font-size: 24px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  line-height: 1.05;
-}
-
-.page--usage .usage-quota-windows {
-  display: flex;
-  flex-direction: column;
-}
-
-.page--usage .usage-quota-window {
-  padding: 13px 0 15px;
-}
-
-.page--usage .usage-quota-window + .usage-quota-window {
-  border-top: 0;
-}
-
-.page--usage .usage-window-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 9px;
-}
-
-.page--usage .usage-window-label {
-  color: var(--usage-fg);
-  font-size: 12.5px;
-  font-weight: 500;
-}
-
-.page--usage .usage-window-value {
-  color: var(--usage-muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.page--usage .usage-meter {
-  display: block;
-  width: 100%;
-  height: 4px;
-  margin: 0;
-  overflow: hidden;
-  border: 0;
-  border-radius: 999px;
-  background: var(--usage-cell-empty);
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.page--usage .usage-meter::-webkit-progress-bar {
-  border-radius: 999px;
-  background: var(--usage-cell-empty);
-}
-
-.page--usage .usage-meter::-webkit-progress-value {
-  border-radius: 999px;
-  background: var(--usage-blue);
-}
-
-.page--usage .usage-meter.is-unknown {
-  position: relative;
-}
-
-.page--usage .usage-meter.is-unknown .usage-meter-fill {
-  display: block;
-  width: 0;
-  height: 100%;
-}
-
-.page--usage .usage-window-reset {
-  margin-top: 7px;
-  color: var(--usage-faint);
-  font-size: 11px;
-}
-
-.page--usage .usage-footnote,
-.page--usage .usage-quota-note {
-  margin: 18px 0 0;
-  color: var(--usage-faint);
-  font-size: 11px;
   line-height: 1.6;
 }
 
@@ -306,6 +134,153 @@ html[data-theme="dark"] .page--usage {
 .page--usage .usage-ledger {
   color: var(--usage-faint);
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- 热力图 + 总使用量卡 ---------------------------------------------- */
+
+.page--usage .usage-heat-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 28px;
+  align-items: stretch;
+}
+
+.page--usage .usage-heatmap-host {
+  min-width: 0;
+}
+
+.page--usage .usage-overall {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--harbor-surface-muted);
+}
+
+.page--usage .usage-overall-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.page--usage .usage-overall-label {
+  color: var(--usage-muted);
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.page--usage .usage-overall-scope {
+  color: var(--usage-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--usage .usage-overall-total {
+  margin-top: 7px;
+  color: var(--usage-fg);
+  font-family: var(--usage-font-display);
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--usage .usage-overall-caption {
+  margin-top: 3px;
+  color: var(--usage-faint);
+  font-size: 10.5px;
+}
+
+.page--usage .usage-overall-rows {
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.page--usage .usage-overall-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.page--usage .usage-overall-row dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--usage-muted);
+}
+
+.page--usage .usage-overall-row dd {
+  margin: 0;
+  color: var(--usage-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.page--usage .usage-overall-searches {
+  margin: auto 0 0;
+  padding-top: 10px;
+  color: var(--usage-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* 信息图标与提示 */
+.page--usage .usage-info {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--usage-faint);
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: help;
+}
+
+.page--usage .usage-info::before {
+  content: "i";
+  transform: translateY(-0.4px);
+}
+
+.page--usage .usage-tip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  z-index: 20;
+  width: 218px;
+  padding: 8px 10px;
+  border: 1px solid var(--usage-line);
+  border-radius: 8px;
+  background: var(--harbor-surface-raised);
+  box-shadow: var(--harbor-shadow-popover);
+  color: var(--usage-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  transform: translateX(-50%);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s var(--harbor-ease);
+  pointer-events: none;
+}
+
+.page--usage .usage-info:hover .usage-tip,
+.page--usage .usage-info:focus-visible .usage-tip {
+  opacity: 1;
+  visibility: visible;
 }
 
 .page--usage .usage-heatmap {
@@ -405,15 +380,273 @@ html[data-theme="dark"] .page--usage {
   font-style: normal;
 }
 
+/* ---- 按天用量：卡片、图表、表格 ---------------------------------------- */
+
+.page--usage .usage-daily-card {
+  padding: 18px 18px 14px;
+  border: 1px solid var(--usage-line);
+  border-radius: 14px;
+  background: var(--harbor-surface);
+}
+
+.page--usage .usage-daily-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.page--usage .usage-daily-copy h3 {
+  margin: 0 0 4px;
+  color: var(--usage-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.page--usage .usage-daily-copy p {
+  margin: 0;
+  color: var(--usage-muted);
+  font-size: 12px;
+}
+
+.page--usage .usage-daily-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+}
+
+.page--usage .usage-mode-switch {
+  display: inline-flex;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--usage-hover);
+}
+
+.page--usage .usage-mode-switch button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--usage-muted);
+}
+
+.page--usage .usage-mode-switch button:hover {
+  color: var(--usage-fg);
+}
+
+.page--usage .usage-mode-switch button.is-active {
+  color: var(--usage-fg);
+  background: var(--harbor-surface);
+  box-shadow: var(--harbor-shadow-sm);
+}
+
+html:not([data-theme="dark"]) .page--usage .usage-mode-switch button.is-active {
+  border-color: var(--usage-blue);
+}
+
+.page--usage .usage-mode-switch svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.page--usage .usage-daily-legend {
+  display: flex;
+  gap: 16px;
+  margin: 12px 0 2px;
+  color: var(--usage-muted);
+  font-size: 12px;
+}
+
+.page--usage .usage-daily-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page--usage .usage-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.page--usage .usage-legend-dot--chat {
+  background: var(--usage-chat);
+}
+
+.page--usage .usage-legend-dot--cowork {
+  background: var(--usage-cowork);
+}
+
+.page--usage .usage-legend-dot--code {
+  background: var(--usage-code);
+}
+
+.page--usage .usage-chart-host {
+  position: relative;
+}
+
+.page--usage .usage-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.page--usage .usage-chart-axis {
+  fill: var(--usage-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--usage .usage-chart-grid {
+  stroke: var(--usage-line);
+  stroke-width: 1;
+}
+
+.page--usage .usage-chart-band {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.page--usage .usage-chart-band:hover {
+  fill: var(--usage-hover);
+}
+
+.page--usage .usage-bar--chat {
+  fill: var(--usage-chat);
+}
+
+.page--usage .usage-bar--cowork {
+  fill: var(--usage-cowork);
+}
+
+.page--usage .usage-bar--code {
+  fill: var(--usage-code);
+}
+
+.page--usage .usage-chart-tip {
+  position: absolute;
+  z-index: 5;
+  min-width: 176px;
+  padding: 10px 12px;
+  border: 1px solid var(--usage-line);
+  border-radius: 10px;
+  background: var(--harbor-surface-raised);
+  box-shadow: var(--harbor-shadow-popover);
+  pointer-events: none;
+}
+
+.page--usage .usage-chart-tip[hidden] {
+  display: none;
+}
+
+.page--usage .usage-chart-tip-date {
+  margin-bottom: 7px;
+  color: var(--usage-faint);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--usage .usage-chart-tip-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.page--usage .usage-chart-tip-value {
+  color: var(--usage-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.page--usage .usage-chart-tip-name {
+  color: var(--usage-muted);
+  text-align: right;
+}
+
+.page--usage .usage-table-wrap {
+  max-height: 336px;
+  margin-top: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--usage-fg) 18%, transparent) transparent;
+}
+
+.page--usage .usage-table-wrap::-webkit-scrollbar {
+  width: 8px;
+}
+
+.page--usage .usage-table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--usage-fg) 18%, transparent);
+}
+
+.page--usage .usage-table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.page--usage .usage-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.page--usage .usage-data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--usage-line-strong);
+  background: var(--harbor-surface);
+  color: var(--usage-faint);
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.page--usage .usage-data-table th:first-child {
+  text-align: left;
+}
+
+.page--usage .usage-data-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--usage-line);
+  color: var(--usage-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.page--usage .usage-data-table td:first-child {
+  color: var(--usage-fg);
+  text-align: left;
+}
+
+.page--usage .usage-data-table tbody tr:hover td {
+  background: var(--usage-hover);
+}
+
 @media (max-width: 980px) {
-  .page--usage .usage-quota-grid {
+  .page--usage .usage-heat-row {
     grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
+    gap: 18px;
   }
 
-  .page--usage .usage-balance {
-    flex-direction: row;
-    gap: 44px;
+  .page--usage .usage-overall {
+    height: auto;
   }
 }
 
@@ -423,7 +656,12 @@ html[data-theme="dark"] .page--usage {
     gap: 16px;
   }
 
-  .page--usage .usage-block-actions {
+  .page--usage .usage-daily-head {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .page--usage .usage-daily-tools {
     width: 100%;
     justify-content: space-between;
   }

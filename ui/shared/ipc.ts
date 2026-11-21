@@ -164,11 +164,25 @@ export interface UsageSyncSummary {
 
 export type UsageBucketRange = "30min" | "1h" | "1d";
 
+export interface UsageBucketDetail {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
+  readonly webSearchRequests: number;
+  readonly calls: number;
+  readonly errors: number;
+  readonly costUsd: number;
+  readonly models: Readonly<Record<string, number>>;
+  readonly surfaces: Readonly<Record<string, number>>;
+}
+
 export interface UsageBucket {
   readonly start: number;
   readonly value: number | null;
   readonly level: number;
   readonly label: string;
+  readonly detail: UsageBucketDetail | null;
 }
 
 export interface UsageData {
