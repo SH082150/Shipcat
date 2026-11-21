@@ -71,9 +71,7 @@ import type { ClientInfo, OpenSettingsDetail } from "./components/events.ts";
 import {
   ACTION_SELECTOR,
   isShellContainer,
-  nextSortDirection,
   resolvePageExport,
-  toggleAriaChecked,
 } from "./components/ui-actions.ts";
 
 import { render as renderOverview } from "./pages/overview.ts";
@@ -132,13 +130,6 @@ interface DetailRenderer {
 interface HeatmapRenderer {
   (range: string): unknown;
 }
-
-const PAGE_RENDERERS: Record<PageId, (context: PageContext) => string> = {
-  overview: renderOverview,
-  providers: renderProviders,
-  profiles: renderProfiles,
-  usage: renderUsage,
-};
 
 /**
  * 页面模块的详情/弹窗/热力图扩展是可选的：页面未提供时，路由回落到列表，
@@ -386,10 +377,11 @@ workspace.addEventListener("change", (event) => {
         }
         await renderWorkspace();
       } catch (error) {
+        console.error("gateway toggle failed", error);
         target.checked = !target.checked;
         showFloatingNotice({
           title: "网关操作失败",
-          message: error instanceof Error ? error.message : String(error),
+          message: "网关操作失败，请检查档案与供应商配置后重试。",
           tone: "danger",
         });
       }
@@ -505,10 +497,6 @@ root.addEventListener("click", (event) => {
       });
       return;
     }
-    case "toggle": {
-      handleToggle(actionable);
-      return;
-    }
     case "search-toggle": {
       handleSearchToggle(actionable);
       return;
@@ -516,12 +504,6 @@ root.addEventListener("click", (event) => {
     case "search-profiles":
     case "search-providers": {
       handleSearchToggle(actionable);
-      return;
-    }
-    case "sort":
-    case "sort-profiles":
-    case "sort-providers": {
-      handleSort(actionable);
       return;
     }
     case "remove-claude-field": {
@@ -556,9 +538,10 @@ root.addEventListener("click", (event) => {
               showFloatingNotice({ title: "已删除档案", tone: "success" });
               navigateRoute({ page: "profiles", detailId: null }, false);
             } catch (error) {
+              console.error("delete profile failed", error);
               showFloatingNotice({
                 title: "删除档案失败",
-                message: error instanceof Error ? error.message : String(error),
+                message: "删除失败，请稍后重试。",
                 tone: "danger",
               });
             }
@@ -587,9 +570,10 @@ root.addEventListener("click", (event) => {
           showFloatingNotice({ title: "已移除模型", tone: "success" });
           await renderWorkspace();
         } catch (error) {
+          console.error("remove model failed", error);
           showFloatingNotice({
             title: "移除模型失败",
-            message: error instanceof Error ? error.message : String(error),
+            message: "移除失败，请稍后重试。",
             tone: "danger",
           });
         }
@@ -629,13 +613,14 @@ root.addEventListener("click", (event) => {
           const name =
             actionable
               .closest<HTMLElement>(".profile-row")
-              ?.querySelector<HTMLElement>(".profile-row-name")?.textContent ?? "该配置";
+              ?.querySelector<HTMLElement>(".profile-row-name")?.textContent ?? "该档案";
           showFloatingNotice({ title: `已应用「${name}」`, tone: "success" });
           await renderWorkspace();
         } catch (error) {
+          console.error("apply profile failed", error);
           showFloatingNotice({
             title: "应用档案失败",
-            message: error instanceof Error ? error.message : String(error),
+            message: "应用失败，请检查档案配置后重试。",
             tone: "danger",
           });
         }
@@ -648,7 +633,7 @@ root.addEventListener("click", (event) => {
         workspace.querySelector<HTMLElement>(".pv-detail-head h1")?.textContent?.trim() ?? "该供应商";
       openConfirmDialog({
         title: "删除供应商",
-        message: `确定要删除「${name}」吗？将从本机配置库与 Claude 侧同步移除，Claude Desktop 重启后生效。`,
+        message: `确定要删除「${name}」吗？将从本机和 Claude Desktop 的配置中一并移除，重启 Claude Desktop 后生效。`,
         confirmLabel: "删除",
         tone: "danger",
         onConfirm: () => {
@@ -659,9 +644,10 @@ root.addEventListener("click", (event) => {
               showFloatingNotice({ title: "已删除供应商", tone: "success" });
               navigateRoute({ page: "providers", detailId: null }, false);
             } catch (error) {
+              console.error("delete provider failed", error);
               showFloatingNotice({
                 title: "删除供应商失败",
-                message: error instanceof Error ? error.message : String(error),
+                message: "删除失败，请稍后重试。",
                 tone: "danger",
               });
             }
@@ -675,8 +661,8 @@ root.addEventListener("click", (event) => {
     }
     case "gateway-start": {
       showFloatingNotice({
-        title: "正在重试网关连接（原型）",
-        message: "接入 core 后会展示真实的重试状态。",
+        title: "正在重新连接网关。",
+        message: "请检查档案与供应商配置后重试。",
         tone: "info",
       });
       return;
@@ -763,10 +749,6 @@ document.addEventListener("keydown", (event) => {
   }
 
   if (event.key === "Escape" && !settingsOverlay) {
-    if (closeSortMenu()) {
-      event.preventDefault();
-      return;
-    }
     if (menuOpen) {
       event.preventDefault();
       closeMenu(true);
@@ -1026,9 +1008,10 @@ async function renderProvidersPage(context: PageContext, detailId: string | null
     const providers = await providersApi.list();
     return renderProviders(context, { providers: providers.map(providerView) });
   } catch (error) {
+    console.error("read providers failed", error);
     showFloatingNotice({
       title: "读取供应商失败",
-      message: error instanceof Error ? error.message : String(error),
+      message: "读取失败，请稍后重试。",
       tone: "danger",
     });
     if (detailId !== null && renderer) {
@@ -1130,9 +1113,10 @@ async function renderProfilesPage(context: PageContext, detailId: string | null)
     };
     return renderProfiles(context, data);
   } catch (error) {
+    console.error("read profiles failed", error);
     showFloatingNotice({
       title: "读取档案失败",
-      message: error instanceof Error ? error.message : String(error),
+      message: "读取失败，请稍后重试。",
       tone: "danger",
     });
     return renderProfiles(context, { activeId: null, gatewayEnabled: false, profiles: [] });
@@ -1160,9 +1144,10 @@ async function renderOverviewPage(context: PageContext): Promise<string> {
       },
     });
   } catch (error) {
+    console.error("read overview failed", error);
     showFloatingNotice({
       title: "读取概览失败",
-      message: error instanceof Error ? error.message : String(error),
+      message: "读取失败，请稍后重试。",
       tone: "danger",
     });
     return renderOverview(context);
@@ -1212,9 +1197,10 @@ async function renderUsagePage(context: PageContext): Promise<string> {
       ledger: { lastSyncedAt: sync.lastSyncAt, recordCount: null },
     });
   } catch (error) {
+    console.error("read usage failed", error);
     showFloatingNotice({
       title: "读取用量失败",
-      message: error instanceof Error ? error.message : String(error),
+      message: "读取失败，请稍后重试。",
       tone: "danger",
     });
     return renderUsage(context, { ...base, demo: false });
@@ -1256,22 +1242,6 @@ function syncChrome(): void {
 /* 页面通用动作                                                        */
 /* ------------------------------------------------------------------ */
 
-function handleToggle(actionable: HTMLElement): void {
-  const control = actionable.matches('[role="switch"]')
-    ? actionable
-    : actionable.querySelector<HTMLElement>('[role="switch"]');
-  if (!control) return;
-
-  const checked = toggleAriaChecked(control.getAttribute("aria-checked"));
-  control.setAttribute("aria-checked", checked);
-  control.dataset.checked = checked;
-  window.dispatchEvent(
-    new CustomEvent("ui-toggle", {
-      detail: { checked: checked === "true", target: control, source: actionable },
-    }),
-  );
-}
-
 function handleSearchToggle(actionable: HTMLElement): void {
   const container = workspace.querySelector<HTMLElement>('[data-role="page-search"]');
   if (!container) return;
@@ -1305,71 +1275,6 @@ function closePageSearchUnless(target: unknown): void {
   setPageSearchOpen(false);
 }
 
-function handleSort(actionable: HTMLElement): void {
-  const direction = nextSortDirection(
-    actionable.dataset.sortDirection ?? workspace.dataset.viewSortDirection ?? null,
-  );
-  actionable.dataset.sortDirection = direction;
-  workspace.dataset.viewSortDirection = direction;
-
-  const key = actionable.dataset.sortKey?.trim();
-  if (key) workspace.dataset.viewSortKey = key;
-
-  const header = actionable.closest<HTMLElement>("th");
-  if (header) {
-    header.setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
-  }
-
-  for (const item of workspace.querySelectorAll<HTMLElement>('[data-action="sort"]')) {
-    item.classList.toggle("is-active", item === actionable);
-    if (item !== actionable) delete item.dataset.sortDirection;
-  }
-
-  const menu = findSortMenu(actionable);
-  if (!menu) return;
-  const open = menu.hidden || menu.dataset.open !== "true";
-  menu.hidden = !open;
-  menu.dataset.open = String(open);
-  actionable.setAttribute("aria-expanded", String(open));
-  if (open) {
-    requestAnimationFrame(() => {
-      menu
-        .querySelector<HTMLElement>('[role="menuitem"], [data-sort-option], button')
-        ?.focus();
-    });
-  }
-}
-
-function findSortMenu(actionable: HTMLElement): HTMLElement | null {
-  const hint = actionable.dataset.sortMenu?.trim();
-  if (hint) {
-    if (hint.startsWith("#")) return workspace.querySelector<HTMLElement>(hint);
-    if (hint.startsWith(".") || hint.startsWith("[")) {
-      try {
-        return workspace.querySelector<HTMLElement>(hint);
-      } catch {
-        return null;
-      }
-    }
-    return workspace.querySelector<HTMLElement>(`#${escapeSelector(hint)}`);
-  }
-  return (
-    actionable
-      .closest<HTMLElement>(".sort-wrap, [data-sort-wrap]")
-      ?.querySelector<HTMLElement>('[data-role="sort-menu"], .sort-menu') ?? null
-  );
-}
-
-function closeSortMenu(): boolean {
-  const menu = workspace.querySelector<HTMLElement>(
-    '[data-role="sort-menu"][data-open="true"], .sort-menu[data-open="true"]',
-  );
-  if (!menu) return false;
-  menu.hidden = true;
-  menu.dataset.open = "false";
-  return true;
-}
-
 function handleUsageRange(button: HTMLElement): void {
   const range = button.dataset.usageRange?.trim();
   if (!range) return;
@@ -1396,13 +1301,6 @@ function handleUsageRange(button: HTMLElement): void {
     container.replaceChildren(output);
   }
   container.dataset.range = range;
-}
-
-function escapeSelector(value: string): string {
-  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
-    return CSS.escape(value);
-  }
-  return value.replace(/[^\w-]/g, (character) => `\\${character}`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1579,7 +1477,7 @@ async function submitProfileForm(creating: boolean): Promise<void> {
       }),
     );
     if (claudeDrafts.some((draft) => draft.key.length === 0)) {
-      showFloatingNotice({ title: "请填写项目名称", tone: "danger" });
+      showFloatingNotice({ title: "请填写透传项名称。", tone: "danger" });
       return;
     }
     if (claudeDrafts.length > 0) {
@@ -1614,9 +1512,10 @@ async function submitProfileForm(creating: boolean): Promise<void> {
     showFloatingNotice({ title: "已保存档案", tone: "success" });
     await renderWorkspace();
   } catch (error) {
+    console.error("save profile failed", error);
     showFloatingNotice({
       title: creating ? "添加档案失败" : "保存档案失败",
-      message: error instanceof Error ? error.message : String(error),
+      message: "保存失败，请检查填写内容后重试。",
       tone: "danger",
     });
   }
@@ -1633,9 +1532,10 @@ async function removeClaudeField(profileId: string, key: string): Promise<void> 
     showFloatingNotice({ title: "已移除透传字段", tone: "success" });
     await renderWorkspace();
   } catch (error) {
+    console.error("remove passthrough field failed", error);
     showFloatingNotice({
       title: "移除透传字段失败",
-      message: error instanceof Error ? error.message : String(error),
+      message: "移除失败，请稍后重试。",
       tone: "danger",
     });
   }
@@ -1664,9 +1564,10 @@ async function submitProviderForm(creating: boolean): Promise<void> {
       await renderWorkspace();
     }
   } catch (error) {
+    console.error("save provider failed", error);
     showFloatingNotice({
       title: creating ? "添加供应商失败" : "保存供应商失败",
-      message: error instanceof Error ? error.message : String(error),
+      message: "保存失败，请检查填写内容后重试。",
       tone: "danger",
     });
   }
@@ -1731,7 +1632,7 @@ function appendAddModelEntry(): void {
     ?.focus();
 }
 
-/** 编辑页插入空白模型条目：先落在页面上，点“保存修改”时才写入配置库。 */
+/** 编辑页插入空白模型条目：先落在页面上，点“保存修改”时才写入本机。 */
 function appendDetailModelEntry(): void {
   const pageElement = workspace.querySelector<HTMLElement>('[data-role="page-profile-detail"]');
   const list = pageElement?.querySelector<HTMLElement>(".profile-models");
@@ -1865,7 +1766,7 @@ function readClientInfo(): ClientInfo {
       return { ...base, username: username.trim() };
     }
   } catch {
-    // preload 不可用时只显示本地账户占位。
+    // preload 不可用时只显示本地账户空白。
   }
   return base;
 }

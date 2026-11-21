@@ -1,4 +1,4 @@
-import type { AppError, AppResult } from "../../shared/ipc.ts";
+import type { AppResult } from "../../shared/ipc.ts";
 
 export class ServiceError extends Error {
   readonly code: string;
@@ -47,14 +47,4 @@ export async function run<T>(fn: () => T | Promise<T>): Promise<AppResult<T>> {
   }
 }
 
-export function assertString(value: unknown, field: string): string {
-  if (typeof value !== "string") {
-    throw new ServiceError("VALIDATION", `${field} 必须是字符串`);
-  }
-  return value;
-}
 
-export function asAppError(error: unknown): AppError {
-  const result = fail(error);
-  return result.ok ? { code: "UNKNOWN", message: "未知错误" } : result.error;
-}

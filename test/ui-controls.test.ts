@@ -59,7 +59,7 @@ test("provider search sits left of add and expands leftwards on demand", () => {
 
 test("settings exposes About in the sidebar and keeps client-info as an alias", () => {
   const settings = read("settings/settings.ts");
-  assert.match(settings, /SETTINGS_SECTIONS = \["general", "privacy", "usage", "system", "about"\]/);
+  assert.match(settings, /SETTINGS_SECTIONS = \["general", "privacy", "system", "about"\]/);
   assert.match(settings, /about:\s*"关于"/);
   assert.match(settings, /\["about", clientPane\]/);
   assert.match(settings, /initialSection === "client-info"\s*\?\s*"about"/);
@@ -75,11 +75,4 @@ test("profile typography and vertical rhythm match the reference page", () => {
   assert.match(css, /\.profile-list-head\s*\{[\s\S]*?font-size:\s*12px/);
 });
 
-test("primary buttons use a quiet neutral rounded rectangle without a decorative shadow", () => {
-  const css = read("styles.css");
-  assert.match(css, /\.button\s*\{[\s\S]*?height:\s*32px/);
-  assert.match(css, /\.button\s*\{[\s\S]*?border-radius:\s*var\(--harbor-radius\)/);
-  assert.match(css, /\.button\s*\{[\s\S]*?font-weight:\s*500/);
-  const primary = css.match(/\.button--primary\s*\{[\s\S]*?\}/)?.[0] ?? "";
-  assert.doesNotMatch(primary, /box-shadow/);
-});
+

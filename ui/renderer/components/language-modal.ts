@@ -3,7 +3,6 @@
  * 选择后调用 onSelect 并关闭；关闭动作只通过 onClose 上抛一次。
  */
 
-import { escapeHtml } from "./html.ts";
 import { LANGUAGES } from "./i18n.ts";
 import type { Language } from "./i18n.ts";
 

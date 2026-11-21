@@ -167,10 +167,6 @@
   word-break: break-word;
 }
 
-.sync-value.is-absent {
-  color: var(--ch-text-muted);
-}
-
 .sync-final {
   min-width: 0;
 }

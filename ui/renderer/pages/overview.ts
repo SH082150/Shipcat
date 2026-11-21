@@ -1,4 +1,4 @@
-/** 概览页：欢迎语、当前配置、建议列表与错误通知条，纯字符串渲染。 */
+/** 概览页：欢迎语、建议列表与错误通知条，纯字符串渲染。 */
 
 import { escapeHtml, iconSlot } from "../components/html.ts";
 import { iconSvg } from "../components/icons.ts";
@@ -9,26 +9,13 @@ import { isPageId } from "../state/navigation.ts";
 import type { OverviewContent, OverviewHint, PageContext } from "./types.ts";
 
 const en = {
-  profileLabel: "Current configuration",
-  modeStandard: "Standard",
-  modeAdvanced: "Advanced",
-  profileHint: "Claude Desktop requests use this configuration.",
-  emptyTitle: "No active configuration",
-  emptyBody: "Choose a profile before Claude Desktop can route through the gateway.",
-  emptyAction: "Go to profiles",
-  gatewayLabel: "Local gateway",
-  gatewayNote: "Start it when you're ready.",
-  gatewayRunning: "Running",
-  switchConfig: "Switch configuration",
-  standardNote: "Direct Anthropic",
-  standardHint: "No local gateway",
   suggestionsTitle: "Suggestions",
   hintUsageTitle: "Review usage",
   hintUsageBody: "Review requests and tokens recorded by Claude on this device.",
-  hintProfilesTitle: "Switch configuration",
+  hintProfilesTitle: "Switch profile",
   hintProfilesBody: "Pick the provider and model Claude Desktop should use.",
   syncHintTitle: "Check profile sync",
-  syncHintBody: "{count} profile(s) differ from Claude. Review them before editing.",
+  syncHintBody: "{count} profile(s) differ from Claude Desktop. Review them before editing.",
   noticeTitle: "Gateway connection failed",
   noticeBody:
     "Claude Desktop could not reach the local gateway. Check the configuration and try again.",
@@ -36,39 +23,26 @@ const en = {
   noticeRetry: "Retry",
   noticeSettings: "Open settings",
   noticeClose: "Close",
-  noticeReopen: "Preview notification",
+  noticeReopen: "Show notification",
 } as const;
 
 type OverviewCopyKey = keyof typeof en;
 
 const zh: Record<OverviewCopyKey, string> = {
-  profileLabel: "当前配置",
-  modeStandard: "标准",
-  modeAdvanced: "进阶",
-  profileHint: "Claude Desktop 的请求将使用这个配置。",
-  emptyTitle: "还没有激活的配置",
-  emptyBody: "先选择一个档案，Claude Desktop 才能通过本地网关发送请求。",
-  emptyAction: "前往档案",
-  gatewayLabel: "本地网关",
-  gatewayNote: "准备好后开启。",
-  gatewayRunning: "运行中",
-  switchConfig: "切换配置",
-  standardNote: "直连 Anthropic",
-  standardHint: "无需本地网关",
   suggestionsTitle: "建议",
   hintUsageTitle: "查看用量",
   hintUsageBody: "查看 Claude 在这台设备上记录的请求与 Token。",
-  hintProfilesTitle: "切换配置",
+  hintProfilesTitle: "切换档案",
   hintProfilesBody: "选择 Claude Desktop 使用的供应商与模型。",
   syncHintTitle: "检查档案配置",
-  syncHintBody: "有 {count} 个档案与 Claude 侧不一致，编辑前请先处理。",
+  syncHintBody: "有 {count} 个档案与 Claude Desktop 的配置不一致，编辑前请先处理。",
   noticeTitle: "网关连接失败",
   noticeBody: "Claude Desktop 暂时无法连接本地网关，请检查配置后重试。",
   noticeDetails: "查看详情",
   noticeRetry: "重试",
   noticeSettings: "打开设置",
   noticeClose: "关闭",
-  noticeReopen: "重新预览通知",
+  noticeReopen: "显示通知",
 };
 
 /** 局部中英文案：概览页新增文案不进共享 i18n 表，避免与其他页面耦合。 */
@@ -123,7 +97,7 @@ export function formatGreeting(options: GreetingOptions = {}): string {
   return `${phrase}${language === "zh" ? "，" : ", "}${username}`;
 }
 
-/** 自定义 greeting 支持 {username} 占位；缺用户名时去掉悬空逗号并回落到纯时段问候。 */
+/** 自定义 greeting 支持 {username} 空白；缺用户名时去掉悬空逗号并回落到纯时段问候。 */
 function resolveGreeting(
   value: string | undefined,
   language: Language,

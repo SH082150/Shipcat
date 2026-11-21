@@ -96,7 +96,8 @@ export function readJson(path: string): unknown {
   try {
     return JSON.parse(text);
   } catch (err) {
-    throw new Error(`档案文件损坏，无法解析 JSON：${path}（${(err as Error).message}）`, {
+    console.error("failed to parse profile JSON", path, err);
+    throw new Error("配置文件已损坏，无法读取。请在设置中检查或重建该档案。", {
       cause: err,
     });
   }

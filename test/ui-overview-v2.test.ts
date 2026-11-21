@@ -151,7 +151,7 @@ test("overview: greeting 支持 {username} 模板与完整自定义，文本全�
   assert.match(noName, /data-role="overview-greeting"[^>]*>Good night<\/h1>/);
 });
 
-test("overview: 当前配置卡已移除，仅保留切换配置入口", () => {
+test("overview: 当前配置卡已移除，仅保留切换档案入口", () => {
   for (const mode of ["standard", "advanced"] as const) {
     const html = draw({ content: { activeProfile: "Daily driver", mode } });
     assert.doesNotMatch(html, /data-role="gateway-bar"/);
@@ -159,11 +159,11 @@ test("overview: 当前配置卡已移除，仅保留切换配置入口", () => {
     assert.doesNotMatch(html, /data-role="active-profile"/);
     assert.doesNotMatch(html, /data-role="profile-box"/);
     assert.doesNotMatch(html, /data-source="overview-profile-switch"/);
-    assert.match(html, />Switch configuration</);
+    assert.match(html, />Switch profile</);
   }
 });
 
-test("overview: 没有激活配置时也只保留切换配置入口", () => {
+test("overview: 没有激活档案时也只保留切换档案入口", () => {
   for (const activeProfile of [undefined, null, "", "   "]) {
     const html = draw({ content: { activeProfile, mode: "advanced" } });
     assert.doesNotMatch(html, /data-role="active-profile"/);
@@ -206,7 +206,7 @@ test("overview: 错误通知条默认展开，含详情、两个次要按钮与�
     "shell 的 data-page 委托会重渲染 workspace，summary 必须显式声明 action",
   );
   assert.match(html, />Close</);
-  assert.match(html, />Preview notification</);
+  assert.match(html, />Show notification</);
   assert.match(html, /class="icon-placeholder ov-notice-restore-icon"/);
   assert.doesNotMatch(html, /data-action="dismiss-notification"/, "关闭由原生 details 完成");
 });
@@ -227,15 +227,15 @@ test("overview: 中英文案键一致，中文默认文案与按钮完整", () =
     zh,
     /data-role="overview-greeting"[^>]*>(?:早上好|下午好|晚上好)，小明<\/h1>/,
   );
-  assert.match(zh, />切换配置</);
+  assert.match(zh, />切换档案</);
   assert.match(zh, />建议</);
   assert.match(zh, />查看用量</);
   assert.match(zh, />关闭</);
-  assert.match(zh, />重新预览通知</);
+  assert.match(zh, />显示通知</);
 
   const zhEmpty = draw({ language: "zh", info: {} });
   assert.match(zhEmpty, /data-role="overview-greeting"[^>]*>(?:早上好|下午好|晚上好)</);
-  assert.match(zhEmpty, />切换配置</);
+  assert.match(zhEmpty, />切换档案</);
 });
 
 test("overview: 不伪造实时数据，主按钮不用品牌橙色", () => {
@@ -281,12 +281,6 @@ test("overview.css: 约 672px 居中内容列，serif 欢迎语与更小的控�
   assert.match(greeting, /font-weight:\s*(?:400|normal|3\d\d|4\d\d)/, "不要粗黑大标题");
   assert.match(greeting, /font-family:\s*var\(--ov-font-serif\)/);
 
-  const profileBox = cssBlock(css, ".ov-profile-box {");
-  assert.doesNotMatch(profileBox, /min-height:\s*122px/);
-  const profileMain = cssBlock(css, ".ov-profile-main {");
-  assert.ok(paddingPx(profileMain, "top") <= 22, "配置卡内容留白收紧");
-  assert.ok(paddingPx(profileMain, "bottom") <= 16);
-
   const noticeBody = cssBlock(css, ".ov-notice-body {");
   assert.ok(paddingPx(noticeBody, "top") <= 14, "通知条高度降低");
   assert.ok(paddingPx(noticeBody, "bottom") <= 14);
@@ -302,16 +296,9 @@ test("overview.css: 约 672px 居中内容列，serif 欢迎语与更小的控�
   assert.doesNotMatch(css, /hero-card|summary-card/, "旧卡片样式不得残留");
 });
 
-test("overview.css: 复用 shell 反色/蓝色 token、细分割线与深色反转", () => {
+test("overview.css: 复用 shell 反色 token 与通知条样式", () => {
   const css = read("ui/renderer/pages/overview.css");
   const shell = read("ui/renderer/styles.css");
-
-  assert.match(
-    css,
-    /\.page--overview\s*\{[\s\S]*?--ov-primary-bg:\s*var\(--harbor-inverse\b/,
-  );
-  assert.match(css, /--ov-primary-fg:\s*var\(--harbor-inverse-text\b/);
-  assert.match(css, /--ov-blue:\s*var\(--harbor-switch-on\b/);
 
   assert.match(shell, /--harbor-inverse:\s*#0b0b0b/i);
   assert.match(
@@ -325,15 +312,5 @@ test("overview.css: 复用 shell 反色/蓝色 token、细分割线与深色反�
     "深色模式主按钮必须黑字",
   );
   assert.match(shell, /--harbor-switch-on:\s*#[0-9a-f]{6}/i);
-  assert.match(css, /html\[data-theme="dark"\]\s+\.page--overview[\s\S]*?--ov-blue-hover/);
-
-  assert.match(css, /\.ov-switch-input:checked \+ \.ov-switch-track\s*\{[\s\S]*?background:\s*var\(--harbor-switch-on/);
-  assert.match(css, /\.ov-button--primary\s*\{[\s\S]*?background:\s*var\(--ov-primary-bg\)/);
-  assert.match(css, /\.ov-button--primary\s*\{[\s\S]*?color:\s*var\(--ov-primary-fg\)/);
   assert.match(css, /\.ov-notice-toggle::-webkit-details-marker/);
-  assert.doesNotMatch(
-    css,
-    /\.ov-button--primary[^}]*var\(--harbor-brand\)/,
-    "橙色只用于品牌，不用于主按钮",
-  );
 });

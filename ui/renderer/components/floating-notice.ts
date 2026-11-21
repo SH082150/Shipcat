@@ -3,7 +3,6 @@
  * 返回的函数用于手动移除。
  */
 
-import { escapeHtml } from "./html.ts";
 import { iconSvg } from "./icons.ts";
 
 export type NoticeTone = "info" | "success" | "warning" | "danger";

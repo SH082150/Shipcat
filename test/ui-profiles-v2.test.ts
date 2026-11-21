@@ -10,10 +10,8 @@ import { createTranslator } from "../ui/renderer/components/i18n.ts";
 import type { ClientInfo } from "../ui/renderer/components/events.ts";
 import type { PageContext } from "../ui/renderer/pages/types.ts";
 import {
-  PROFILES_STYLESHEET,
   renderClaudeFieldEntry,
   demoProfiles,
-  parseProfileRoute,
   profileHref,
   render,
   renderAddModelEntry,
@@ -83,7 +81,7 @@ test("profiles v2 列表：标题、搜索/添加按钮与当前激活区（排�
   assert.match(html, /data-action="search-profiles"/);
   assert.doesNotMatch(html, /data-action="sort-profiles"/, "排序按钮已移除");
   assert.match(html, /data-action="create-profile"/);
-  assert.match(html, /添加配置文件/);
+  assert.match(html, /添加档案/);
   assert.match(html, /data-role="active-profile"/);
   assert.match(html, /class="profiles-hero"/);
 
@@ -144,7 +142,7 @@ test("添加档案页：模型区是标题行+右侧按钮，点击后插入空�
   assert.match(css, /\[data-role="page-profile-add"\]\[data-mode="standard"\] \.profile-add-advanced\s*\{[\s\S]*?display:\s*none/);
 });
 
-test("profiles v2 列表：名称 / Type / Status 三列，不重复显示名称与配置名称", () => {
+test("profiles v2 列表：名称 / 类型 / 状态三列，不重复显示名称与档案名称", () => {
   const html = render(context("zh"));
   const rows = html.match(/class="profile-row profile-grid"/g) ?? [];
   assert.equal(rows.length, demoProfiles.profiles.length);
@@ -168,9 +166,9 @@ test("profiles v2 列表：名称 / Type / Status 三列，不重复显示名称
   assert.match(html, /<div class="profile-list-head"/);
   const head = elementTag(html, /<div class="profile-list-head"[\s\S]*?<\/div>/);
   assert.match(head, /名称/);
-  assert.match(head, />Type</);
+  assert.match(head, />类型</);
   assert.match(head, /Status|状态/);
-  assert.doesNotMatch(head, /配置名称|模式|激活/);
+  assert.doesNotMatch(head, /档案名称|模式|激活/);
   assert.doesNotMatch(html, /配置名称/);
   assert.doesNotMatch(html, /Claude Desktop · (直连|网关|团队共享|备用)/);
 });
@@ -205,7 +203,7 @@ test("profiles v2 列表：advanced 激活时显示蓝色开关控制条，stand
   assert.match(advanced, /data-role="gateway-switch"[^>]*type="checkbox"|type="checkbox"[^>]*data-role="gateway-switch"/);
   assert.match(advanced, /data-role="gateway-switch"[^>]*checked|checked[^>]*data-role="gateway-switch"/);
   assert.match(advanced, /端口 4318/);
-  assert.match(advanced, /bearer/);
+  assert.match(advanced, /Bearer Token/);
 
   const standard = profileByMode("standard");
   const standardActive: ProfilesDemo = { ...demoProfiles, activeId: standard.id };
@@ -424,17 +422,9 @@ test("profiles v2 详情：未知 id 返回可返回的空状态", () => {
   assert.doesNotMatch(html, /data-role="model-item"/);
 });
 
-test("profiles v2 路由接口：profileHref / parseProfileRoute / 样式表路径", () => {
+test("profiles v2 路由接口：profileHref", () => {
   assert.equal(profileHref("abc"), "#profiles/abc");
   assert.equal(profileHref("a b"), "#profiles/a%20b");
-  assert.equal(parseProfileRoute("#profiles/abc"), "abc");
-  assert.equal(parseProfileRoute("profiles/a%20b"), "a b");
-  assert.equal(parseProfileRoute("#profiles/a%20b"), "a b");
-  assert.equal(parseProfileRoute("#profiles"), null);
-  assert.equal(parseProfileRoute("#profiles/"), null);
-  assert.equal(parseProfileRoute("#overview"), null);
-  assert.equal(parseProfileRoute(""), null);
-  assert.match(PROFILES_STYLESHEET, /profiles\.css$/);
 });
 
 /* ------------------------------------------------------------------ */

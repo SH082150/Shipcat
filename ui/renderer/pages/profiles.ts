@@ -33,7 +33,7 @@ export interface ProfileModelDraft {
 
 /**
  * 单个配置档案的展示模型；name 对应 meta entries[].name，不另设配置名称。
- * 正式接线由主进程通过 IPC 调用 core/index.ts，再映射到此结构；渲染器不直接读文件。
+ * 正式接线由主进程经进程间调用 core/index.ts，再映射到此结构；渲染器不直接读文件。
  */
 export interface ProfileDraft {
   readonly id: string;
@@ -56,14 +56,11 @@ export interface ProfilesDemo {
   readonly activeId: string | null;
   readonly gatewayEnabled: boolean;
   readonly profiles: readonly ProfileDraft[];
-  /** 与 Claude 侧不一致、需要同步的档案 id。 */
+  /** 与 Claude Desktop 的配置不一致、需要同步的档案 id。 */
   readonly pendingSync?: readonly string[];
   /** 供应商下拉选项；缺省使用演示供应商。 */
   readonly providers?: readonly ProviderOption[];
 }
-
-/** 宿主引入 stylesheet 时使用的相对路径（相对 ui/renderer/index.html）。 */
-export const PROFILES_STYLESHEET = "pages/profiles.css";
 
 const STANDARD_PROFILE: ProfileDraft = {
   id: "prf-standard",
@@ -173,9 +170,7 @@ interface Copy {
   readonly subtitle: string;
   readonly search: string;
   readonly closeSearch: string;
-  readonly sort: string;
   readonly create: string;
-  readonly activeLabel: string;
   readonly activated: string;
   readonly notActivated: string;
   readonly statusReadOnly: string;
@@ -184,7 +179,6 @@ interface Copy {
   readonly openProfile: string;
   readonly type: string;
   readonly mode: string;
-  readonly applied: string;
   readonly apply: string;
   readonly gateway: string;
   readonly gatewaySwitch: string;
@@ -193,6 +187,8 @@ interface Copy {
   readonly port: string;
   readonly gatewayToken: string;
   readonly authScheme: string;
+  readonly authBearer: string;
+  readonly authApiKey: string;
   readonly back: string;
   readonly addField: string;
   readonly basicInfo: string;
@@ -204,7 +200,6 @@ interface Copy {
   readonly readOnlyNote: string;
   readonly fieldKeyPlaceholder: string;
   readonly fieldValuePlaceholder: string;
-  readonly requiredKey: string;
   readonly removeField: string;
   readonly notFoundTitle: string;
   readonly notFoundBody: string;
@@ -213,7 +208,6 @@ interface Copy {
   readonly provider: string;
   readonly upstreamModel: string;
   readonly supports1m: string;
-  readonly prefer1m: string;
   readonly familyTier: string;
   readonly familyDefault: string;
   readonly behavesAs: string;
@@ -236,21 +230,18 @@ interface Copy {
 const COPY: Record<Language, Copy> = {
   zh: {
     title: "档案",
-    subtitle: "管理 Claude Desktop 的配置文件、模型映射与网关路由。",
-    search: "搜索配置",
+    subtitle: "管理 Claude Desktop 的档案、模型映射与网关路由。",
+    search: "搜索档案",
     closeSearch: "关闭搜索",
-    sort: "排序",
-    create: "添加配置文件",
-    activeLabel: "当前激活配置",
+    create: "添加档案",
     activated: "已激活",
     notActivated: "未激活",
     statusReadOnly: "只读",
     listName: "名称",
     status: "状态",
-    openProfile: "打开配置",
-    type: "Type",
+    openProfile: "打开档案",
+    type: "类型",
     mode: "模式",
-    applied: "激活",
     apply: "应用",
     gateway: "本地网关",
     gatewaySwitch: "网关开关",
@@ -259,6 +250,8 @@ const COPY: Record<Language, Copy> = {
     port: "端口",
     gatewayToken: "网关 Token",
     authScheme: "鉴权方案",
+    authBearer: "Bearer Token",
+    authApiKey: "API Key 请求头",
     back: "返回",
     addField: "添加项",
     basicInfo: "基本信息",
@@ -266,27 +259,25 @@ const COPY: Record<Language, Copy> = {
     addModel: "添加模型",
     modelsEmpty: "还没有模型",
     save: "保存修改",
-    saveNote: "保存后立即写入本机配置库，并同步到 Claude 侧。",
-    readOnlyNote: "只读配置 · 所有字段不可编辑",
+    saveNote: "保存后立即生效，并同步到 Claude Desktop。",
+    readOnlyNote: "只读档案 · 所有字段不可编辑",
     fieldKeyPlaceholder: "例如 modelCatalogUrl",
     fieldValuePlaceholder: "例如 300 或 https://…",
-    requiredKey: "请填写项目名称。",
     removeField: "删除条目",
-    notFoundTitle: "找不到这个配置",
-    notFoundBody: "配置可能已被删除，或链接中的 ID 不正确。",
-    modelId: "Model ID",
+    notFoundTitle: "找不到这个档案",
+    notFoundBody: "档案可能已被删除，或链接中的 ID 不正确。",
+    modelId: "模型 ID",
     labelOverride: "显示名称",
     provider: "供应商",
     upstreamModel: "上游模型",
     supports1m: "支持 1M 上下文",
-    prefer1m: "优先 1M 上下文",
     familyTier: "模型档位",
     familyDefault: "档位默认项",
     behavesAs: "兼容模型",
     maxEffort: "思考强度上限",
     countSuffix: "项",
     createTitle: "添加档案",
-    createDescription: "创建供 Claude Desktop 使用的配置档案。",
+    createDescription: "创建供 Claude Desktop 使用的档案。",
     createAction: "添加",
     chooseProvider: "选择供应商",
     untitledModel: "未命名模型",
@@ -304,12 +295,10 @@ const COPY: Record<Language, Copy> = {
   },
   en: {
     title: "Profiles",
-    subtitle: "Manage Claude Desktop configurations, model mappings, and gateway routes.",
+    subtitle: "Manage Claude Desktop profiles, model mappings, and gateway routes.",
     search: "Search profiles",
     closeSearch: "Close search",
-    sort: "Sort",
     create: "Add profile",
-    activeLabel: "Active profile",
     activated: "Active",
     notActivated: "Inactive",
     statusReadOnly: "Read only",
@@ -318,7 +307,6 @@ const COPY: Record<Language, Copy> = {
     openProfile: "Open profile",
     type: "Type",
     mode: "Mode",
-    applied: "Active",
     apply: "Apply",
     gateway: "Local gateway",
     gatewaySwitch: "Gateway switch",
@@ -327,6 +315,8 @@ const COPY: Record<Language, Copy> = {
     port: "Port",
     gatewayToken: "Gateway token",
     authScheme: "Auth scheme",
+    authBearer: "Bearer token",
+    authApiKey: "API key header",
     back: "Back",
     addField: "Add field",
     basicInfo: "Details",
@@ -334,11 +324,10 @@ const COPY: Record<Language, Copy> = {
     addModel: "Add model",
     modelsEmpty: "No models yet",
     save: "Save changes",
-    saveNote: "Saved to the local store and synced to Claude immediately.",
+    saveNote: "Takes effect immediately and syncs to Claude Desktop.",
     readOnlyNote: "Read-only profile · every field is disabled",
     fieldKeyPlaceholder: "e.g. modelCatalogUrl",
     fieldValuePlaceholder: "e.g. 300 or https://…",
-    requiredKey: "Enter a key.",
     removeField: "Remove field",
     notFoundTitle: "Profile not found",
     notFoundBody: "It may have been removed, or the ID in the link is incorrect.",
@@ -347,7 +336,6 @@ const COPY: Record<Language, Copy> = {
     provider: "Provider",
     upstreamModel: "Upstream model",
     supports1m: "Supports 1M context",
-    prefer1m: "Prefer 1M context",
     familyTier: "Family tier",
     familyDefault: "Family default",
     behavesAs: "Behaves as",
@@ -390,25 +378,15 @@ const EFFORTS: readonly { value: string; label: string }[] = [
   { value: "max", label: "max" },
 ];
 
-const SCHEMES: readonly { value: string; label: string }[] = [
-  { value: "bearer", label: "Bearer" },
-  { value: "x-api-key", label: "x-api-key" },
-];
+function schemes(copy: Copy): readonly { value: string; label: string }[] {
+  return [
+    { value: "bearer", label: copy.authBearer },
+    { value: "x-api-key", label: copy.authApiKey },
+  ];
+}
 
 export function profileHref(id: string): string {
   return `#profiles/${encodeURIComponent(id)}`;
-}
-
-/** 解析 "#profiles/:id"；不是详情路由时返回 null。 */
-export function parseProfileRoute(hash: string): string | null {
-  const normalized = hash.replace(/^#/, "");
-  const match = /^profiles\/([^/?#]+)$/.exec(normalized);
-  if (!match?.[1]) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return null;
-  }
 }
 
 export function render(context: PageContext, data: ProfilesDemo = demoProfiles): string {
@@ -460,23 +438,6 @@ export function render(context: PageContext, data: ProfilesDemo = demoProfiles):
 
 export const PROFILE_CREATE_ID = "new";
 
-/** 添加档案页的供应商选择项：直接读取当前演示供应商列表。 */
-function renderProviderSelect(copy: Copy): string {
-  const options = DEMO_PROVIDERS.map(
-    (provider) =>
-      `<option value="${escapeHtml(provider.name)}">${escapeHtml(provider.name)}</option>`,
-  ).join("");
-  return `<label class="profile-field-row">
-    <span class="profiles-gutter profile-field-grid">
-      <span class="profile-field-label">${escapeHtml(copy.provider)}</span>
-      <select class="profile-input profile-select" data-field="provider">
-        <option value="">${escapeHtml(copy.chooseProvider)}</option>
-        ${options}
-      </select>
-    </span>
-  </label>`;
-}
-
 function providerOptionsOf(providers?: readonly ProviderOption[]): readonly ProviderOption[] {
   return providers ?? DEMO_PROVIDERS.map((provider) => ({ id: provider.id, name: provider.name }));
 }
@@ -504,9 +465,8 @@ function providerSelectRow(
   </label>`;
 }
 
-function renderCreateProfile(context: PageContext, providers?: readonly ProviderOption[]): string {
+function renderCreateProfile(context: PageContext): string {
   const copy = COPY[context.language];
-
   return `<article class="page page--profiles profiles-page profile-detail profile-add-page" data-role="page-profile-add" data-mode="standard">
     <header class="profiles-band profile-detail-top">
       <div class="profiles-gutter profile-detail-top-inner">
@@ -546,7 +506,7 @@ function renderCreateProfile(context: PageContext, providers?: readonly Provider
         <div class="profile-add-advanced">
           ${fieldRow(copy.port, "port", "", false, "number")}
           ${fieldRow(copy.gatewayToken, "gatewayToken", "", false)}
-          ${selectRow(copy.authScheme, "gatewayAuthScheme", "bearer", SCHEMES, false)}
+          ${selectRow(copy.authScheme, "gatewayAuthScheme", "bearer", schemes(copy), false)}
         </div>
       </div>
     </section>
@@ -639,7 +599,7 @@ export function renderDetail(
 ): string {
   const copy = COPY[context.language];
   const providerOptions = providerOptionsOf(providers ?? data.providers);
-  if (id === PROFILE_CREATE_ID) return renderCreateProfile(context, providerOptions);
+  if (id === PROFILE_CREATE_ID) return renderCreateProfile(context);
   const profile = data.profiles.find((item) => item.id === id);
   if (!profile) return renderNotFound(copy, id);
 
@@ -657,7 +617,7 @@ export function renderDetail(
       <div class="profiles-gutter">
         <h1>${escapeHtml(profile.name)}</h1>
         <div class="profile-detail-badges">
-          ${typeTag(profile)}
+          ${typeTag(profile, copy)}
           ${statusPill(profile, copy)}
         </div>
       </div>
@@ -696,7 +656,7 @@ export function renderDetail(
                 .map(
                   ([key, value]) => `<div class="profile-claude-row" data-role="claude-field-row" data-claude-key="${escapeHtml(key)}">
                     <span class="profile-claude-key">${escapeHtml(key)}</span>
-                    <span class="profile-claude-value">${escapeHtml(typeof value === "string" ? value : JSON.stringify(value))}</span>
+                    <span class="profile-claude-value">${escapeHtml(typeof value === "string" ? value : "（结构化内容）")}</span>
                     <button type="button" class="profile-model-remove" data-action="remove-claude-field" data-claude-key="${escapeHtml(key)}" aria-label="${escapeHtml(copy.removeField)}">${iconSvg("trash", "profile-model-remove-icon")}</button>
                   </div>`,
                 )
@@ -752,8 +712,8 @@ export function renderClaudeFieldEntry(language: Language): string {
 /* 片段                                                                */
 /* ------------------------------------------------------------------ */
 
-function typeTag(profile: ProfileDraft): string {
-  return `<span class="profile-type-tag profile-type-tag--${profile.mode}" data-type="${profile.mode}">${profile.mode}</span>`;
+function typeTag(profile: ProfileDraft, copy: Copy): string {
+  return `<span class="profile-type-tag profile-type-tag--${profile.mode}" data-type="${profile.mode}">${escapeHtml(copy.modeLabels[profile.mode])}</span>`;
 }
 
 function modeLabel(copy: Copy, mode: ProfileMode): string {
@@ -773,7 +733,7 @@ function statusPill(profile: ProfileDraft, copy: Copy): string {
 }
 
 /**
- * 列表页“当前激活配置”卡片：名称 + 模式标签，高级配置附网关信息条，
+ * 列表页“当前激活档案”卡片：名称 + 模式标签，高级配置附网关信息条，
  * 下方按行列出模型摘要（档位 / 1M / 供应商 → 上游模型 + 进入箭头）。
  */
 function renderActiveHero(profile: ProfileDraft, gatewayEnabled: boolean, copy: Copy): string {
@@ -813,7 +773,7 @@ function renderActiveHero(profile: ProfileDraft, gatewayEnabled: boolean, copy: 
 }
 
 function renderGatewayBar(profile: ProfileDraft, enabled: boolean, copy: Copy): string {
-  const scheme = profile.gatewayAuthScheme ?? "bearer";
+  const scheme = profile.gatewayAuthScheme === "x-api-key" ? copy.authApiKey : copy.authBearer;
   return `<div class="profile-gateway" data-role="gateway-bar" data-profile-id="${escapeHtml(profile.id)}" data-gateway-enabled="${enabled ? "true" : "false"}">
     <span class="profile-gateway-label">${escapeHtml(copy.gateway)}</span>
     <span class="profile-gateway-status">${escapeHtml(enabled ? copy.running : copy.paused)}</span>
@@ -834,7 +794,7 @@ function renderRow(profile: ProfileDraft, copy: Copy, pendingSync?: readonly str
   return `<div class="profile-row profile-grid" data-profile-id="${profile.id}" data-applied="${profile.applied ? "true" : "false"}">
     <a class="profile-row-open" href="${profileHref(profile.id)}" data-action="open-profile" data-profile-id="${profile.id}" aria-label="${escapeHtml(`${copy.openProfile}: ${profile.name}`)}">
       <span class="profile-row-name">${escapeHtml(profile.name)}</span>${pendingSync?.includes(profile.id) ? `<span class="profile-row-sync">${escapeHtml(copy.pendingSync)}</span>` : ""}
-      <span class="profile-row-type">${typeTag(profile)}</span>
+      <span class="profile-row-type">${typeTag(profile, copy)}</span>
     </a>
     <span class="profile-row-status">${status}</span>
   </div>`;
@@ -900,7 +860,7 @@ function switchRow(label: string, field: string, checked: boolean, disabled: boo
 function renderGatewayFields(profile: ProfileDraft, readOnly: boolean, copy: Copy): string {
   return `${fieldRow(copy.port, "port", profile.port ?? "", readOnly, "number")}
     ${fieldRow(copy.gatewayToken, "gatewayToken", profile.gatewayToken ?? "", readOnly)}
-    ${selectRow(copy.authScheme, "gatewayAuthScheme", profile.gatewayAuthScheme ?? "bearer", SCHEMES, readOnly)}`;
+    ${selectRow(copy.authScheme, "gatewayAuthScheme", profile.gatewayAuthScheme ?? "bearer", schemes(copy), readOnly)}`;
 }
 
 function renderModel(

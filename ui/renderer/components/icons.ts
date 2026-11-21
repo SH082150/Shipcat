@@ -2,7 +2,7 @@
  * 统一图标库：24×24 线性图标，描边跟随 currentColor。
  *
  * 尺寸与颜色由使用处的 class 决定（如 nav-icon / menu-icon / pv-chevron）；
- * 品牌/头像等需要用户自行设计的图标仍用 iconSlot 占位。
+ * 品牌/头像等需要用户自行设计的图标仍用 iconSlot 空位。
  */
 
 export type IconName =

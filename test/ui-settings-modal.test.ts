@@ -245,7 +245,7 @@ function mount(initialTheme: "light" | "dark" | "system" = "system", initialSect
 
 const flushFocus = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
-test("渲染居中弹窗的骨架：对话框、遮罩、常规导航与 Appearance/Theme", () => {
+test("渲染居中弹窗的骨架：对话框、遮罩、常规导航与外观/主题", () => {
   const modal = mount();
   try {
     const { root } = modal;
@@ -269,13 +269,13 @@ test("渲染居中弹窗的骨架：对话框、遮罩、常规导航与 Appeara
     );
     assert.deepEqual(
       navItems.map((item) => item.getAttribute("data-role")),
-      ["nav-general", "nav-privacy", "nav-usage", "nav-system", "nav-about"],
+      ["nav-general", "nav-privacy", "nav-system", "nav-about"],
     );
-    assert.deepEqual(navItems.map(textOf), ["常规", "隐私", "用量", "系统", "关于"]);
+    assert.deepEqual(navItems.map(textOf), ["常规", "隐私", "系统", "关于"]);
 
     const group = byRole(root, "group-appearance");
-    assert.match(textOf(group), /Appearance/);
-    assert.match(textOf(group), /Theme/);
+    assert.match(textOf(group), /外观/);
+    assert.match(textOf(group), /主题/);
 
     const themeButtons = findAll(root, (element) =>
       (element.getAttribute("data-role") ?? "").startsWith("theme-"),

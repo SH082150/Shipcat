@@ -31,7 +31,7 @@ export interface SyncModalOptions {
 
 const ZH = {
   title: "需要同步",
-  subtitle: "Shipcat 与 Claude 侧的配置不一致，处理完才能继续编辑。",
+  subtitle: "Shipcat 与 Claude Desktop 的配置不一致，处理完才能继续编辑。",
   basic: "基本信息",
   models: "模型",
   passthrough: "Claude 透传",
@@ -49,10 +49,12 @@ const ZH = {
   sealed: "（已加密）",
   secret: "••••••",
   absent: "—",
-  fileMissing: "Claude 侧 profile 文件缺失，保存同步会按 Shipcat 重建。",
+  fileMissing: "Claude Desktop 的这份配置已缺失，保存后会按 Shipcat 的设置重建。",
   requiredProvider: "新增模型必须选择供应商。",
-  requiredUpstream: "advanced 新增模型必须填写上游模型。",
+  requiredUpstream: "网关路由档案新增的模型必须填写上游模型。",
   applying: "正在保存…",
+  on: "开启",
+  off: "关闭",
 } as const;
 
 type SyncCopy = Record<keyof typeof ZH, string>;
@@ -77,10 +79,12 @@ const EN: SyncCopy = {
   sealed: "(sealed)",
   secret: "••••••",
   absent: "—",
-  fileMissing: "Claude profile file is missing; saving will rebuild it from Shipcat.",
+  fileMissing: "This Claude Desktop configuration is missing; saving will rebuild it from Shipcat.",
   requiredProvider: "A provider is required for an added model.",
-  requiredUpstream: "An upstream model is required for an added advanced model.",
+  requiredUpstream: "A gateway profile model needs an upstream model.",
   applying: "Saving…",
+  on: "On",
+  off: "Off",
 };
 
 const GROUP_LABELS: Record<string, string> = {
@@ -109,8 +113,8 @@ const FIELD_LABELS: Record<string, string> = {
 
 const SELECT_OPTIONS: Record<string, readonly (readonly [string, string])[]> = {
   authScheme: [
-    ["bearer", "bearer"],
-    ["x-api-key", "x-api-key"],
+    ["bearer", "Bearer Token"],
+    ["x-api-key", "API Key 请求头"],
   ],
   anthropicFamilyTier: [
     ["haiku", "haiku"],
@@ -173,8 +177,8 @@ export function createSyncModal(options: SyncModalOptions): HTMLElement {
     const disabled = !field.importable && field.kind !== "secret" ? " disabled" : "";
     if (field.kind === "boolean") {
       return `<select class="sync-input" data-final="${escapeHtml(key)}">
-        <option value="true"${value === "true" ? " selected" : ""}>true</option>
-        <option value="false"${value === "false" ? " selected" : ""}>false</option>
+        <option value="true"${value === "true" ? " selected" : ""}>${copy.on}</option>
+        <option value="false"${value === "false" ? " selected" : ""}>${copy.off}</option>
       </select>`;
     }
     const choices = SELECT_OPTIONS[field.field];
@@ -202,13 +206,13 @@ export function createSyncModal(options: SyncModalOptions): HTMLElement {
     const group =
       field.category === "model"
         ? field.group
-        : (GROUP_LABELS[field.group] ?? field.group);
+        : (GROUP_LABELS[field.group] ?? "其他");
     const item =
       field.category === "model" && field.field === "name"
-        ? "Model ID"
+        ? "模型 ID"
         : field.category === "passthrough"
           ? field.field
-          : (FIELD_LABELS[field.field] ?? field.field);
+          : (FIELD_LABELS[field.field] ?? "其他设置");
     return `${escapeHtml(category)} › ${escapeHtml(group)} › ${escapeHtml(item)}`;
   };
 
@@ -241,7 +245,6 @@ export function createSyncModal(options: SyncModalOptions): HTMLElement {
           `<option value="${escapeHtml(provider.id)}"${provider.id === model.provider ? " selected" : ""}>${escapeHtml(provider.name)}</option>`,
       )
       .join("");
-    const providerValue = model.provider ?? options.providers[0]?.id ?? "";
     const fields = model.fields
       .map((field) => {
         const key = `${model.index}.${field.field}`;
@@ -295,7 +298,7 @@ export function createSyncModal(options: SyncModalOptions): HTMLElement {
       <h2 id="${id}">${copy.title}</h2>
       <p class="sync-subtitle">${copy.subtitle}</p>
     </div>
-    <button type="button" class="sync-close" data-sync-close aria-label="Close">${iconSvg("close", "sync-close-icon")}</button>
+    <button type="button" class="sync-close" data-sync-close aria-label="关闭">${iconSvg("close", "sync-close-icon")}</button>
   </header>
   <div class="sync-body">
     ${plan.fileMissing ? `<p class="sync-warning">${copy.fileMissing}</p>` : ""}
@@ -445,7 +448,8 @@ export function createSyncModal(options: SyncModalOptions): HTMLElement {
     applyButton.disabled = true;
     applyButton.textContent = copy.applying;
     void options.onApply(decisions).catch((err: unknown) => {
-      fail(err instanceof Error ? err.message : String(err));
+      console.error("sync apply failed", err);
+      fail("保存失败，请检查填写内容后重试。");
     });
   });
 

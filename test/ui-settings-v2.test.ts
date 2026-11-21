@@ -284,13 +284,12 @@ const flushFocus = (): Promise<void> => new Promise((resolve) => setTimeout(reso
 const NAV_SECTIONS = [
   ["general", "常规"],
   ["privacy", "隐私"],
-  ["usage", "用量"],
   ["system", "系统"],
   ["about", "关于"],
 ] as const;
 
-test("菜单顺序为常规、隐私、用量、系统、关于，且不显示版本号", () => {
-  assert.deepEqual([...SETTINGS_SECTIONS], ["general", "privacy", "usage", "system", "about"]);
+test("菜单顺序为常规、隐私、系统、关于，且不显示版本号", () => {
+  assert.deepEqual([...SETTINGS_SECTIONS], ["general", "privacy", "system", "about"]);
 
   const modal = mount();
   try {
@@ -298,11 +297,11 @@ test("菜单顺序为常规、隐私、用量、系统、关于，且不显示�
     const navs = findAll(root, (element) => (element.getAttribute("data-role") ?? "").startsWith("nav-"));
     assert.deepEqual(
       navs.map((nav) => nav.getAttribute("data-section")),
-      ["general", "privacy", "usage", "system", "about"],
+      ["general", "privacy", "system", "about"],
     );
     assert.deepEqual(
       navs.map((nav) => textOf(nav)),
-      ["常规", "隐私", "用量", "系统", "关于"],
+      ["常规", "隐私", "系统", "关于"],
     );
     assert.equal(roleCount(root, "nav-client"), 0);
 
@@ -315,11 +314,10 @@ test("菜单顺序为常规、隐私、用量、系统、关于，且不显示�
   }
 });
 
-test("initialSection 支持常规、隐私、用量、系统、关于及 client-info 别名", () => {
+test("initialSection 支持常规、隐私、系统、关于及 client-info 别名", () => {
   const cases: readonly (readonly [SettingsSection, string, string | null])[] = [
     ["general", "常规", "general"],
     ["privacy", "隐私", "privacy"],
-    ["usage", "用量", "usage"],
     ["system", "系统", "system"],
     ["about", "关于", "about"],
     ["client-info", "关于", "about"],
@@ -329,7 +327,7 @@ test("initialSection 支持常规、隐私、用量、系统、关于及 client-
     const modal = mount({ section });
     try {
       const { root } = modal;
-      const sections = ["general", "privacy", "usage", "system", "about"] as const;
+      const sections = ["general", "privacy", "system", "about"] as const;
       const activeSection = section === "client-info" ? "about" : section;
       for (const name of sections) {
         assert.equal(
@@ -339,7 +337,7 @@ test("initialSection 支持常规、隐私、用量、系统、关于及 client-
         );
       }
       assert.equal(byRole(root, "section-title").textContent, title);
-      for (const name of ["general", "privacy", "usage", "system", "about"] as const) {
+      for (const name of ["general", "privacy", "system", "about"] as const) {
         assert.equal(
           byRole(root, `nav-${name}`).getAttribute("aria-current"),
           name === activeNav ? "page" : "false",
@@ -371,13 +369,13 @@ test("点击菜单切换章节，标题与 aria-current 同步", () => {
   }
 });
 
-test("常规页保留 Appearance 与三主题卡片，主题变化仅上抛 theme", () => {
+test("常规页保留外观设置与三主题卡片，主题变化仅上抛 theme", () => {
   const modal = mount({ section: "general", theme: "system" });
   try {
     const { root, themes } = modal;
     const appearance = byRole(root, "group-appearance");
-    assert.match(textOf(appearance), /Appearance/);
-    assert.match(textOf(appearance), /Theme/);
+    assert.match(textOf(appearance), /外观/);
+    assert.match(textOf(appearance), /主题/);
 
     const options = ["theme-light", "theme-dark", "theme-system"].map((role) => byRole(root, role));
     assert.deepEqual(options.map(textOf), ["浅色", "深色", "系统"]);
@@ -417,23 +415,20 @@ test("常规页的了解更多进入关于章节，并同步菜单高亮", () =>
   }
 });
 
-test("隐私页给出本地优先声明与 Storage/Manage 行，Manage 仅切换 UI", () => {
+test("隐私页给出本地优先声明与存储说明", () => {
   const modal = mount({ section: "privacy" });
   try {
     const { root } = modal;
     const statement = textOf(byRole(root, "privacy-statement"));
     assert.match(statement, /供应商/);
-    assert.match(statement, /profile/);
+    assert.match(statement, /档案/);
     assert.match(statement, /密钥/);
-    assert.match(statement, /本机/);
+    assert.match(statement, /本机|这台机器/);
     assert.match(statement, /上游/);
-    assert.match(statement, /本地账本/);
 
     const storage = byRole(root, "storage-row");
-    assert.match(textOf(storage), /Storage/);
-    const manage = byRole(root, "storage-manage");
-    assert.equal(textOf(manage), "Manage");
-    manage.click();
+    assert.match(textOf(storage), /存储/);
+    assert.equal(roleCount(root, "storage-manage"), 0, "无行为的 Manage 按钮已移除");
     assert.equal(modal.closes, 0);
     assert.deepEqual(modal.themes, []);
   } finally {
@@ -441,27 +436,7 @@ test("隐私页给出本地优先声明与 Storage/Manage 行，Manage 仅切换
   }
 });
 
-test("用量页只保留侧边栏用量开关", () => {
-  const modal = mount({ section: "usage" });
-  try {
-    const { root } = modal;
-    const toggle = byRole(root, "usage-sidebar-toggle");
-    assert.equal(toggle.getAttribute("role"), "switch");
-    assert.equal(toggle.getAttribute("aria-checked"), "true");
-    toggle.click();
-    assert.equal(toggle.getAttribute("aria-checked"), "false");
-    toggle.click();
-    assert.equal(toggle.getAttribute("aria-checked"), "true");
-    assert.equal(modal.closes, 0);
-
-    assert.equal(findAll(root, (el) => el.getAttribute("data-role") === "quota-profile").length, 0);
-    assert.equal(findAll(root, (el) => el.getAttribute("data-role") === "change-profile").length, 0);
-  } finally {
-    modal.cleanup();
-  }
-});
-
-test("系统页显示 0.2.1、蓝色开机自启开关与通知开关", () => {
+test("系统页显示 0.2.1 与开机自启开关", () => {
   const modal = mount({ section: "system" });
   try {
     const { root } = modal;
@@ -473,15 +448,6 @@ test("系统页显示 0.2.1、蓝色开机自启开关与通知开关", () => {
     launch.click();
     assert.equal(launch.getAttribute("aria-checked"), "true");
 
-    for (const role of ["notify-system", "notify-errors"]) {
-      const toggle = byRole(root, role);
-      assert.equal(toggle.getAttribute("role"), "switch");
-      assert.equal(toggle.getAttribute("aria-checked"), "true");
-      toggle.click();
-      assert.equal(toggle.getAttribute("aria-checked"), "false");
-      toggle.click();
-      assert.equal(toggle.getAttribute("aria-checked"), "true");
-    }
     assert.equal(modal.closes, 0);
     assert.deepEqual(modal.themes, []);
   } finally {
@@ -490,7 +456,7 @@ test("系统页显示 0.2.1、蓝色开机自启开关与通知开关", () => {
 });
 
 test("Esc、关闭按钮、遮罩关闭与焦点归还保持不变", async () => {
-  const first = mount({ section: "privacy" });
+  const first = mount({ section: "general" });
   try {
     const { document, root, trigger } = first;
     await flushFocus();
@@ -498,12 +464,12 @@ test("Esc、关闭按钮、遮罩关闭与焦点归还保持不变", async () =>
     assert.ok(dialog);
     assertFocused(document.activeElement, dialog, "初始焦点应在对话框");
 
-    const event = key(byRole(root, "storage-manage"), "Escape");
+    const event = key(byRole(root, "learn-more"), "Escape");
     assert.equal(event.defaultPrevented, true);
     assert.equal(root.parentNode, null);
     assert.equal(first.closes, 1);
     assertFocused(document.activeElement, trigger, "关闭后焦点应归还触发器");
-    key(byRole(root, "storage-manage"), "Escape");
+    key(byRole(root, "learn-more"), "Escape");
     assert.equal(first.closes, 1);
   } finally {
     first.cleanup();
@@ -518,9 +484,9 @@ test("Esc、关闭按钮、遮罩关闭与焦点归还保持不变", async () =>
     second.cleanup();
   }
 
-  const third = mount({ section: "usage" });
+  const third = mount({ section: "system" });
   try {
-    byRole(third.root, "usage-sidebar-toggle").click();
+    byRole(third.root, "launch-at-login").click();
     assert.equal(third.closes, 0);
     third.root.click();
     assert.equal(third.closes, 1);
@@ -550,33 +516,20 @@ test("焦点陷阱跟随当前章节，只在可见控件间循环", async () =>
     general.cleanup();
   }
 
-  const privacy = mount({ section: "privacy" });
+  const system = mount({ section: "system" });
   try {
-    const { document, root } = privacy;
+    const { document, root } = system;
     await flushFocus();
     const navGeneral = byRole(root, "nav-general");
-    const manage = byRole(root, "storage-manage");
-    manage.focus();
-    key(manage, "Tab");
-    assertFocused(document.activeElement, navGeneral, "隐私页末项应循环到导航首项");
+    const lastControl = byRole(root, "background-on-close");
+    lastControl.focus();
+    key(lastControl, "Tab");
+    assertFocused(document.activeElement, navGeneral, "系统页末项应循环到导航首项");
     navGeneral.focus();
     key(navGeneral, "Tab", true);
-    assertFocused(document.activeElement, manage, "导航首项 Shift+Tab 应回到隐私页末项");
+    assertFocused(document.activeElement, lastControl, "导航首项 Shift+Tab 应回到系统页末项");
   } finally {
-    privacy.cleanup();
-  }
-
-  const usage = mount({ section: "usage" });
-  try {
-    const { document, root } = usage;
-    await flushFocus();
-    const navGeneral = byRole(root, "nav-general");
-    const usageToggle = byRole(root, "usage-sidebar-toggle");
-    usageToggle.focus();
-    key(usageToggle, "Tab");
-    assertFocused(document.activeElement, navGeneral, "用量页末项应循环到导航首项");
-  } finally {
-    usage.cleanup();
+    system.cleanup();
   }
 });
 

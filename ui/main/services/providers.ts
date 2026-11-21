@@ -31,7 +31,7 @@ export function listProviders(options: ServiceOptions = {}): ProviderSummary[] {
 export function getProvider(id: string, options: ServiceOptions = {}): ProviderDetail {
   const io = opts(options);
   const entry = core.providers.list(io).find((item) => item.id === id);
-  if (!entry) throw new ServiceError("NOT_FOUND", `供应商（UUID：${id}）不存在`);
+  if (!entry) throw new ServiceError("NOT_FOUND", "找不到这家供应商，它可能已被删除。");
   const provider = core.providers.getById(entry.id, io);
   return { ...summary(entry.id, entry.name, provider), apiKey: provider.inferenceGatewayApiKey };
 }

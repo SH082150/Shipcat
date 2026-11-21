@@ -39,9 +39,3 @@ export const PAGE_TITLE_KEYS: Record<PageId, MessageKey> = {
   usage: "usage.title",
 };
 
-export const PAGE_EYEBROW_KEYS: Record<PageId, MessageKey> = {
-  overview: "overview.eyebrow",
-  providers: "providers.eyebrow",
-  profiles: "profiles.eyebrow",
-  usage: "usage.eyebrow",
-};

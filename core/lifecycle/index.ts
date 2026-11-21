@@ -3,8 +3,8 @@
  * 只负责顺序与结果，CLI 与 Electron 主进程共用。
  */
 
-import type { HarborProfile, MetaEntry, ProfilesMeta, Provider } from "../types.ts";
-import { list as listProfiles, meta as profilesMeta, get as getProfile, rename as renameProfile, setAppliedIdMirror, detailList as profileDetailList } from "../archive/profiles/index.ts";
+import type { HarborProfile, MetaEntry, ProfilesMeta } from "../types.ts";
+import { meta as profilesMeta, get as getProfile, rename as renameProfile, setAppliedIdMirror, detailList as profileDetailList } from "../archive/profiles/index.ts";
 import type { ProfileListItem } from "../archive/profiles/index.ts";
 import { list as listProviders } from "../archive/providers/index.ts";
 import { gate, scan } from "../check/index.ts";

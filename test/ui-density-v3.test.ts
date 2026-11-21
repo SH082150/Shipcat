@@ -8,7 +8,6 @@ test("overview follows the centered official welcome composition", () => {
   const css = read("pages/overview.css");
   assert.match(css, /\.ov-welcome\s*\{[\s\S]*?justify-content:\s*center/);
   assert.match(css, /\.ov-greeting\s*\{[\s\S]*?clamp\(32px, 3vw, 40px\)/);
-  assert.match(css, /\.ov-profile-main\s*\{[\s\S]*?padding:\s*20px 22px 12px/);
 });
 
 test("each overview suggestion is one full-row button", async () => {

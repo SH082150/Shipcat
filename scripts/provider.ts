@@ -135,7 +135,6 @@ function padRight(s: string, width: number): string {
 
 /** 简单表格：首行为表头，列间两个空格。 */
 export function printTable(headers: readonly string[], rows: readonly (readonly string[])[]): void {
-  const columnCount = headers.length;
   const widths = headers.map((h, i) =>
     Math.max(displayWidth(h), ...rows.map((r) => displayWidth(r[i] ?? "")))
   );

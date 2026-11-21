@@ -226,7 +226,7 @@ function dedupe(paths: readonly string[]): string[] {
  */
 function pickRoot(candidates: readonly string[], markers: readonly string[]): string {
   const first = candidates[0];
-  if (first === undefined) throw new Error("平台层内部错误：Claude 数据根候选为空");
+  if (first === undefined) throw new Error("找不到 Claude Desktop 的数据目录，请确认已安装并启动过 Claude Desktop。");
   for (const marker of markers) {
     const hit = candidates.find((candidate) => existsSync(join(candidate, marker)));
     if (hit !== undefined && hit.length > 0) return hit;

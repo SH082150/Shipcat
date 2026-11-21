@@ -38,16 +38,6 @@ export function isShellContainer(candidate: unknown, containers: readonly unknow
   );
 }
 
-export function toggleAriaChecked(value: unknown): "true" | "false" {
-  return value === "true" ? "false" : "true";
-}
-
-export type SortDirection = "asc" | "desc";
-
-export function nextSortDirection(value: unknown): SortDirection {
-  return value === "desc" ? "asc" : "desc";
-}
-
 export function resolvePageExport<T>(module: unknown, name: string): T | null {
   if (module === null || typeof module !== "object") return null;
   const candidate = (module as Record<string, unknown>)[name];

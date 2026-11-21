@@ -135,7 +135,12 @@ test("列表页：ProviderView 可注入，空列表有独立空状态", () => {
 });
 
 test("详情页：返回、四个 core 字段、粘性保存与右上删除", () => {
-  const html = renderDetail(context("zh"), "deepseek");
+  const demo = DEMO_PROVIDERS.find((provider) => provider.id === "deepseek");
+  assert.ok(demo);
+  const html = renderDetail(context("zh"), "deepseek", {
+    ...demo,
+    inferenceGatewayApiKey: "",
+  });
 
   assert.match(html, /data-role="page-provider-detail"/);
   assert.match(html, /data-provider-id="deepseek"/);

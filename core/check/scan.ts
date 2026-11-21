@@ -114,7 +114,7 @@ function rebuildClaudeFile(id: string, opts?: { home?: string }): boolean {
   const profile = getProfile(id, opts);
   if (profile.mode === "readOnly") {
     // 只读镜像的"真相"就是 Claude 文件本身，文件没了无法重建。
-    throw new Error(`「${id}」是只读镜像，其 Claude profile 文件缺失，无法自动重建`);
+    throw new Error("这个只读档案对应的 Claude Desktop 配置已缺失，无法自动重建。");
   }
   let generated: Record<string, unknown>;
   try {

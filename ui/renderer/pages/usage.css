@@ -131,7 +131,7 @@ html[data-theme="dark"] .page--usage {
   font-size: 11.5px;
 }
 
-.page--usage .usage-ledger {
+.page--usage .usage-sync {
   color: var(--usage-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -368,10 +368,6 @@ html[data-theme="dark"] .page--usage {
 
 .page--usage .usage-legend-cell.is-level-4 {
   background: var(--usage-level-4);
-}
-
-.page--usage .usage-cells-note {
-  color: var(--usage-faint);
 }
 
 .page--usage .usage-demo-note {
@@ -681,7 +677,6 @@ html:not([data-theme="dark"]) .page--usage .usage-mode-switch button.is-active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page--usage .button--primary,
   .page--usage .usage-range-button {
     transition: none;
   }

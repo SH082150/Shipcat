@@ -47,21 +47,6 @@ export const DEMO_PROVIDERS: readonly ProviderView[] = [
   },
 ];
 
-const DEMO_DETAILS: Record<string, ProviderDetail> = {
-  deepseek: {
-    ...DEMO_PROVIDERS[0]!,
-    inferenceGatewayApiKey: "demo-key-not-stored",
-  },
-  kimi: {
-    ...DEMO_PROVIDERS[1]!,
-    inferenceGatewayApiKey: "demo-key-not-stored",
-  },
-  glm: {
-    ...DEMO_PROVIDERS[2]!,
-    inferenceGatewayApiKey: "demo-key-not-stored",
-  },
-};
-
 interface ProvidersText {
   readonly search: string;
   readonly closeSearch: string;
@@ -77,6 +62,10 @@ interface ProvidersText {
   readonly apiKeyHint: string;
   readonly authLabel: string;
   readonly authHint: string;
+  readonly schemeApiKey: string;
+  readonly schemeBearer: string;
+  readonly authApiKeyHeader: string;
+  readonly authBearerToken: string;
   readonly save: string;
   readonly createTitle: string;
   readonly createAction: string;
@@ -104,6 +93,10 @@ const EN_TEXT: ProvidersText = {
   apiKeyHint: "Stored on this machine only; the interface never reveals it.",
   authLabel: "Authentication",
   authHint: "Sets the header the gateway uses when sending the key upstream.",
+  schemeApiKey: "API Key",
+  schemeBearer: "Bearer",
+  authApiKeyHeader: "API key header",
+  authBearerToken: "Bearer token",
   save: "Save",
   createTitle: "Add provider",
   createAction: "Add",
@@ -130,6 +123,10 @@ const ZH_TEXT: ProvidersText = {
   apiKeyHint: "只保存在这台机器上；界面不会回显明文。",
   authLabel: "认证方式",
   authHint: "决定网关向上游发送密钥时使用的请求头。",
+  schemeApiKey: "API Key",
+  schemeBearer: "Bearer",
+  authApiKeyHeader: "API Key 请求头",
+  authBearerToken: "Bearer Token",
   save: "保存",
   createTitle: "添加供应商",
   createAction: "添加",
@@ -150,7 +147,9 @@ function textFor(context: PageContext): ProvidersText {
   return TEXT[context.language] ?? EN_TEXT;
 }
 
-function renderRow(provider: ProviderView): string {
+function renderRow(provider: ProviderView, strings: ProvidersText): string {
+  const scheme =
+    provider.inferenceGatewayAuthScheme === "bearer" ? strings.schemeBearer : strings.schemeApiKey;
   const id = escapeHtml(provider.id);
   return `<li class="pv-row" data-role="provider-row">
     <button type="button" class="pv-row-button" data-action="open-provider" data-provider-id="${id}">
@@ -158,7 +157,7 @@ function renderRow(provider: ProviderView): string {
         <span class="pv-row-name">${escapeHtml(provider.name)}</span>
         <span class="pv-row-url">${escapeHtml(provider.inferenceGatewayBaseUrl)}</span>
       </span>
-      <span class="pv-row-scheme">${escapeHtml(provider.inferenceGatewayAuthScheme)}</span>
+      <span class="pv-row-scheme">${escapeHtml(scheme)}</span>
       ${iconSvg("chevron-right", "pv-icon pv-chevron")}
     </button>
   </li>`;
@@ -179,7 +178,7 @@ export function render(context: PageContext, options: ProvidersPageOptions = {})
     providers.length === 0
       ? renderEmpty(strings)
       : `<ul class="pv-list" data-role="provider-list" aria-label="${escapeHtml(strings.listLabel)}">${providers
-          .map(renderRow)
+          .map((provider) => renderRow(provider, strings))
           .join("")}</ul>`;
 
   return `<article class="page page--providers" data-role="page-providers">
@@ -216,8 +215,13 @@ export function render(context: PageContext, options: ProvidersPageOptions = {})
   </article>`;
 }
 
-function renderSchemeOption(value: ProviderAuthScheme, active: ProviderAuthScheme): string {
+function renderSchemeOption(
+  value: ProviderAuthScheme,
+  active: ProviderAuthScheme,
+  strings: ProvidersText,
+): string {
   const checked = value === active ? " checked" : "";
+  const label = value === "bearer" ? strings.authBearerToken : strings.authApiKeyHeader;
   return `<label class="pv-scheme-option">
     <input
       type="radio"
@@ -225,11 +229,11 @@ function renderSchemeOption(value: ProviderAuthScheme, active: ProviderAuthSchem
       value="${value}"
       data-auth-scheme="${value}"${checked}
     />
-    <span>${value}</span>
+    <span>${escapeHtml(label)}</span>
   </label>`;
 }
 
-function renderMissing(context: PageContext, id: string, strings: ProvidersText): string {
+function renderMissing(id: string, strings: ProvidersText): string {
   return `<article class="page page--provider-detail" data-role="page-provider-detail" data-provider-id="${escapeHtml(id)}">
     <div class="pv-topbar">
       <button type="button" class="pv-back" data-page="providers">
@@ -255,8 +259,8 @@ export function renderDetail(
 ): string {
   const strings = textFor(context);
   const creating = id === PROVIDER_CREATE_ID;
-  const provider = creating ? null : (detail ?? DEMO_DETAILS[id] ?? null);
-  if (!creating && !provider) return renderMissing(context, id, strings);
+  const provider = creating ? null : (detail ?? null);
+  if (!creating && !provider) return renderMissing(id, strings);
 
   const scheme: ProviderAuthScheme =
     provider?.inferenceGatewayAuthScheme === "bearer" ? "bearer" : "x-api-key";
@@ -337,8 +341,8 @@ export function renderDetail(
         <span class="pv-field-label" id="pv-auth-label">${escapeHtml(strings.authLabel)}</span>
         <div class="pv-field-body">
           <div class="pv-scheme" role="radiogroup" aria-labelledby="pv-auth-label">
-            ${renderSchemeOption("x-api-key", scheme)}
-            ${renderSchemeOption("bearer", scheme)}
+            ${renderSchemeOption("x-api-key", scheme, strings)}
+            ${renderSchemeOption("bearer", scheme, strings)}
           </div>
           <p class="pv-hint">${escapeHtml(strings.authHint)}</p>
         </div>

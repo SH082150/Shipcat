@@ -75,14 +75,14 @@ test("readJson：不存在返回 null", () => {
   assert.equal(readJson(join(dir, "nope.json")), null);
 });
 
-test("readJson：损坏 JSON 抛带路径的中文错误", () => {
+test("readJson：损坏 JSON 抛面向用户的中文错误", () => {
   const p = join(dir, "bad.json");
   writeFileSync(p, "{ not json");
   assert.throws(
     () => readJson(p),
     (err: unknown) => {
       const e = err as Error;
-      return e.message.includes(p) && e.message.includes("损坏");
+      return e.message.includes("配置文件已损坏") && !e.message.includes(p);
     },
   );
 });

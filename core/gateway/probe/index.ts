@@ -6,7 +6,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 /** 应答 /api/hello 探针：200，空体。 */
-export function handleHello(req: IncomingMessage, res: ServerResponse): void {
+export function handleHello(_req: IncomingMessage, res: ServerResponse): void {
   res.writeHead(200);
   res.end();
 }

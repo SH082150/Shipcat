@@ -47,8 +47,3 @@ export function aggregateUsage(filter: UsageFilter = {}, options: ServiceOptions
 export function loadUsageBuckets(range: "30min" | "1h" | "1d", options: ServiceOptions = {}) {
   return core.usage.aggregateUsageBuckets(range, opts(options) ?? {});
 }
-
-export function loadUsage(options: ServiceOptions = {}): UsageData {
-  const sync = syncUsage(options);
-  return { rows: aggregateUsage({}, options), sync };
-}

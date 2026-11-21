@@ -127,10 +127,10 @@ test("用量页结构：历史用量热力图 + 总使用量卡 + 按天用量�
   assert.match(html, /<h1[^>]*>用量<\/h1>/);
   assert.doesNotMatch(html, /data-role="usage-quota"/, "额度区已移除");
 
-  // 历史用量：账本措辞，明确不是网关流量统计。
+  // 历史用量：说明数据来自本机记录，不限于网关。
   assert.match(html, /data-role="usage-history"/);
-  assert.match(html, /usage-ledger/);
-  assert.match(html, /不是网关流量统计/);
+  assert.match(html, /usage-sync/);
+  assert.match(html, /包含所有使用场景，不限于网关/);
   assert.doesNotMatch(html, /只统计经由本地网关/);
   assert.doesNotMatch(html, /gateway traffic/i);
 
@@ -148,13 +148,13 @@ test("用量页结构：历史用量热力图 + 总使用量卡 + 按天用量�
   assert.match(html, /data-role="usage-heatmap-host"/);
   assert.match(html, /data-role="usage-range-caption"[^>]*>[^<]*最近 14 天/);
   assert.match(html, /示例强度，非真实统计/);
-  assert.match(html, />Less</);
-  assert.match(html, />More</);
+  assert.match(html, />少</);
+  assert.match(html, />多</);
   assert.match(html, /data-role="usage-overall"/);
   assert.match(html, /总使用量/);
-  assert.match(html, /真实消耗 tokens/);
+  assert.match(html, /实际消耗 Token/);
   assert.match(html, /data-role="usage-daily-card"/);
-  assert.match(html, /每日 Tokens/);
+  assert.match(html, /每日 Token/);
   assert.equal(count(html, /data-chart-range="/g), 3);
 
   assert.doesNotMatch(html, /style="/i);
@@ -163,18 +163,18 @@ test("用量页结构：历史用量热力图 + 总使用量卡 + 按天用量�
   assert.doesNotMatch(html, /\d+%/);
 });
 
-test("用量页英文：14 days、ledger 说明与按钮文案", () => {
+test("用量页英文：14 days、数据来源说明与按钮文案", () => {
   const html = render(context("en"));
   assert.match(html, /<h1[^>]*>Usage<\/h1>/);
   assert.match(html, /Last 14 days/);
   assert.match(html, /24 × 14 hours|24 \* 14 hours|14 days/);
-  assert.match(html, /usage-ledger/);
-  assert.match(html, /not gateway traffic/i);
+  assert.match(html, /usage-sync/);
+  assert.match(html, /not only the gateway/i);
   assert.match(html, /Sample intensity — not real usage/);
   assert.match(html, /data-usage-range="30min"/);
 });
 
-test("UsageViewData：默认账本未同步，按天示例数据可用", () => {
+test("UsageViewData：默认无同步记录，按天示例数据可用", () => {
   const data = buildUsageViewData("zh");
 
   assert.equal(data.ledger.lastSyncedAt, null);
@@ -271,7 +271,7 @@ test("用量页总使用量卡：真实消耗合计、四行明细与无缓存�
   const html = render(context("zh"), data);
   assert.match(html, /data-role="usage-overall"/);
   assert.match(html, /总使用量/);
-  assert.match(html, /真实消耗 tokens/);
+  assert.match(html, /实际消耗 Token/);
   assert.match(html, /最近 14 天/);
   assert.match(html, /usage-overall-total">1\.5K</, "真实消耗 = 输入 + 输出 + 缓存读 + 缓存写");
   assert.match(html, /输入（未缓存）/);
@@ -286,7 +286,7 @@ test("用量页总使用量卡：真实消耗合计、四行明细与无缓存�
   assert.equal(count(html, /data-usage-cell="/g), 336);
 
   assert.match(html, /data-role="usage-daily-card"/);
-  assert.match(html, /每日 Tokens/);
+  assert.match(html, /每日 Token/);
   assert.equal(count(html, /data-chart-range="/g), 3);
   assert.match(html, /data-chart-range="30"[^>]*aria-pressed="true"/);
   assert.match(html, /data-chart-mode="chart"[^>]*aria-pressed="true"/);

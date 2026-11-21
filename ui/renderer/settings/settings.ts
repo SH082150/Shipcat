@@ -2,7 +2,7 @@
  * Claude Desktop 风格的设置弹窗。
  *
  * 返回的根节点是遮罩层，内部是居中对话框；调用方把它挂到 body 即可。
- * 菜单包含常规 / 隐私 / 用量 / 系统 / 关于五节；关于章节承载客户端信息，
+ * 菜单包含常规 / 隐私 / 系统 / 关于四节；关于章节承载客户端信息，
  * client-info 深链自动映射到关于。常规页“了解更多”也进入关于。
  *
  * 除主题外，所有开关与选择器都只改本地 DOM 状态，不向上抛业务写入。
@@ -12,7 +12,7 @@
 
 import type { ClientInfo } from "../components/events.ts";
 
-export const SETTINGS_SECTIONS = ["general", "privacy", "usage", "system", "about"] as const;
+export const SETTINGS_SECTIONS = ["general", "privacy", "system", "about"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number] | "client-info";
 
 export type SettingsTheme = "light" | "dark" | "system";
@@ -27,7 +27,7 @@ export interface SettingsModalOptions {
   clientInfo?: ClientInfo;
   /** 自定义用户名；空串表示未设置，界面回退到本机用户名。 */
   customName?: string;
-  /** 本机用户名，用作输入框占位与提示。 */
+  /** 本机用户名，用作输入框提示与提示。 */
   localUsername?: string;
   /** 自定义头像 data URL；空串表示未设置。 */
   avatar?: string;
@@ -59,7 +59,6 @@ const THEME_OPTIONS: readonly ThemeOption[] = [
 const SECTION_TITLES: Record<SettingsSection, string> = {
   general: "常规",
   privacy: "隐私",
-  usage: "用量",
   system: "系统",
   about: "关于",
   "client-info": "关于",
@@ -68,7 +67,6 @@ const SECTION_TITLES: Record<SettingsSection, string> = {
 const MENU_LABELS: Record<(typeof SETTINGS_SECTIONS)[number], string> = {
   general: "常规",
   privacy: "隐私",
-  usage: "用量",
   system: "系统",
   about: "关于",
 };
@@ -93,7 +91,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const previousFocus = doc.activeElement as HTMLElement | null;
   const titleId = `ch-settings-title-${++titleSeq}`;
   const appearanceId = `ch-settings-appearance-${titleSeq}`;
-  const clientId = `ch-settings-client-${titleSeq}`;
   const clientHeadId = `ch-settings-client-head-${titleSeq}`;
 
   const overlay = create("div", "ch-settings-overlay");
@@ -254,14 +251,8 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     return button;
   };
 
-  const createNote = (parent: HTMLElement, text: string): void => {
-    const note = create("p", "ch-settings-note");
-    note.textContent = text;
-    parent.appendChild(note);
-  };
-
   /* ------------------------------------------------------------------ */
-  /* 常规：Appearance 无外框，保留三主题卡片                              */
+  /* 常规：外观无外框，保留三主题卡片                                      */
   /* ------------------------------------------------------------------ */
 
   const generalPane = createPane("pane-general");
@@ -269,7 +260,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   appearanceGroup.setAttribute("aria-labelledby", appearanceId);
   createSectionHead(
     appearanceGroup,
-    "Appearance",
+    "外观",
     "调整 Shipcat 的外观，让它更适合你的工作环境。",
     appearanceId,
   );
@@ -277,7 +268,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const themeRow = create("div", "ch-settings-row ch-settings-row--stack");
   const themeRowMain = create("div", "ch-settings-row-main");
   const themeLabel = create("h4", "ch-settings-row-title");
-  themeLabel.textContent = "Theme";
+  themeLabel.textContent = "主题";
   const themeHint = create("p", "ch-settings-row-hint");
   themeHint.textContent = "选择浅色、深色，或跟随系统设置。";
   themeRowMain.append(themeLabel, themeHint);
@@ -363,7 +354,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const avatarRow = createRow(
     identitySection,
     "头像",
-    "未设置时显示空白占位；选择图片后显示你自己的头像。",
+    "未设置时不显示头像；选择图片后立即生效。",
     "custom-avatar-row",
   );
   const avatarControl = create("div", "ch-settings-avatar-control");
@@ -427,7 +418,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   const generalFoot = create("div", "ch-settings-pane-foot");
   const generalNote = create("p", "ch-settings-note");
-  generalNote.textContent = "Shipcat 通过 ClaudeHarbor 本地网关连接 Claude Desktop。";
+  generalNote.textContent = "Shipcat 通过本机网关连接 Claude Desktop。";
   generalFoot.appendChild(generalNote);
   const learnMore = create("button", "ch-settings-link");
   learnMore.type = "button";
@@ -451,46 +442,14 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const privacyStatement = create("p", "ch-settings-statement");
   privacyStatement.setAttribute("data-role", "privacy-statement");
   privacyStatement.textContent =
-    "供应商与 profile 只保存在本机。密钥仅存储在本机，不会上传。所有请求直接发送到你配置的上游服务。使用统计来自 Claude 本地账本。";
+    "供应商与档案只保存在这台机器上。密钥不会上传，请求直接发送到你配置的上游服务。用量数据来自 Claude 在本机记录的用量。";
   privacySection.appendChild(privacyStatement);
 
   const storageSection = createSection(privacyPane);
-  const storageRow = createRow(
-    storageSection,
-    "Storage",
-    "管理本机的供应商、profile 与用量缓存。",
-    "storage-row",
-  );
-  const manageButton = create("button", "ch-settings-action");
-  manageButton.type = "button";
-  manageButton.tabIndex = 0;
-  manageButton.setAttribute("data-role", "storage-manage");
-  manageButton.textContent = "Manage";
-  storageRow.control.appendChild(manageButton);
+  createRow(storageSection, "存储", "管理本机的供应商、档案与用量数据。", "storage-row");
 
   /* ------------------------------------------------------------------ */
-  /* 用量：侧边栏显示开关                                                  */
-  /* ------------------------------------------------------------------ */
-
-  const usagePane = createPane("pane-usage");
-  const usageSidebarSection = createSection(usagePane);
-  createSectionHead(
-    usageSidebarSection,
-    "侧边栏",
-    "决定用量信息是否出现在主界面的侧边栏。",
-  );
-  const usageSidebarRow = createRow(
-    usageSidebarSection,
-    "在侧边栏显示用量",
-    "收起侧栏时仍保留入口，不占用主区域空间。",
-    "usage-sidebar-row",
-  );
-  usageSidebarRow.control.appendChild(
-    createSwitch("usage-sidebar-toggle", "在侧边栏显示用量", true),
-  );
-
-  /* ------------------------------------------------------------------ */
-  /* 系统：版本、开机自启、通知开关                                        */
+  /* 系统：版本与开机自启                                                  */
   /* ------------------------------------------------------------------ */
 
   const systemPane = createPane("pane-system");
@@ -527,25 +486,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     ),
   );
 
-  const notifySection = createSection(systemPane);
-  createSectionHead(notifySection, "通知", "所有通知仅在本机生成。");
-  const notifySystemRow = createRow(
-    notifySection,
-    "系统通知",
-    "允许 Shipcat 通过系统通知中心提醒你。",
-    "notify-system-row",
-  );
-  notifySystemRow.control.appendChild(createSwitch("notify-system", "系统通知", true));
-  const notifyErrorsRow = createRow(
-    notifySection,
-    "错误与状态通知",
-    "在路由失败、连接异常或状态变化时提醒。",
-    "notify-errors-row",
-  );
-  notifyErrorsRow.control.appendChild(
-    createSwitch("notify-errors", "错误与状态通知", true),
-  );
-
   /* ------------------------------------------------------------------ */
   /* 关于：设置菜单中的正式章节，承载客户端信息                            */
   /* ------------------------------------------------------------------ */
@@ -556,7 +496,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   createSectionHead(
     clientGroup,
     "关于 Shipcat",
-    "当前 Claude Desktop 所连接的本机客户端。",
+    "运行在这台设备上的 Shipcat 客户端信息。",
     clientHeadId,
   );
 
@@ -589,7 +529,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const panes = new Map<SettingsSection, HTMLElement>([
     ["general", generalPane],
     ["privacy", privacyPane],
-    ["usage", usagePane],
     ["system", systemPane],
     ["about", clientPane],
   ]);

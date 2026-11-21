@@ -9,7 +9,7 @@ export interface AccountMenuProps {
   readonly t: Translator;
   readonly menuOpen: boolean;
   readonly clientInfo: ClientInfo;
-  /** 自定义头像 data URL；空串显示空占位。 */
+  /** 自定义头像 data URL；空串显示空白。 */
   readonly avatar?: string;
 }
 

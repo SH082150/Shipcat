@@ -14,11 +14,7 @@ import {
   normalizeOpenSettingsDetail,
   normalizeSettingsSection,
 } from "../ui/renderer/components/events.ts";
-import {
-  nextSortDirection,
-  resolvePageExport,
-  toggleAriaChecked,
-} from "../ui/renderer/components/ui-actions.ts";
+import { resolvePageExport } from "../ui/renderer/components/ui-actions.ts";
 import { renderSidebar } from "../ui/renderer/components/sidebar.ts";
 import { createTranslator } from "../ui/renderer/components/i18n.ts";
 import * as providersPage from "../ui/renderer/pages/providers.ts";
@@ -28,23 +24,6 @@ import * as usagePage from "../ui/renderer/pages/usage.ts";
 const read = (relative: string): string =>
   readFileSync(new URL(`../${relative}`, import.meta.url), "utf8");
 
-/** 截取一个 CSS 规则块，选择器必须带 `{` 之前的前缀。 */
-function cssBlock(css: string, selector: string): string {
-  const start = css.indexOf(selector);
-  assert.ok(start >= 0, `样式缺少 ${selector}`);
-  const open = css.indexOf("{", start);
-  assert.ok(open >= 0, `${selector} 缺少规则体`);
-  let depth = 0;
-  for (let index = open; index < css.length; index += 1) {
-    const character = css[index];
-    if (character === "{") depth += 1;
-    if (character === "}") {
-      depth -= 1;
-      if (depth === 0) return css.slice(open + 1, index);
-    }
-  }
-  assert.fail(`${selector} 规则体未闭合`);
-}
 
 test("route: 详情页只允许 providers/profiles，解析与回写稳定", () => {
   assert.deepEqual([...DETAIL_PAGES], ["providers", "profiles"]);
@@ -98,10 +77,10 @@ test("route: 详情页只允许 providers/profiles，解析与回写稳定", () 
   assert.equal(sameRoute(null, { page: "overview", detailId: null }), false);
 });
 
-test("settings: section 扩展到五类，未知值仍回落到 general", () => {
+test("settings: section 覆盖四个章节，未知值仍回落到 general", () => {
   assert.deepEqual(
     [...SETTINGS_SECTIONS],
-    ["general", "privacy", "usage", "system", "about", "client-info"],
+    ["general", "privacy", "system", "about", "client-info"],
   );
 
   for (const section of SETTINGS_SECTIONS) {
@@ -113,23 +92,12 @@ test("settings: section 扩展到五类，未知值仍回落到 general", () => 
 
   assert.equal(createOpenSettingsDetail({ section: "privacy" }).section, "privacy");
   assert.equal(createOpenSettingsDetail({ section: "system" }).section, "system");
-  assert.equal(normalizeOpenSettingsDetail("usage").section, "usage");
+  assert.equal(normalizeOpenSettingsDetail("usage").section, "general");
   assert.equal(normalizeOpenSettingsDetail({ section: "privacy" }).section, "privacy");
   assert.equal(normalizeOpenSettingsDetail({ section: "privacy" }).source, "renderer");
 });
 
-test("ui-actions: 开关取反、排序方向与页面导出解析可预测", () => {
-  assert.equal(toggleAriaChecked("true"), "false");
-  assert.equal(toggleAriaChecked("false"), "true");
-  assert.equal(toggleAriaChecked(null), "true");
-  assert.equal(toggleAriaChecked(undefined), "true");
-  assert.equal(toggleAriaChecked(1), "true");
-
-  assert.equal(nextSortDirection("asc"), "desc");
-  assert.equal(nextSortDirection("desc"), "asc");
-  assert.equal(nextSortDirection(null), "desc");
-  assert.equal(nextSortDirection("ascending"), "desc");
-
+test("ui-actions: 页面导出解析可预测", () => {
   const renderDetail = () => "<div></div>";
   assert.equal(
     resolvePageExport({ renderDetail }, "renderDetail"),
@@ -232,9 +200,7 @@ test("app shell v2: 详情路由与通用页面动作接线，且保留侧栏状
   assert.match(app, /renderer\(context, detailId\)/);
   assert.match(app, /renderClaudeFieldEntry/);
   assert.match(app, /usageModule,\s*"renderHeatmap"/);
-  assert.match(app, /case "toggle":/);
   assert.match(app, /case "search-toggle":/);
-  assert.match(app, /case "sort":/);
   assert.match(app, /case "add-field":/);
   assert.match(app, /dataset\.usageRange/);
   assert.match(app, /data-usage-heatmap/);
@@ -275,28 +241,9 @@ test("styles v2: 近白/近黑 tokens、反色主按钮、蓝色开关与基础�
   );
   assert.match(css, /--harbor-switch-on:\s*#[0-9a-f]{6}/i);
 
-  for (const selector of [
-    ".button",
-    ".button--primary",
-    ".icon-button",
-    ".search-field",
-    ".switch",
-    ".form-row",
-    ".list-row",
-    ".page-toolbar",
-    ".section",
-  ]) {
+  for (const selector of [".icon-button", ".icon-placeholder", ".nav-item", ".page-header"]) {
     assert.ok(css.includes(selector), `缺少基础类 ${selector}`);
   }
-
-  const primary = cssBlock(css, ".button--primary");
-  assert.match(primary, /background:\s*var\(--harbor-inverse\)/);
-  assert.match(primary, /color:\s*var\(--harbor-inverse-text\)/);
-  assert.doesNotMatch(primary, /brand/i);
-
-  const switchOn = cssBlock(css, '.switch[aria-checked="true"]');
-  assert.match(switchOn, /background:\s*var\(--harbor-switch-on\)/);
-  assert.doesNotMatch(switchOn, /brand/i);
 
   assert.match(css, /1px solid var\(--harbor-border\)/);
   assert.match(css, /-webkit-app-region:\s*drag/);

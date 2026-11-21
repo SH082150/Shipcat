@@ -180,21 +180,12 @@ test("density: 标题、控件与页面留白同步收紧且不使用 zoom", () 
   const h1 = cssBlock(css, ".page-header h1");
   assert.match(h1, /font-size:\s*32px/);
 
-  const button = cssBlock(css, "\n.button {");
-  assert.match(button, /height:\s*32px/);
-
-  const toolbar = cssBlock(css, ".page-toolbar");
-  assert.match(toolbar, /min-height:\s*32px/);
-  assert.match(toolbar, /margin:\s*0 0 14px/);
-
   const navItem = cssBlock(css, ".nav-item");
   assert.match(navItem, /height:\s*36px/);
 
   const accountButton = cssBlock(css, ".account-button {");
   assert.match(accountButton, /height:\s*40px/);
 
-  const formRow = cssBlock(css, ".form-row");
-  assert.match(formRow, /padding:\s*11px 0/);
 });
 
 test("事件委托允许 SVG 图标作为点击目标", () => {

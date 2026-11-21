@@ -58,7 +58,7 @@ function resolveMeta(idOrName: string, options: ServiceOptions): { id: string; n
   const entry =
     meta.entries.find((item) => item.id === idOrName) ??
     meta.entries.find((item) => item.name === idOrName);
-  if (!entry) throw new ServiceError("NOT_FOUND", `profile「${idOrName}」不存在`);
+  if (!entry) throw new ServiceError("NOT_FOUND", "找不到这个档案，它可能已被删除。");
   return entry;
 }
 

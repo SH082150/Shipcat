@@ -4,7 +4,7 @@
  * 侧栏齿轮、账户菜单里的设置/了解更多，以及页面里的设置入口，统一派发
  * window 上的 `open-settings` 自定义事件。detail 里同时带：
  * - section: 设置弹窗要打开的章节
- *   （general / privacy / usage / system / client-info）
+ *   （general / privacy / system / client-info）
  * - source: 触发位置，便于设置层决定焦点
  * - clientInfo: 本机用户名等最小客户端信息
  *
@@ -16,7 +16,6 @@ export const OPEN_SETTINGS_EVENT = "open-settings";
 export const SETTINGS_SECTIONS = [
   "general",
   "privacy",
-  "usage",
   "system",
   "about",
   "client-info",

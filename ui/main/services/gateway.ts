@@ -1,5 +1,5 @@
 import * as core from "../../../core/index.ts";
-import type { AdvancedModelEntry, HarborProfile, Provider } from "../../../core/types.ts";
+import type { AdvancedModelEntry, Provider } from "../../../core/types.ts";
 import type { GatewayStatus } from "../../shared/ipc.ts";
 import { ServiceError } from "./errors.ts";
 
@@ -30,12 +30,16 @@ export class GatewayService {
 
     const profile = core.profiles.get(profileIdOrName, io);
     if (profile.mode !== "advanced") {
-      throw new ServiceError("CONFLICT", "只有 advanced 档案可以启动本地网关");
+      throw new ServiceError("CONFLICT", "只有「网关路由」模式的档案才能开启本地网关。");
     }
 
     const gate = core.check.gate(profileIdOrName, io);
     if (!gate.ok) {
-      throw new ServiceError("GATE_FAILED", "档案与 Claude 侧不一致，请先应用或处理差异", gate.diffs);
+      throw new ServiceError(
+        "GATE_FAILED",
+        "档案与 Claude Desktop 的配置不一致，请先同步后再试。",
+        gate.diffs,
+      );
     }
 
     const entries = profile.inferenceModels as readonly AdvancedModelEntry[];
@@ -61,9 +65,13 @@ export class GatewayService {
       return this.state;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      console.error("gateway start failed", error);
       this.handle = null;
       this.emit({ running: false, profileId: profileIdOrName, error: message });
-      throw new ServiceError("GATEWAY_START_FAILED", `网关启动失败：${message}`);
+      throw new ServiceError(
+        "GATEWAY_START_FAILED",
+        "网关启动失败。请检查端口是否被占用，或稍后重试。",
+      );
     }
   }
 
@@ -86,13 +94,3 @@ export class GatewayService {
   }
 }
 
-export function activeAdvancedProfile(home?: string): HarborProfile | null {
-  try {
-    const snapshot = core.lifecycle.getStatus(home === undefined ? {} : { home });
-    if (!snapshot.appliedId) return null;
-    const profile = core.profiles.get(snapshot.appliedId, home === undefined ? undefined : { home });
-    return profile.mode === "advanced" ? profile : null;
-  } catch {
-    return null;
-  }
-}

@@ -1,10 +1,9 @@
 /**
  * 用量页：历史用量热力图 + 总使用量卡 + 按天 Tokens 图/表。
  *
- * 历史用量来自 Claude 应用写入本机的 usage-ledger 账本，不是网关流量统计。
+ * 历史用量来自 Claude 在本机记录的用量，不是网关流量统计。
  *
- * 总使用量按 CC 口径：新增输入 + 输出 + 缓存读 + 缓存写；缓存写通常为 0，
- * 不单独占一行。按天图只画输入 + 输出，避免缓存读把柱形压平。
+ * 总使用量按输入、输出与缓存读写的合计计算，不单列缓存写。按天图只画输入 + 输出，避免缓存读把柱形压平。
  *
  * 切换热力图区间只原地替换热力图与总使用量卡；切换按天区间/图表模式只替换
  * 按天卡片。页面仍只由 render(context) 返回字符串。
@@ -103,7 +102,7 @@ export interface UsageDetail {
 
 /** 按天聚合的一天；只含界面维度，token = 输入 + 输出。 */
 export interface UsageDailyPoint {
-  /** 本地日期 YYYY-MM-DD，与账本文件名同格式。 */
+  /** 本地日期 YYYY-MM-DD，与用量文件名同格式。 */
   readonly day: string;
   readonly chat: number;
   readonly cowork: number;
@@ -111,9 +110,9 @@ export interface UsageDailyPoint {
 }
 
 export interface UsageLedgerState {
-  /** 最近一次账本同步时间 ISO 8601；null = 尚未同步。 */
+  /** 最近一次用量同步时间 ISO 8601；null = 尚未同步。 */
   readonly lastSyncedAt: string | null;
-  /** 镜像账本行数；null = 未知。 */
+  /** 镜像记录行数；null = 未知。 */
   readonly recordCount: number | null;
 }
 
@@ -162,7 +161,7 @@ export function renderHeatmap(
     return cellMarkup(range, index, cell);
   }).join("");
 
-  const aria = `Usage heatmap: ${meta.cells} cells, ${meta.columns} columns × ${meta.rows} rows, ${range} range`;
+  const aria = `用量热力图：${meta.cells} 格，${meta.columns} 列 × ${meta.rows} 行，${meta.label.zh}区间`;
   return `<div class="usage-heatmap" role="img" data-role="usage-heatmap" data-usage-range="${range}" data-columns="${meta.columns}" data-rows="${meta.rows}" aria-label="${escapeHtml(aria)}">${normalized}</div>`;
 }
 
@@ -237,6 +236,9 @@ interface UsageCopy {
   readonly ledgerPending: string;
   readonly ledgerRecords: (count: number) => string;
   readonly rangeAria: string;
+  readonly legendLess: string;
+  readonly legendMore: string;
+  readonly dailyRange: (days: number) => string;
   readonly demoNote: string;
   readonly overallTitle: string;
   readonly overallReal: string;
@@ -265,30 +267,32 @@ const COPY: Readonly<Record<"zh" | "en", UsageCopy>> = {
   zh: {
     eyebrow: "用量",
     title: "用量",
-    description: "查看历史用量与按天趋势。数据来自本机 Claude 用量账本。",
+    description: "查看历史用量与按天趋势。数据来自 Claude 在本机记录的用量。",
     historyTitle: "历史用量",
-    historyDescription:
-      "数据来自 Claude 应用写入本机的用量账本（usage-ledger），不是网关流量统计。",
-    ledgerPending: "账本尚未同步",
-    ledgerRecords: (count) => `${count} 条记录`,
+    historyDescription: "数据来自 Claude 在本机记录的用量，包含所有使用场景，不限于网关。",
+    ledgerPending: "暂无用量数据",
+    ledgerRecords: (count) => `已统计 ${count} 条记录`,
     rangeAria: "时间粒度",
+    legendLess: "少",
+    legendMore: "多",
+    dailyRange: (days) => `${days} 天`,
     demoNote: "示例强度，非真实统计",
     overallTitle: "总使用量",
-    overallReal: "真实消耗 tokens",
+    overallReal: "实际消耗 Token",
     overallInput: "输入（未缓存）",
     overallOutput: "输出",
     overallCacheRead: "缓存读",
     overallCalls: "调用次数",
     overallScope: (days) => `最近 ${days} 天`,
     overallSearches: (count) => `${count.toLocaleString("en-US")} 次网页搜索`,
-    infoInput: "未从提示缓存读取、也未写入提示缓存的输入 tokens",
-    infoOutput: "模型生成的 tokens",
-    infoCacheRead: "从提示缓存读取、无需重新处理的输入 tokens",
-    infoRealTotal: "新增输入 + 输出 + 缓存读 + 缓存写；缓存写通常为 0",
+    infoInput: "未从提示缓存读取、也未写入提示缓存的输入 Token",
+    infoOutput: "模型生成的 Token",
+    infoCacheRead: "从提示缓存读取、无需重新处理的输入 Token",
+    infoRealTotal: "输入、输出与缓存读写的合计",
     dailyTitle: "按天用量",
-    dailyDescription: "按界面统计的输入与输出 tokens，用于观察用量趋势。",
-    dailyCardTitle: "每日 Tokens",
-    dailyCardDescription: (days) => `按界面统计的输入与输出 tokens，最近 ${days} 天`,
+    dailyDescription: "按使用场景统计的输入与输出 Token，用于观察用量趋势。",
+    dailyCardTitle: "每日 Token",
+    dailyCardDescription: (days) => `按使用场景统计的输入与输出 Token，最近 ${days} 天`,
     dailyRangeAria: "时间范围",
     dailyModeAria: "图表或表格",
     dailyChartAria: "按天用量柱状图",
@@ -299,13 +303,16 @@ const COPY: Readonly<Record<"zh" | "en", UsageCopy>> = {
     eyebrow: "Usage",
     title: "Usage",
     description:
-      "Review usage history and daily trends. Data comes from the local Claude usage ledger.",
+      "Review usage history and daily trends. Data comes from usage recorded by Claude on this machine.",
     historyTitle: "Usage history",
     historyDescription:
-      "Data comes from the Claude usage-ledger written on this machine, not gateway traffic statistics.",
-    ledgerPending: "Ledger not synced",
-    ledgerRecords: (count) => `${count} records`,
+      "Data comes from usage recorded by Claude on this machine, including every surface — not only the gateway.",
+    ledgerPending: "No usage data yet",
+    ledgerRecords: (count) => `${count} records counted`,
     rangeAria: "Time granularity",
+    legendLess: "Less",
+    legendMore: "More",
+    dailyRange: (days) => `${days} days`,
     demoNote: "Sample intensity — not real usage",
     overallTitle: "Total usage",
     overallReal: "real consumption tokens",
@@ -365,19 +372,19 @@ export function render(
 
       <div class="usage-heatmap-meta">
         <span data-role="usage-range-caption">${escapeHtml(renderRangeCaption(range, language))}</span>
-        <span class="usage-ledger" data-role="usage-ledger-status">${escapeHtml(ledger)}</span>
+        <span class="usage-sync" data-role="usage-sync-status">${escapeHtml(ledger)}</span>
       </div>
       <div class="usage-heat-row">
         <div class="usage-heatmap-host" data-role="usage-heatmap-host">${renderHeatmap(range, cells)}</div>
-        <aside class="usage-overall" data-role="usage-overall" aria-label="${escapeHtml(copy.overallTitle)}">${renderOverallCard(cells, range, language, copy, data.demo === true)}</aside>
+        <aside class="usage-overall" data-role="usage-overall" aria-label="${escapeHtml(copy.overallTitle)}">${renderOverallCard(cells, range, copy, data.demo === true)}</aside>
       </div>
       <div class="usage-heatmap-foot">
         <div class="usage-legend">
-          <span class="usage-legend-label">Less</span>
+          <span class="usage-legend-label">${escapeHtml(copy.legendLess)}</span>
           <span class="usage-legend-scale" aria-hidden="true">
             ${[0, 1, 2, 3, 4].map((level) => `<span class="usage-legend-cell is-level-${level}"></span>`).join("")}
           </span>
-          <span class="usage-legend-label">More</span>
+          <span class="usage-legend-label">${escapeHtml(copy.legendMore)}</span>
         </div>
         ${data.demo ? `<span class="usage-demo-note">${escapeHtml(copy.demoNote)}</span>` : ""}
       </div>
@@ -450,19 +457,17 @@ function sumCells(cells: readonly HeatmapCell[] | undefined): OverallTotals {
 function renderOverallCard(
   cells: readonly HeatmapCell[] | undefined,
   range: UsageRange,
-  language: "zh" | "en",
   copy: UsageCopy,
   demo: boolean,
 ): string {
   const totals = sumCells(cells);
   const scope = copy.overallScope(USAGE_RANGE_META[range].days);
-  return renderOverallContent(totals, scope, language, copy, demo);
+  return renderOverallContent(totals, scope, copy, demo);
 }
 
 function renderOverallContent(
   totals: OverallTotals,
   scope: string,
-  language: "zh" | "en",
   copy: UsageCopy,
   demo: boolean,
 ): string {
@@ -567,7 +572,7 @@ function renderDailyCard(
         <div class="usage-range-switch" role="group" aria-label="${escapeHtml(copy.dailyRangeAria)}">
           ${DAILY_RANGES.map(
             (item) =>
-              `<button type="button" class="usage-range-button${item === range ? " is-active" : ""}" data-chart-range="${item}" aria-pressed="${item === range}">${item}d</button>`,
+              `<button type="button" class="usage-range-button${item === range ? " is-active" : ""}" data-chart-range="${item}" aria-pressed="${item === range}">${escapeHtml(copy.dailyRange(item))}</button>`,
           ).join("")}
         </div>
         ${renderDailyModeSwitch(mode, copy)}
@@ -721,14 +726,14 @@ function updateHeatmap(page: HTMLElement, range: UsageRange): void {
   activeRange = range;
   hoveredCellIndex = null;
   hoveredCellRange = null;
-  if (data) updateOverallCard(page, range, language, copyFor(language));
+  if (data) updateOverallCard(page, range, copyFor(language));
 }
 
-function updateOverallCard(page: HTMLElement, range: UsageRange, language: "zh" | "en", copy: UsageCopy): void {
+function updateOverallCard(page: HTMLElement, range: UsageRange, copy: UsageCopy): void {
   const host = page.querySelector<HTMLElement>('[data-role="usage-overall"]');
   const data = activeUsageData;
   if (!host || !data) return;
-  host.innerHTML = renderOverallCard(cellsFor(data, range), range, language, copy, data.demo === true);
+  host.innerHTML = renderOverallCard(cellsFor(data, range), range, copy, data.demo === true);
 }
 
 function showCellOverall(
@@ -746,7 +751,6 @@ function showCellOverall(
   host.innerHTML = renderOverallContent(
     sumCells([cell]),
     formatCellScope(cell.at, range, language),
-    language,
     copy,
     data.demo === true,
   );
@@ -849,7 +853,7 @@ function installUsageInteractions(): void {
     if (hoveredCellIndex !== null) {
       hoveredCellIndex = null;
       hoveredCellRange = null;
-      updateOverallCard(page, activeRange, language, copy);
+      updateOverallCard(page, activeRange, copy);
     }
   });
 
@@ -859,7 +863,7 @@ function installUsageInteractions(): void {
     const page = document.querySelector<HTMLElement>('[data-role="page-usage"]');
     if (!page) return;
     const language = page.dataset.usageLanguage === "en" ? "en" : "zh";
-    updateOverallCard(page, activeRange, language, copyFor(language));
+    updateOverallCard(page, activeRange, copyFor(language));
   });
 
   document.addEventListener("pointermove", (event) => {

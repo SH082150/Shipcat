@@ -71,7 +71,7 @@ test("usage removes repeated prototype explanations while retaining data provena
   const html = renderUsage(context);
   assert.equal(html.includes('class="page-note"'), false);
   assert.equal(html.includes('class="usage-cells-note"'), false);
-  assert.match(html, /usage-ledger/);
+  assert.match(html, /usage-sync/);
   assert.match(html, /usage-demo-note/);
   assert.match(html, /Claude/);
 });

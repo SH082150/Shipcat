@@ -613,18 +613,6 @@ html[data-theme="dark"] .profile-button--danger-solid:hover {
   align-items: center;
 }
 
-.profiles-foot {
-  padding-top: 0;
-}
-
-.profiles-note {
-  margin: 0;
-  padding-block: 14px 0;
-  color: var(--profile-faint);
-  font-size: 10.5px;
-  line-height: 1.55;
-}
-
 /* -------------------------------------------------------------------------- */
 /* 详情                                                                       */
 /* -------------------------------------------------------------------------- */

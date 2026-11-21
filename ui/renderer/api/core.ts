@@ -22,7 +22,6 @@ import type {
   ProviderInput,
   ProviderPatch,
   ProviderSummary,
-  StatusData,
   UsageAggregateRow,
   UsageFilter,
   UsageSyncSummary,
@@ -98,7 +97,6 @@ export const syncApi = {
 };
 
 export const overviewApi = { get: (): Promise<OverviewData> => unwrap(bridge().overview.get()) };
-export const statusApi = { get: (): Promise<StatusData> => unwrap(bridge().status.get()) };
 export const usageApi = {
   sync: (): Promise<UsageSyncSummary> => unwrap(bridge().usage.sync()),
   aggregate: (filter: UsageFilter = {}): Promise<UsageAggregateRow[]> =>

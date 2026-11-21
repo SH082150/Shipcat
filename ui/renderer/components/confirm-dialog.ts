@@ -3,8 +3,6 @@
  * 确认/取消动作经回调上抛。
  */
 
-import { escapeHtml } from "./html.ts";
-
 export interface ConfirmDialogOptions {
   readonly title: string;
   readonly message?: string;
