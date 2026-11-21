@@ -70,6 +70,13 @@ contextBridge.exposeInMainWorld("claudeHarbor", {
     updateModel: (id: string, previousName: string, model: unknown) =>
       invoke(CHANNELS.profiles.updateModel, id, previousName, model),
     removeModel: (id: string, modelName: string) => invoke(CHANNELS.profiles.removeModel, id, modelName),
+    syncPlan: (id: string) => invoke(CHANNELS.profiles.syncPlan, id),
+    syncApply: (id: string, decisions: unknown) => invoke(CHANNELS.profiles.syncApply, id, decisions),
+    inspect: () => invoke(CHANNELS.profiles.inspect),
+    onChanged(callback: () => void) {
+      if (typeof callback !== "function") throw new TypeError("onChanged expects a function");
+      return subscribe(CHANNELS.profiles.changed, callback);
+    },
   },
   gateway: {
     status: () => invoke(CHANNELS.gateway.status),

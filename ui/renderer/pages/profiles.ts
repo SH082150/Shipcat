@@ -56,6 +56,8 @@ export interface ProfilesDemo {
   readonly activeId: string | null;
   readonly gatewayEnabled: boolean;
   readonly profiles: readonly ProfileDraft[];
+  /** 与 Claude 侧不一致、需要同步的档案 id。 */
+  readonly pendingSync?: readonly string[];
   /** 供应商下拉选项；缺省使用演示供应商。 */
   readonly providers?: readonly ProviderOption[];
 }
@@ -227,6 +229,7 @@ interface Copy {
   readonly claudeEmpty: string;
   readonly deleteProfile: string;
   readonly namePlaceholder: string;
+  readonly pendingSync: string;
   readonly modeLabels: Record<ProfileMode, string>;
 }
 
@@ -292,6 +295,7 @@ const COPY: Record<Language, Copy> = {
     claudeEmpty: "没有自定义透传字段。",
     deleteProfile: "删除档案",
     namePlaceholder: "例如 deepseek-gateway",
+    pendingSync: "待同步",
     modeLabels: {
       standard: "标准直连",
       advanced: "网关路由",
@@ -359,6 +363,7 @@ const COPY: Record<Language, Copy> = {
     claudeEmpty: "No custom passthrough fields.",
     deleteProfile: "Delete profile",
     namePlaceholder: "e.g. deepseek-gateway",
+    pendingSync: "Sync needed",
     modeLabels: {
       standard: "Direct",
       advanced: "Gateway",
@@ -446,7 +451,7 @@ export function render(context: PageContext, data: ProfilesDemo = demoProfiles):
         </div>
       </div>
       <div class="profiles-rows profiles-gutter">
-        ${data.profiles.map((profile) => renderRow(profile, copy)).join("")}
+        ${data.profiles.map((profile) => renderRow(profile, copy, data.pendingSync)).join("")}
       </div>
     </section>
 
@@ -820,7 +825,7 @@ function renderGatewayBar(profile: ProfileDraft, enabled: boolean, copy: Copy): 
   </div>`;
 }
 
-function renderRow(profile: ProfileDraft, copy: Copy): string {
+function renderRow(profile: ProfileDraft, copy: Copy, pendingSync?: readonly string[]): string {
   const status = profile.applied
     ? statusPill(profile, copy)
     : profile.mode === "readOnly"
@@ -828,7 +833,7 @@ function renderRow(profile: ProfileDraft, copy: Copy): string {
       : `<button type="button" class="profile-apply" data-action="apply-profile" data-profile-id="${profile.id}" aria-label="${escapeHtml(`${copy.apply}: ${profile.name}`)}">${escapeHtml(copy.apply)}</button>`;
   return `<div class="profile-row profile-grid" data-profile-id="${profile.id}" data-applied="${profile.applied ? "true" : "false"}">
     <a class="profile-row-open" href="${profileHref(profile.id)}" data-action="open-profile" data-profile-id="${profile.id}" aria-label="${escapeHtml(`${copy.openProfile}: ${profile.name}`)}">
-      <span class="profile-row-name">${escapeHtml(profile.name)}</span>
+      <span class="profile-row-name">${escapeHtml(profile.name)}</span>${pendingSync?.includes(profile.id) ? `<span class="profile-row-sync">${escapeHtml(copy.pendingSync)}</span>` : ""}
       <span class="profile-row-type">${typeTag(profile)}</span>
     </a>
     <span class="profile-row-status">${status}</span>

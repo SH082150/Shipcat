@@ -27,6 +27,8 @@ const en = {
   hintUsageBody: "Review requests and tokens recorded by Claude on this device.",
   hintProfilesTitle: "Switch configuration",
   hintProfilesBody: "Pick the provider and model Claude Desktop should use.",
+  syncHintTitle: "Check profile sync",
+  syncHintBody: "{count} profile(s) differ from Claude. Review them before editing.",
   noticeTitle: "Gateway connection failed",
   noticeBody:
     "Claude Desktop could not reach the local gateway. Check the configuration and try again.",
@@ -58,6 +60,8 @@ const zh: Record<OverviewCopyKey, string> = {
   hintUsageBody: "查看 Claude 在这台设备上记录的请求与 Token。",
   hintProfilesTitle: "切换配置",
   hintProfilesBody: "选择 Claude Desktop 使用的供应商与模型。",
+  syncHintTitle: "检查档案配置",
+  syncHintBody: "有 {count} 个档案与 Claude 侧不一致，编辑前请先处理。",
   noticeTitle: "网关连接失败",
   noticeBody: "Claude Desktop 暂时无法连接本地网关，请检查配置后重试。",
   noticeDetails: "查看详情",
@@ -161,8 +165,23 @@ function defaultHints(copy: OverviewCopy): readonly OverviewHint[] {
 }
 
 function resolveHints(content: OverviewContent, copy: OverviewCopy): readonly OverviewHint[] {
-  if (content.hints === undefined) return defaultHints(copy);
-  return Array.isArray(content.hints) ? content.hints : [];
+  const base =
+    content.hints === undefined
+      ? defaultHints(copy)
+      : Array.isArray(content.hints)
+        ? content.hints
+        : [];
+  const pending = content.syncPending ?? 0;
+  if (pending <= 0) return base;
+  return [
+    {
+      id: "sync-pending",
+      title: copy.syncHintTitle,
+      description: copy.syncHintBody.replace("{count}", String(pending)),
+      target: { action: "navigate", page: "profiles" },
+    },
+    ...base,
+  ];
 }
 
 function renderNotice(copy: OverviewCopy): string {

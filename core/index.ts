@@ -17,3 +17,4 @@ export * as paths from "./archive/paths/index.ts";
 export * as gateway from "./gateway/0-server/index.ts";
 export * as usage from "./usage/index.ts";
 export * as lifecycle from "./lifecycle/index.ts";
+export * as sync from "./sync/index.ts";

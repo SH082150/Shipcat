@@ -21,6 +21,7 @@ import {
   updateProfile,
 } from "./services/profiles.ts";
 import { getOverview, getStatus } from "./services/status.ts";
+import { applySync, getSyncPlan, inspectProfiles, watchProfiles } from "./services/sync.ts";
 import { aggregateUsage, loadUsageBuckets, syncUsage } from "./services/usage.ts";
 import { GatewayService } from "./services/gateway.ts";
 
@@ -50,6 +51,11 @@ export function registerCoreIpc(gateway: GatewayService): void {
   ipcMain.handle(CHANNELS.profiles.removeModel, (_event, id: string, modelName: string) =>
     run(() => removeModel(id, modelName)),
   );
+  ipcMain.handle(CHANNELS.profiles.syncPlan, (_event, id: string) => run(() => getSyncPlan(id)));
+  ipcMain.handle(CHANNELS.profiles.syncApply, (_event, id: string, decisions: unknown) =>
+    run(() => applySync(id, decisions)),
+  );
+  ipcMain.handle(CHANNELS.profiles.inspect, () => run(() => inspectProfiles()));
 
   ipcMain.handle(CHANNELS.gateway.status, () => gateway.status());
   ipcMain.handle(CHANNELS.gateway.start, (_event, id: string) => run(() => gateway.start(id)));
@@ -64,6 +70,14 @@ export function registerCoreIpc(gateway: GatewayService): void {
   ipcMain.handle(CHANNELS.usage.buckets, (_event, range: "30min" | "1h" | "1d") =>
     run(() => loadUsageBuckets(range)),
   );
+
+  watchProfiles(() => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send(CHANNELS.profiles.changed);
+      }
+    }
+  });
 
   gateway.onStatus((status) => {
     for (const window of BrowserWindow.getAllWindows()) {

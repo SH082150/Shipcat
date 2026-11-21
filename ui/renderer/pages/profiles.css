@@ -1166,3 +1166,15 @@ html[data-theme="dark"] .profile-model-remove:hover {
   display: flex;
   flex-direction: column;
 }
+
+/* 列表行：待同步提示 */
+.profile-row-sync {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--harbor-border-strong);
+  border-radius: 5px;
+  color: var(--harbor-text-secondary);
+  font-size: 9.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}

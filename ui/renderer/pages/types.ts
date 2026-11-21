@@ -41,6 +41,8 @@ export interface OverviewContent {
   /** advanced 模式下本地网关是否已在运行；缺省 false。 */
   readonly gatewayEnabled?: boolean;
   readonly hints?: readonly OverviewHint[];
+  /** 与 Claude 侧不一致、需要检查同步的档案数。 */
+  readonly syncPending?: number;
 }
 
 export interface PageContext {

@@ -194,6 +194,10 @@ export const CHANNELS = {
     addModel: "core:profiles:add-model",
     updateModel: "core:profiles:update-model",
     removeModel: "core:profiles:remove-model",
+    syncPlan: "core:profiles:sync-plan",
+    syncApply: "core:profiles:sync-apply",
+    inspect: "core:profiles:inspect",
+    changed: "core:profiles:changed",
   },
   gateway: {
     status: "core:gateway:status",
@@ -233,6 +237,10 @@ export interface CoreBridge {
     addModel(id: string, model: ModelInput): Promise<AppResult<ProfileDetail>>;
     updateModel(id: string, previousName: string, model: ModelInput): Promise<AppResult<ProfileDetail>>;
     removeModel(id: string, modelName: string): Promise<AppResult<ProfileDetail>>;
+    syncPlan(id: string): Promise<AppResult<unknown>>;
+    syncApply(id: string, decisions: unknown): Promise<AppResult<void>>;
+    inspect(): Promise<AppResult<unknown>>;
+    onChanged(callback: () => void): () => void;
   };
   readonly gateway: {
     status(): Promise<GatewayStatus>;

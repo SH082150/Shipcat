@@ -1,0 +1,357 @@
+/* 需要同步：沿用设置弹窗的外壳与主题变量，只定义内容区。 */
+
+.ch-sync {
+  width: min(1000px, calc(100vw - 48px));
+  height: auto;
+  max-height: min(780px, calc(100vh - 64px));
+  flex-direction: column;
+}
+
+.sync-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 30px 6px;
+}
+
+.sync-head-copy h2 {
+  margin: 0;
+  color: var(--ch-text);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.sync-subtitle {
+  margin: 6px 0 0;
+  max-width: 620px;
+  color: var(--ch-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.sync-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-top: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ch-text-secondary);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.sync-close:hover {
+  background: var(--ch-hover);
+  color: var(--ch-text);
+}
+
+.sync-close-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sync-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 30px 12px;
+}
+
+.sync-section {
+  margin-top: 20px;
+}
+
+.sync-section:first-child {
+  margin-top: 10px;
+}
+
+.sync-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sync-section-head h3 {
+  margin: 0;
+  color: var(--ch-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sync-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--ch-hover);
+  color: var(--ch-text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.sync-warning {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ch-border);
+  border-radius: 9px;
+  background: var(--ch-sidebar);
+  color: var(--ch-text-secondary);
+  font-size: 12px;
+}
+
+.sync-table-wrap {
+  border: 1px solid var(--ch-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sync-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.sync-table th {
+  padding: 8px 12px;
+  background: var(--ch-sidebar);
+  color: var(--ch-text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.sync-table td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--ch-border);
+  vertical-align: middle;
+  font-size: 11.5px;
+}
+
+.sync-table th:nth-child(1),
+.sync-table td:nth-child(1) {
+  width: 31%;
+}
+
+.sync-table th:nth-child(2),
+.sync-table td:nth-child(2),
+.sync-table th:nth-child(3),
+.sync-table td:nth-child(3) {
+  width: 21%;
+}
+
+.sync-table th:nth-child(4),
+.sync-table td:nth-child(4) {
+  width: 27%;
+}
+
+.sync-item {
+  color: var(--ch-text);
+  font-weight: 500;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.sync-value {
+  color: var(--ch-text-secondary);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.sync-value.is-absent {
+  color: var(--ch-text-muted);
+}
+
+.sync-final {
+  min-width: 0;
+}
+
+.sync-input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--ch-border-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ch-text);
+  font: inherit;
+  font-size: 11.5px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.sync-input:focus {
+  border-color: var(--ch-text);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ch-border);
+}
+
+.sync-input:disabled {
+  border-color: var(--ch-border);
+  background: var(--ch-sidebar);
+  color: var(--ch-text-muted);
+}
+
+.sync-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: var(--ch-text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sync-delete input {
+  margin: 0;
+  accent-color: var(--ch-danger);
+}
+
+.sync-models {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sync-model {
+  border: 1px solid var(--ch-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ch-surface);
+}
+
+.sync-model-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--ch-sidebar);
+}
+
+.sync-model-head span {
+  color: var(--ch-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.sync-model-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ch-text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.sync-model-delete:hover {
+  background: var(--ch-hover);
+  color: var(--ch-danger);
+}
+
+.sync-model-delete.is-armed {
+  background: color-mix(in srgb, var(--ch-danger) 12%, transparent);
+  color: var(--ch-danger);
+}
+
+.sync-model[data-delete="true"] {
+  opacity: 0.45;
+}
+
+.sync-trash {
+  width: 11px;
+  height: 11px;
+}
+
+.sync-model .sync-table td {
+  padding: 9px 14px;
+}
+
+.sync-model .sync-table td:first-child {
+  width: 34%;
+}
+
+.sync-model .sync-table td:nth-child(2),
+.sync-model .sync-table td:nth-child(3) {
+  width: 19%;
+}
+
+.sync-model .sync-table td:last-child {
+  width: 28%;
+}
+
+.sync-error {
+  margin: 10px 0 0;
+  color: var(--ch-danger);
+  font-size: 11.5px;
+}
+
+.sync-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 30px 20px;
+  border-top: 1px solid var(--ch-border);
+  background: color-mix(in srgb, var(--ch-surface) 96%, transparent);
+}
+
+.sync-button {
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid var(--ch-border-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ch-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.sync-button--ghost {
+  border-color: transparent;
+  color: var(--ch-text-secondary);
+}
+
+.sync-button--ghost:hover {
+  background: var(--ch-hover);
+  color: var(--ch-text);
+}
+
+.sync-button--primary {
+  border-color: var(--ch-text);
+  background: var(--ch-text);
+  color: var(--ch-surface);
+}
+
+.sync-button--primary:hover {
+  opacity: 0.88;
+}
+
+.sync-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+[data-theme="dark"] .ch-sync .sync-button--primary {
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #0b0b0b;
+}

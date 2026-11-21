@@ -693,6 +693,24 @@ export function updateProfile(
   return { id: target.id, name: nextName };
 }
 
+/**
+ * 强制按 sidecar 重新生成 Claude profile 文件，不比对漂移。
+ * 供同步页“用 Shipcat 覆盖”与导入完成后的收尾使用；standard 无法生成时抛错。
+ */
+export function forceSyncProfile(idOrName: string, opts?: ProfilesOptions): void {
+  const meta = readMeta(opts);
+  const entry = resolveEntry(meta, idOrName);
+  const profile = readSidecar(entry.id, opts);
+  assertWritable(profile);
+  const synced = syncClaudeProfile(entry.id, entry.name, profile, opts);
+  if (!synced) {
+    throw new ProfilesError(
+      "VALIDATION",
+      `profile「${entry.name}」暂时无法生成 Claude 侧文件（standard 缺少模型条目或供应商），请先补齐配置`,
+    );
+  }
+}
+
 /** 重新写入条目并允许改 Model ID（按 previousName 定位旧条目）。 */
 export function replaceEntry(
   idOrName: string,

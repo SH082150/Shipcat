@@ -3,6 +3,8 @@
  * 页面/组件不要直接摸 window.claudeHarbor。
  */
 
+import type { SyncDecisions, SyncPlan } from "../../../core/sync/index.ts";
+import type { ClaudeDriftReport } from "../../../core/check/index.ts";
 import type {
   AppError,
   UsageBucket,
@@ -83,6 +85,16 @@ export const gatewayApi = {
   stop: (): Promise<GatewayStatus> => unwrap(bridge().gateway.stop()),
   onStatus: (callback: (status: GatewayStatus) => void): (() => void) =>
     bridge().gateway.onStatus(callback),
+};
+
+export const syncApi = {
+  plan: (id: string): Promise<SyncPlan> =>
+    unwrap(bridge().profiles.syncPlan(id) as Promise<AppResult<SyncPlan>>),
+  apply: (id: string, decisions: SyncDecisions): Promise<void> =>
+    unwrap(bridge().profiles.syncApply(id, decisions) as Promise<AppResult<void>>),
+  inspect: (): Promise<ClaudeDriftReport> =>
+    unwrap(bridge().profiles.inspect() as Promise<AppResult<ClaudeDriftReport>>),
+  onChanged: (callback: () => void): (() => void) => bridge().profiles.onChanged(callback),
 };
 
 export const overviewApi = { get: (): Promise<OverviewData> => unwrap(bridge().overview.get()) };

@@ -39,7 +39,9 @@ import {
   pickClickAction,
 } from "./components/mascot.ts";
 import type { GreetingWeather } from "./greeting.ts";
-import { gatewayApi, overviewApi, profilesApi, providersApi, usageApi } from "./api/core.ts";
+import { gatewayApi, overviewApi, profilesApi, providersApi, syncApi, usageApi } from "./api/core.ts";
+import { createSyncModal } from "./sync/sync-modal.ts";
+import type { SyncDecisions, SyncPlan } from "../../core/sync/index.ts";
 import type {
   ModelEntry as ModelEntryDto,
   ModelInput,
@@ -205,6 +207,7 @@ let localClientInfo: ClientInfo = readClientInfo();
 let clientInfo: ClientInfo = withCustomName(localClientInfo);
 let menuOpen = false;
 let settingsOverlay: HTMLElement | null = null;
+let syncOverlay: HTMLElement | null = null;
 let languageOverlay: HTMLElement | null = null;
 let confirmOverlay: HTMLElement | null = null;
 let disposeConfirmTrap: (() => void) | null = null;
@@ -338,6 +341,7 @@ syncNativeTheme(theme.getPreference());
 void loadClientInfoFromBridge();
 
 renderSidebarView();
+initSyncWatch();
 void renderWorkspace(true);
 syncChrome();
 
@@ -871,6 +875,116 @@ async function renderWorkspace(resetScroll = false): Promise<void> {
   });
   if (resetScroll) workspace.scrollTop = 0;
   paintMascot();
+  if (page === "profiles" && route.detailId && route.detailId !== PROFILE_CREATE_ID) {
+    void openSyncForDetail(route.detailId);
+  }
+}
+
+
+function hasSyncDrift(plan: SyncPlan): boolean {
+  return (
+    plan.fileMissing ||
+    plan.basic.length > 0 ||
+    plan.models.length > 0 ||
+    plan.passthrough.length > 0
+  );
+}
+
+/** 收集编辑页里尚未保存的值：模型字段按 data-model-index 拼回 plan 的 path。 */
+function collectSyncDrafts(): {
+  values: Record<string, string>;
+  passthrough: { key: string; value: string }[];
+} {
+  const values: Record<string, string> = {};
+  const pageElement = workspace.querySelector<HTMLElement>('[data-role="page-profile-detail"]');
+  if (!pageElement) return { values, passthrough: [] };
+
+  for (const field of ["port", "gatewayToken", "gatewayAuthScheme"] as const) {
+    const input = pageElement.querySelector<HTMLInputElement | HTMLSelectElement>(
+      `[data-field="${field}"]`,
+    );
+    if (input) values[field] = input.value;
+  }
+
+  for (const item of pageElement.querySelectorAll<HTMLElement>('[data-role="model-item"]')) {
+    const index = Number(item.dataset.modelIndex);
+    if (!Number.isInteger(index)) continue;
+    for (const input of item.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-field]")) {
+      const field = input.dataset.field;
+      if (!field) continue;
+      const value =
+        input instanceof HTMLInputElement && input.type === "checkbox"
+          ? String(input.checked)
+          : input.value;
+      values[`inferenceModels[${index}].${field}`] = value;
+    }
+  }
+
+  const passthrough = [...pageElement.querySelectorAll<HTMLElement>('[data-role="claude-field-entry"]')]
+    .map((row) => ({
+      key: row.querySelector<HTMLInputElement>('[data-field="claudeKey"]')?.value.trim() ?? "",
+      value: row.querySelector<HTMLInputElement>('[data-field="claudeValue"]')?.value ?? "",
+    }))
+    .filter((item) => item.key.length > 0);
+
+  return { values, passthrough };
+}
+
+function closeSyncPrompt(): void {
+  syncOverlay?.remove();
+  syncOverlay = null;
+  workspace.inert = false;
+}
+
+/** 打开档案时检查漂移；有差异就锁表单并弹出需要同步。 */
+async function openSyncForDetail(profileId: string): Promise<void> {
+  if (syncOverlay !== null) return;
+  let plan: SyncPlan;
+  try {
+    plan = await syncApi.plan(profileId);
+  } catch {
+    return;
+  }
+  if (!hasSyncDrift(plan)) return;
+
+  const overlay = createSyncModal({
+    plan,
+    language,
+    providers: profileProviderCache,
+    drafts: collectSyncDrafts(),
+    onApply: async (decisions: SyncDecisions) => {
+      await syncApi.apply(plan.id, decisions);
+      if (syncOverlay === overlay) closeSyncPrompt();
+      await renderWorkspace(true);
+    },
+    onClose: () => {
+      if (syncOverlay === overlay) closeSyncPrompt();
+      navigateRoute({ page: "profiles", detailId: null }, false);
+    },
+  });
+  syncOverlay = overlay;
+  workspace.inert = true;
+  document.body.appendChild(overlay);
+}
+
+async function handleClaudeFileChange(): Promise<void> {
+  if (page === "profiles" && route.detailId && route.detailId !== PROFILE_CREATE_ID) {
+    if (syncOverlay === null) await openSyncForDetail(route.detailId);
+    return;
+  }
+  if (page === "profiles" || page === "overview") {
+    await renderWorkspace(false);
+  }
+}
+
+function initSyncWatch(): void {
+  try {
+    syncApi.onChanged(() => {
+      void handleClaudeFileChange();
+    });
+  } catch {
+    // bridge 不可用（例如纯浏览器预览）时跳过监听。
+  }
 }
 
 function providerView(provider: ProviderSummary): {
@@ -970,13 +1084,15 @@ async function renderProfilesPage(context: PageContext, detailId: string | null)
   try {
     const summaries = await profilesApi.list();
     const providers = await providersApi.list();
+    const drift = await syncApi.inspect().catch(() => null);
+    const pendingSync = drift?.profiles.map((item) => item.id) ?? [];
     const options = providerOptions(providers);
     profileProviderCache = options;
     const gateway = await gatewayApi.status();
     const activeId = summaries.find((item) => item.applied)?.id ?? null;
 
     if (detailId === PROFILE_CREATE_ID && renderer) {
-      const data: ProfilesDemo = { activeId, gatewayEnabled: gateway.running, profiles: [], providers: options };
+      const data: ProfilesDemo = { activeId, gatewayEnabled: gateway.running, profiles: [], providers: options, pendingSync };
       const html = renderer(context, detailId, data, options);
       if (typeof html === "string" && html.trim().length > 0) return html;
     }
@@ -996,6 +1112,7 @@ async function renderProfilesPage(context: PageContext, detailId: string | null)
         gatewayEnabled: gateway.running,
         profiles: [profileDraft(summary, detail)],
         providers: options,
+        pendingSync,
       };
       const html = renderer(context, detailId, data, options);
       if (typeof html === "string" && html.trim().length > 0) return html;
@@ -1009,6 +1126,7 @@ async function renderProfilesPage(context: PageContext, detailId: string | null)
         profileDraft(summary, summary.id === activeId ? activeDetail ?? undefined : undefined),
       ),
       providers: options,
+      pendingSync,
     };
     return renderProfiles(context, data);
   } catch (error) {
@@ -1024,6 +1142,7 @@ async function renderProfilesPage(context: PageContext, detailId: string | null)
 async function renderOverviewPage(context: PageContext): Promise<string> {
   try {
     const data = await overviewApi.get();
+    const drift = await syncApi.inspect().catch(() => null);
     return renderOverview({
       ...context,
       overview: {
@@ -1037,6 +1156,7 @@ async function renderOverviewPage(context: PageContext): Promise<string> {
         mode: data.activeProfile?.mode === "advanced" ? "advanced" : "standard",
         gatewayEnabled: data.gateway.running,
         ...(data.gateway.error === undefined ? {} : { gatewayError: data.gateway.error }),
+        ...(drift && drift.profiles.length > 0 ? { syncPending: drift.profiles.length } : {}),
       },
     });
   } catch (error) {
