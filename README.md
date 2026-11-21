@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.2.2 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
+版本：0.2.3 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
 
 ## 摘要
 
@@ -268,7 +268,7 @@ npm run typecheck
 
 ### 更新日志
 
-#### v0.2.2
+#### v0.2.3
 
 - 用量页改版：热力图右侧新增与图等高的总使用量卡（输入 / 输出 / 缓存读 / 调用次数 / 网页搜索），悬停格子即切换为该时段明细；新增"按天用量"图表（7 / 30 / 90 天，柱状与表格两种视图，悬停显示分类明细）；移除底部额度区与设置页相关入口。
 - 维护性清理：移除死工具函数、不可达的排序与开关事件链路、约 180 条零引用 CSS 规则与 65 个孤儿 i18n 文案；设置页删除未接线的"侧边栏用量""系统通知"与存储管理按钮。
@@ -305,7 +305,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.2.2 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
+**Version: 0.2.3 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
 
 ### 1. Introduction
 
@@ -436,7 +436,7 @@ npm run typecheck
 
 ### Changelog
 
-#### v0.2.2
+#### v0.2.3
 
 - Usage page rework: a total-usage card as tall as the heatmap now sits on its right (input / output / cache read / request count / web searches), switching to that cell's detail on hover; a new "tokens per day" chart offers 7 / 30 / 90-day ranges with bar and table views and hover breakdowns; the quota section and its settings entries are removed.
 - Maintenance: removed dead utility exports, unreachable sort/toggle event chains, about 180 orphaned CSS rules, and 65 unused i18n strings; the settings page drops the unwired "usage in sidebar", "notifications", and storage-manage entries.
