@@ -13,6 +13,7 @@ const SYSTEM_CHANNELS = {
   get: "claude-harbor:system:get",
   setLaunch: "claude-harbor:system:set-launch",
   setBackground: "claude-harbor:system:set-background",
+  setHideDock: "claude-harbor:system:set-hide-dock",
 };
 
 const FILE_CHANNELS = {
@@ -29,6 +30,10 @@ const subscribe = (channel: string, callback: (value: unknown) => void): (() => 
 };
 
 contextBridge.exposeInMainWorld("claudeHarbor", {
+  clientInfo: {
+    platform: process.platform,
+    hostname: os.hostname(),
+  },
   getUsername(): string {
     try {
       return os.userInfo().username;
@@ -48,6 +53,7 @@ contextBridge.exposeInMainWorld("claudeHarbor", {
     get: () => invoke(SYSTEM_CHANNELS.get),
     setLaunchAtLogin: (value: boolean) => invoke(SYSTEM_CHANNELS.setLaunch, value),
     setBackgroundOnClose: (value: boolean) => invoke(SYSTEM_CHANNELS.setBackground, value),
+    setHideDock: (value: boolean) => invoke(SYSTEM_CHANNELS.setHideDock, value),
   },
 
   providers: {

@@ -111,9 +111,10 @@ interface ClaudeHarborBridge {
   pickAvatarFile?(): Promise<string | null>;
   getWeather?(): Promise<GreetingWeather | null>;
   system?: {
-    get?(): Promise<{ launchAtLogin?: boolean; backgroundOnClose?: boolean }>;
+    get?(): Promise<{ launchAtLogin?: boolean; backgroundOnClose?: boolean; hideDock?: boolean }>;
     setLaunchAtLogin?(value: boolean): Promise<boolean>;
     setBackgroundOnClose?(value: boolean): Promise<boolean>;
+    setHideDock?(value: boolean): Promise<boolean>;
   };
 }
 
@@ -208,7 +209,7 @@ let disposeGatewayStatus: (() => void) | void;
 let greetingWeather: GreetingWeather | null = null;
 let greetingTimer: number | null = null;
 let mascotTimer: number | null = null;
-let systemSettings = { launchAtLogin: false, backgroundOnClose: false };
+let systemSettings = { launchAtLogin: false, backgroundOnClose: false, hideDock: false };
 
 /* ------------------------------------------------------------------ */
 /* 初始化                                                              */
@@ -227,6 +228,7 @@ void bridge?.system?.get?.().then((value) => {
   systemSettings = {
     launchAtLogin: Boolean(value.launchAtLogin),
     backgroundOnClose: Boolean(value.backgroundOnClose),
+    hideDock: Boolean(value.hideDock),
   };
 }).catch(() => undefined);
 
@@ -1690,6 +1692,7 @@ function openSettings(detail: OpenSettingsDetail): void {
     clientInfo,
     launchAtLogin: systemSettings.launchAtLogin,
     backgroundOnClose: systemSettings.backgroundOnClose,
+    hideDock: systemSettings.hideDock,
     onLaunchAtLoginChange: (value) => {
       systemSettings = { ...systemSettings, launchAtLogin: value };
       void bridge?.system?.setLaunchAtLogin?.(value);
@@ -1697,6 +1700,10 @@ function openSettings(detail: OpenSettingsDetail): void {
     onBackgroundOnCloseChange: (value) => {
       systemSettings = { ...systemSettings, backgroundOnClose: value };
       void bridge?.system?.setBackgroundOnClose?.(value);
+    },
+    onHideDockChange: (value) => {
+      systemSettings = { ...systemSettings, hideDock: value };
+      void bridge?.system?.setHideDock?.(value);
     },
     customName: userIdentity.name,
     localUsername: localClientInfo.username ?? "",

@@ -925,3 +925,101 @@
 .ch-confirm-button--danger:hover {
   background: #981b12;
 }
+
+/* --------------------------------------------------------------------------
+   头像裁剪弹窗
+   -------------------------------------------------------------------------- */
+
+.ch-avatar-overlay {
+  z-index: 1100;
+}
+
+.ch-avatar-crop {
+  display: flex;
+  width: min(420px, 100%);
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 22px 18px;
+  border: 1px solid var(--ch-border);
+  border-radius: var(--ch-radius);
+  background: var(--ch-surface);
+  box-shadow: var(--ch-shadow);
+  color: var(--ch-text);
+  outline: none;
+  animation: ch-settings-dialog-in 180ms var(--ch-ease) both;
+}
+
+.ch-avatar-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 550;
+}
+
+.ch-avatar-hint {
+  margin: -6px 0 0;
+  color: var(--ch-text-muted);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.ch-avatar-viewport {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--ch-border-strong);
+  border-radius: 12px;
+  background: var(--ch-sidebar);
+  cursor: grab;
+  touch-action: none;
+}
+
+.ch-avatar-viewport:active {
+  cursor: grabbing;
+}
+
+.ch-avatar-image {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ch-avatar-zoom {
+  display: flex;
+  width: 300px;
+  max-width: 100%;
+  align-items: center;
+  gap: 10px;
+  color: var(--ch-text-secondary);
+  font-size: 11.5px;
+}
+
+.ch-avatar-zoom input {
+  flex: 1;
+  accent-color: var(--ch-switch-on);
+}
+
+.ch-avatar-actions {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ch-avatar-confirm {
+  border-color: transparent;
+  background: var(--ch-text);
+  color: var(--ch-surface);
+}
+
+.ch-avatar-confirm:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ch-text) 86%, transparent);
+}
+
+.ch-avatar-confirm:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

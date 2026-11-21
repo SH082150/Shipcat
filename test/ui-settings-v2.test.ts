@@ -52,6 +52,9 @@ class FakeElement {
   disabled = false;
   id = "";
   value = "";
+  style: Record<string, string> = {};
+  naturalWidth = 0;
+  naturalHeight = 0;
   parentNode: FakeElement | null = null;
   children: FakeElement[] = [];
   private attributes = new Map<string, string>();
@@ -167,6 +170,14 @@ class FakeElement {
     if (this.hidden || this.disabled) return;
     this.ownerDocument.activeElement = this;
   }
+
+  getContext(): { drawImage(): void } {
+    return { drawImage: () => {} };
+  }
+
+  toDataURL(): string {
+    return "data:image/png;base64,AVATAR";
+  }
 }
 
 class FakeDocument {
@@ -231,12 +242,15 @@ interface MountOptions {
   language?: "zh" | "en";
   theme?: SettingsTheme;
   section?: SettingsSection;
+  platform?: string;
   customName?: string;
   localUsername?: string;
   avatar?: string;
+  hideDock?: boolean;
   pickAvatar?: () => Promise<string | null>;
   onName?: (name: string) => void;
   onAvatar?: (avatar: string) => void;
+  onHideDock?: (value: boolean) => void;
 }
 
 function mount(options: MountOptions = {}) {
@@ -251,12 +265,15 @@ function mount(options: MountOptions = {}) {
     language: options.language ?? "zh",
     initialTheme: options.theme ?? "light",
     ...(options.section ? { initialSection: options.section } : {}),
+    ...(options.platform ? { clientInfo: { platform: options.platform } } : {}),
+    ...(options.hideDock === undefined ? {} : { hideDock: options.hideDock }),
     ...(options.customName !== undefined ? { customName: options.customName } : {}),
     ...(options.localUsername ? { localUsername: options.localUsername } : {}),
     ...(options.avatar !== undefined ? { avatar: options.avatar } : {}),
     ...(options.pickAvatar ? { pickAvatarFile: options.pickAvatar } : {}),
     ...(options.onName ? { onUsernameChange: options.onName } : {}),
     ...(options.onAvatar ? { onAvatarChange: options.onAvatar } : {}),
+    ...(options.onHideDock ? { onHideDockChange: options.onHideDock } : {}),
     onThemeChange: (mode) => themes.push(mode),
     onClose: () => {
       closes += 1;
@@ -326,6 +343,7 @@ test("英语界面：菜单与章节标题使用英文", () => {
     byRole(root, "nav-system").click();
     assert.equal(textOf(byRole(root, "section-title")), "System");
     assert.match(textOf(byRole(root, "launch-row")), /Open at login/);
+    assert.match(textOf(byRole(root, "hide-dock-row")), /Hide taskbar icon/);
   } finally {
     modal.cleanup();
   }
@@ -429,6 +447,39 @@ test("常规页的了解更多进入关于章节，并同步菜单高亮", () =>
     assert.match(info, /0\.2\.3/);
   } finally {
     modal.cleanup();
+  }
+});
+
+test("系统页隐藏 Dock / 任务栏图标：文案随平台切换并上抛开关", () => {
+  const changes: boolean[] = [];
+  const mac = mount({
+    section: "system",
+    platform: "darwin",
+    hideDock: true,
+    onHideDock: (value) => changes.push(value),
+  });
+  try {
+    const row = byRole(mac.root, "hide-dock-row");
+    assert.match(textOf(row), /隐藏 Dock 图标/);
+    assert.match(textOf(row), /菜单栏/);
+
+    const toggle = byRole(mac.root, "hide-dock");
+    assert.equal(toggle.getAttribute("role"), "switch");
+    assert.equal(toggle.getAttribute("aria-checked"), "true");
+    toggle.click();
+    assert.deepEqual(changes, [false]);
+    assert.equal(toggle.getAttribute("aria-checked"), "false");
+  } finally {
+    mac.cleanup();
+  }
+
+  const win = mount({ section: "system", platform: "win32" });
+  try {
+    const row = byRole(win.root, "hide-dock-row");
+    assert.match(textOf(row), /隐藏任务栏图标/);
+    assert.match(textOf(row), /托盘/);
+  } finally {
+    win.cleanup();
   }
 });
 
@@ -538,7 +589,7 @@ test("焦点陷阱跟随当前章节，只在可见控件间循环", async () =>
     const { document, root } = system;
     await flushFocus();
     const navGeneral = byRole(root, "nav-general");
-    const lastControl = byRole(root, "background-on-close");
+    const lastControl = byRole(root, "hide-dock");
     lastControl.focus();
     key(lastControl, "Tab");
     assertFocused(document.activeElement, navGeneral, "系统页末项应循环到导航首项");
@@ -597,7 +648,7 @@ test("常规页自定义：用户名回退占位、头像选择与移除", async
     onAvatar: (avatar) => avatars.push(avatar),
   });
   try {
-    const { root } = modal;
+    const { document, root } = modal;
     const nameInput = byRole(root, "custom-name") as unknown as FakeElement & {
       value: string;
       placeholder: string;
@@ -619,17 +670,41 @@ test("常规页自定义：用户名回退占位、头像选择与移除", async
 
     byRole(root, "pick-avatar").click();
     await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.deepEqual(avatars, ["data:image/png;base64,AAAA"]);
+    let crop = findAll(
+      document.body,
+      (el) => el.getAttribute("data-role") === "avatar-crop-overlay",
+    )[0];
+    assert.ok(crop, "选择图片后先打开裁剪弹窗");
+    assert.deepEqual(avatars, [], "确认裁剪前不写入头像");
+
+    byRole(crop, "avatar-crop-cancel").click();
+    assert.equal(crop.parentNode, null, "取消后关闭裁剪弹窗");
+    assert.deepEqual(avatars, []);
+
+    byRole(root, "pick-avatar").click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    crop = findAll(
+      document.body,
+      (el) => el.getAttribute("data-role") === "avatar-crop-overlay",
+    )[0];
+    assert.ok(crop);
+    const cropImage = findAll(crop, (el) => el.tagName === "IMG")[0];
+    assert.ok(cropImage);
+    cropImage.naturalWidth = 512;
+    cropImage.naturalHeight = 512;
+    cropImage.dispatchEvent(new FakeEvent("load"));
+    byRole(crop, "avatar-crop-confirm").click();
+    assert.deepEqual(avatars, ["data:image/png;base64,AVATAR"]);
     assert.equal(
       findAll(preview, (el) => el.tagName === "IMG").length,
       1,
-      "选择后显示图片",
+      "裁剪确认后显示图片",
     );
 
     const remove = byRole(root, "remove-avatar");
     assert.equal(remove.hidden, false);
     remove.click();
-    assert.deepEqual(avatars, ["data:image/png;base64,AAAA", ""]);
+    assert.deepEqual(avatars, ["data:image/png;base64,AVATAR", ""]);
     assert.equal(
       findAll(preview, (el) => el.className.includes("icon-placeholder")).length,
       1,

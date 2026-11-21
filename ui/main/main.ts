@@ -2,14 +2,19 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
+import type { Tray } from "electron";
 import { registerCoreIpc } from "./ipc.ts";
 import { GatewayService } from "./services/gateway.ts";
+import { loadPreferences, savePreferences } from "./services/preferences.ts";
+import { createTray } from "./services/tray.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RENDERER_INDEX = path.join(__dirname, "..", "renderer", "index.html");
 const PRELOAD = path.join(__dirname, "preload.cjs");
 /** 应用图标：开发态由 app.dock.setIcon 使用，打包后由构建产物的 .icns/.ico 接管。 */
 const APP_ICON = path.join(__dirname, "..", "..", "assets", "icons", "icon.png");
+/** 菜单栏 / 托盘图标：源图 32px，运行时按平台缩放。 */
+const TRAY_ICON = path.join(__dirname, "..", "..", "assets", "icons", "icon-32.png");
 
 // 前端产品名。内核仍叫 ClaudeHarbor，数据目录与 CLI 命令都不变。
 app.setName("Shipcat");
@@ -26,6 +31,7 @@ const SYSTEM_CHANNELS = {
   get: "claude-harbor:system:get",
   setLaunch: "claude-harbor:system:set-launch",
   setBackground: "claude-harbor:system:set-background",
+  setHideDock: "claude-harbor:system:set-hide-dock",
 };
 const AVATAR_CHANNELS = { pick: "claude-harbor:avatar:pick" };
 
@@ -36,10 +42,12 @@ const AVATAR_MIME: Record<string, string> = {
   webp: "image/webp",
   gif: "image/gif",
 };
-const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 let backgroundMode = false;
+let hideDockMode = false;
 let isQuitting = false;
 let lastBroadcastTheme: "light" | "dark" = effectiveTheme();
 const gateway = new GatewayService();
@@ -50,6 +58,55 @@ function effectiveTheme(): "light" | "dark" {
 
 function windowBackground(): string {
   return nativeTheme.shouldUseDarkColors ? "#1f1e1d" : "#faf9f5";
+}
+
+/** 显示主窗口；窗口被销毁时重新创建。 */
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+/**
+ * 应用 Dock / 任务栏可见性。
+ * macOS 同时切换 activation policy：隐藏时变为 accessory（无 Dock 图标），
+ * 恢复时回到 regular。Windows / Linux 通过 setSkipTaskbar 同步窗口。
+ */
+function applyDockVisibility(hide: boolean): void {
+  if (process.platform === "darwin") {
+    if (hide) app.dock?.hide();
+    else app.dock?.show();
+
+    const setPolicy = (
+      app as unknown as {
+        setActivationPolicy?: (policy: "regular" | "accessory") => void;
+      }
+    ).setActivationPolicy;
+    if (typeof setPolicy === "function") {
+      setPolicy.call(app, hide ? "accessory" : "regular");
+    }
+    return;
+  }
+  mainWindow?.setSkipTaskbar(hide);
+}
+
+function createTrayIcon(): void {
+  try {
+    tray = createTray({
+      iconPath: TRAY_ICON,
+      onShow: showMainWindow,
+      onQuit: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    });
+  } catch (error) {
+    console.error("Failed to create Shipcat tray:", error);
+  }
 }
 
 function broadcastTheme(): void {
@@ -83,6 +140,8 @@ function createWindow(): void {
       sandbox: false,
     },
   });
+
+  if (process.platform !== "darwin") mainWindow.setSkipTaskbar(hideDockMode);
 
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
@@ -124,7 +183,10 @@ ipcMain.handle(AVATAR_CHANNELS.pick, async (event) => {
     const filePath = result.filePaths[0];
     if (result.canceled || !filePath) return null;
     const buffer = await readFile(filePath);
-    if (buffer.byteLength > AVATAR_MAX_BYTES) return null;
+    if (buffer.byteLength > AVATAR_MAX_BYTES) {
+      console.warn(`Avatar image exceeds 8 MB limit: ${buffer.byteLength} bytes`);
+      return null;
+    }
     const extension = path.extname(filePath).slice(1).toLowerCase();
     const mime = AVATAR_MIME[extension] ?? "image/png";
     return `data:${mime};base64,${buffer.toString("base64")}`;
@@ -139,6 +201,7 @@ let weatherCache: { at: number; value: unknown } | null = null;
 ipcMain.handle(SYSTEM_CHANNELS.get, () => ({
   launchAtLogin: app.getLoginItemSettings().openAtLogin,
   backgroundOnClose: backgroundMode,
+  hideDock: hideDockMode,
 }));
 
 ipcMain.handle(SYSTEM_CHANNELS.setLaunch, (_event, value: unknown) => {
@@ -146,9 +209,17 @@ ipcMain.handle(SYSTEM_CHANNELS.setLaunch, (_event, value: unknown) => {
   return app.getLoginItemSettings().openAtLogin;
 });
 
-ipcMain.handle(SYSTEM_CHANNELS.setBackground, (_event, value: unknown) => {
+ipcMain.handle(SYSTEM_CHANNELS.setBackground, async (_event, value: unknown) => {
   backgroundMode = Boolean(value);
+  await savePreferences({ backgroundOnClose: backgroundMode });
   return backgroundMode;
+});
+
+ipcMain.handle(SYSTEM_CHANNELS.setHideDock, async (_event, value: unknown) => {
+  hideDockMode = Boolean(value);
+  applyDockVisibility(hideDockMode);
+  await savePreferences({ hideDock: hideDockMode });
+  return hideDockMode;
 });
 
 ipcMain.handle(WEATHER_CHANNEL, async () => {
@@ -196,13 +267,19 @@ ipcMain.handle(WEATHER_CHANNEL, async () => {
 registerCoreIpc(gateway);
 nativeTheme.on("updated", broadcastTheme);
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const preferences = await loadPreferences();
+  backgroundMode = preferences.backgroundOnClose;
+  hideDockMode = preferences.hideDock;
+
   // 开发态没有应用包，Dock 会沿用 Electron 的默认图标，这里手动换上小猫。
   if (process.platform === "darwin" && !app.isPackaged) app.dock?.setIcon(APP_ICON);
   createWindow();
+  applyDockVisibility(hideDockMode);
+  createTrayIcon();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    else mainWindow?.show();
+    else showMainWindow();
   });
 });
 

@@ -11,6 +11,7 @@
  */
 
 import type { ClientInfo } from "../components/events.ts";
+import { createAvatarCropModal } from "./avatar-crop.ts";
 
 export const SETTINGS_SECTIONS = ["general", "privacy", "system", "about"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number] | "client-info";
@@ -41,8 +42,10 @@ export interface SettingsModalOptions {
   pickAvatarFile?: () => Promise<string | null>;
   launchAtLogin?: boolean;
   backgroundOnClose?: boolean;
+  hideDock?: boolean;
   onLaunchAtLoginChange?: (value: boolean) => void;
   onBackgroundOnCloseChange?: (value: boolean) => void;
+  onHideDockChange?: (value: boolean) => void;
 }
 
 interface SettingsCopy {
@@ -82,6 +85,8 @@ interface SettingsCopy {
   readonly launchHint: string;
   readonly backgroundTitle: string;
   readonly backgroundHint: string;
+  readonly hideDockTitle: (isMac: boolean) => string;
+  readonly hideDockHint: (isMac: boolean) => string;
   readonly aboutTitle: string;
   readonly aboutHint: string;
   readonly appNameLabel: string;
@@ -132,6 +137,11 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     launchHint: "登录系统后自动启动 Shipcat。",
     backgroundTitle: "关闭窗口后继续运行",
     backgroundHint: "关闭窗口时隐藏到后台，网关与统计继续工作。",
+    hideDockTitle: (isMac) => (isMac ? "隐藏 Dock 图标" : "隐藏任务栏图标"),
+    hideDockHint: (isMac) =>
+      isMac
+        ? "开启后应用只在菜单栏显示，关闭窗口时继续运行。"
+        : "开启后应用只在托盘显示，关闭窗口时继续运行。",
     aboutTitle: "关于 Shipcat",
     aboutHint: "运行在这台设备上的 Shipcat 客户端信息。",
     appNameLabel: "应用名",
@@ -186,6 +196,11 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     launchHint: "Start Shipcat automatically when you sign in.",
     backgroundTitle: "Keep running after closing the window",
     backgroundHint: "Hide to the background when the window closes so the gateway and usage tracking keep working.",
+    hideDockTitle: (isMac) => (isMac ? "Hide Dock icon" : "Hide taskbar icon"),
+    hideDockHint: (isMac) =>
+      isMac
+        ? "When enabled, Shipcat appears only in the menu bar and keeps running after the window closes."
+        : "When enabled, Shipcat appears only in the system tray and keeps running after the window closes.",
     aboutTitle: "About Shipcat",
     aboutHint: "Shipcat client information on this device.",
     appNameLabel: "App",
@@ -223,6 +238,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   };
 
   const copy = copyFor(options.language);
+  const isMac = options.clientInfo?.platform === "darwin";
   let closed = false;
   let theme: SettingsTheme = options.initialTheme;
   let section: SettingsSection =
@@ -526,16 +542,30 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     removeAvatarButton.hidden = avatarValue.length === 0;
   };
 
+  let avatarCropOverlay: HTMLElement | null = null;
+
   pickAvatarButton.addEventListener("click", () => {
     if (typeof options.pickAvatarFile !== "function" || pickAvatarButton.disabled) return;
+    if (avatarCropOverlay !== null) return;
     pickAvatarButton.disabled = true;
     void options
       .pickAvatarFile()
-      .then((dataUrl) => {
-        if (!dataUrl) return;
-        avatarValue = dataUrl;
-        options.onAvatarChange?.(dataUrl);
-        renderAvatarPreview();
+      .then((src) => {
+        if (!src) return;
+        const crop = createAvatarCropModal({
+          src,
+          language: options.language,
+          onConfirm: (dataUrl) => {
+            avatarValue = dataUrl;
+            options.onAvatarChange?.(dataUrl);
+            renderAvatarPreview();
+          },
+          onClose: () => {
+            avatarCropOverlay = null;
+          },
+        });
+        avatarCropOverlay = crop;
+        document.body.appendChild(crop);
       })
       .finally(() => {
         pickAvatarButton.disabled = false;
@@ -615,6 +645,17 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
       options.backgroundOnClose === true,
       options.onBackgroundOnCloseChange,
     ),
+  );
+
+  const hideDockTitle = copy.hideDockTitle(isMac);
+  const hideDockRow = createRow(
+    appSection,
+    hideDockTitle,
+    copy.hideDockHint(isMac),
+    "hide-dock-row",
+  );
+  hideDockRow.control.appendChild(
+    createSwitch("hide-dock", hideDockTitle, options.hideDock === true, options.onHideDockChange),
   );
 
   /* ------------------------------------------------------------------ */
@@ -716,6 +757,8 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   function close(): void {
     if (closed) return;
     closed = true;
+    avatarCropOverlay?.remove();
+    avatarCropOverlay = null;
     overlay.remove();
     previousFocus?.focus();
     options.onClose();
