@@ -60,7 +60,7 @@ const ICON_PLACEHOLDER = /<span class="[^"]*\bicon-placeholder\b[^"]*"[^>]*><\/s
 test("i18n: 中英文案键完全一致，语言归一与插值可预测", () => {
   assert.deepEqual(
     LANGUAGES.map((item) => item.id),
-    ["zh", "en"],
+    ["en", "zh"],
   );
   assert.equal(isLanguage("zh"), true);
   assert.equal(isLanguage("en"), true);

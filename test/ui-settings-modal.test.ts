@@ -208,7 +208,11 @@ function key(element: FakeElement, name: string, shiftKey = false): FakeEvent {
   return event;
 }
 
-function mount(initialTheme: "light" | "dark" | "system" = "system", initialSection?: "general" | "client-info") {
+function mount(
+  initialTheme: "light" | "dark" | "system" = "system",
+  initialSection?: "general" | "client-info",
+  language: "zh" | "en" = "zh",
+) {
   const document = installDom();
   const trigger = document.createElement("button");
   document.body.appendChild(trigger);
@@ -217,6 +221,7 @@ function mount(initialTheme: "light" | "dark" | "system" = "system", initialSect
   const themes: string[] = [];
   let closes = 0;
   const root = createSettingsModal({
+    language,
     initialTheme,
     ...(initialSection ? { initialSection } : {}),
     onThemeChange: (mode) => themes.push(mode),
@@ -291,6 +296,27 @@ test("渲染居中弹窗的骨架：对话框、遮罩、常规导航与外观/�
 
     const close = byRole(root, "close");
     assert.equal(close.getAttribute("aria-label"), "关闭设置");
+  } finally {
+    modal.cleanup();
+  }
+});
+
+test("英语界面：菜单、节标题、主题选项与关闭按钮均为英文", () => {
+  const modal = mount("system", "general", "en");
+  try {
+    const { root } = modal;
+    const navItems = findAll(root, (element) =>
+      (element.getAttribute("data-role") ?? "").startsWith("nav-"),
+    );
+    assert.deepEqual(navItems.map(textOf), ["General", "Privacy", "System", "About"]);
+    assert.equal(textOf(byRole(root, "section-title")), "General");
+    assert.deepEqual(
+      ["theme-light", "theme-dark", "theme-system"].map((role) => textOf(byRole(root, role))),
+      ["Light", "Dark", "System"],
+    );
+    assert.equal(byRole(root, "close").getAttribute("aria-label"), "Close settings");
+    assert.match(textOf(byRole(root, "group-appearance")), /Appearance/);
+    assert.match(textOf(byRole(root, "group-appearance")), /Theme/);
   } finally {
     modal.cleanup();
   }
@@ -429,7 +455,7 @@ test("了解更多进入关于章节，客户端信息在高亮菜单中展示",
     const info = textOf(about);
     assert.match(info, /Shipcat/);
     assert.match(info, /本地网关/);
-    assert.match(info, /0\.2\.1/);
+    assert.match(info, /0\.2\.2/);
 
     byRole(root, "nav-general").click();
     assert.equal(general.hidden, false);

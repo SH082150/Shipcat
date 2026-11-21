@@ -17,7 +17,11 @@ export type SettingsSection = (typeof SETTINGS_SECTIONS)[number] | "client-info"
 
 export type SettingsTheme = "light" | "dark" | "system";
 
+export type SettingsLanguage = "zh" | "en";
+
 export interface SettingsModalOptions {
+  /** 界面语言；文案表与页面其他模块保持一致。 */
+  language: SettingsLanguage;
   /** 弹窗关闭（Esc、关闭按钮、点击遮罩）后调用，只回调一次。 */
   onClose: () => void;
   /** 主题选择变化时调用；初始渲染不触发。 */
@@ -41,35 +45,169 @@ export interface SettingsModalOptions {
   onBackgroundOnCloseChange?: (value: boolean) => void;
 }
 
-interface ThemeOption {
-  readonly value: SettingsTheme;
-  readonly label: string;
+interface SettingsCopy {
+  readonly title: string;
+  readonly navLabel: string;
+  readonly menu: Record<(typeof SETTINGS_SECTIONS)[number], string>;
+  readonly sectionTitles: Record<SettingsSection, string>;
+  readonly closeLabel: string;
+  readonly appearanceTitle: string;
+  readonly appearanceHint: string;
+  readonly themeTitle: string;
+  readonly themeHint: string;
+  readonly themeAria: string;
+  readonly themeOptions: Record<SettingsTheme, string>;
+  readonly identityTitle: string;
+  readonly identityHint: string;
+  readonly nameTitle: string;
+  readonly nameHint: string;
+  readonly nameAria: string;
+  readonly namePlaceholder: string;
+  readonly avatarTitle: string;
+  readonly avatarHint: string;
+  readonly pickAvatar: string;
+  readonly removeAvatar: string;
+  readonly generalNote: string;
+  readonly learnMore: string;
+  readonly privacyTitle: string;
+  readonly privacyHint: string;
+  readonly privacyStatement: string;
+  readonly storageTitle: string;
+  readonly storageHint: string;
+  readonly systemTitle: string;
+  readonly systemHint: string;
+  readonly versionTitle: string;
+  readonly versionHint: string;
+  readonly launchTitle: string;
+  readonly launchHint: string;
+  readonly backgroundTitle: string;
+  readonly backgroundHint: string;
+  readonly aboutTitle: string;
+  readonly aboutHint: string;
+  readonly appNameLabel: string;
+  readonly connectionLabel: string;
+  readonly versionLabel: string;
+  readonly licenseLabel: string;
+  readonly localAccountLabel: string;
+  readonly hostnameLabel: string;
+  readonly connectionValue: string;
+}
+
+const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
+  zh: {
+    title: "设置",
+    navLabel: "设置导航",
+    menu: { general: "常规", privacy: "隐私", system: "系统", about: "关于" },
+    sectionTitles: { general: "常规", privacy: "隐私", system: "系统", about: "关于", "client-info": "关于" },
+    closeLabel: "关闭设置",
+    appearanceTitle: "外观",
+    appearanceHint: "调整 Shipcat 的外观，让它更适合你的工作环境。",
+    themeTitle: "主题",
+    themeHint: "选择浅色、深色，或跟随系统设置。",
+    themeAria: "主题",
+    themeOptions: { light: "浅色", dark: "深色", system: "系统" },
+    identityTitle: "自定义",
+    identityHint: "设置显示名称与头像；留空时使用本机信息。",
+    nameTitle: "用户名",
+    nameHint: "留空则显示本机用户名；设置后侧边栏与问候语都会使用自定义名称。",
+    nameAria: "自定义用户名",
+    namePlaceholder: "本机用户名",
+    avatarTitle: "头像",
+    avatarHint: "未设置时不显示头像；选择图片后立即生效。",
+    pickAvatar: "选择图片",
+    removeAvatar: "移除",
+    generalNote: "Shipcat 通过本机网关连接 Claude Desktop。",
+    learnMore: "了解更多",
+    privacyTitle: "本地优先",
+    privacyHint: "Shipcat 在你的设备上运行，默认不引入任何中转服务。",
+    privacyStatement:
+      "供应商与档案只保存在这台机器上。密钥不会上传，请求直接发送到你配置的上游服务。用量数据来自 Claude 在本机记录的用量。",
+    storageTitle: "存储",
+    storageHint: "管理本机的供应商、档案与用量数据。",
+    systemTitle: "应用",
+    systemHint: "当前安装的版本与启动方式。",
+    versionTitle: "版本",
+    versionHint: "Shipcat 桌面客户端的版本号。",
+    launchTitle: "开机自启",
+    launchHint: "登录系统后自动启动 Shipcat。",
+    backgroundTitle: "关闭窗口后继续运行",
+    backgroundHint: "关闭窗口时隐藏到后台，网关与统计继续工作。",
+    aboutTitle: "关于 Shipcat",
+    aboutHint: "运行在这台设备上的 Shipcat 客户端信息。",
+    appNameLabel: "应用名",
+    connectionLabel: "连接方式",
+    versionLabel: "版本",
+    licenseLabel: "许可证",
+    localAccountLabel: "本机账户",
+    hostnameLabel: "主机名",
+    connectionValue: "本地网关",
+  },
+  en: {
+    title: "Settings",
+    navLabel: "Settings navigation",
+    menu: { general: "General", privacy: "Privacy", system: "System", about: "About" },
+    sectionTitles: {
+      general: "General",
+      privacy: "Privacy",
+      system: "System",
+      about: "About",
+      "client-info": "About",
+    },
+    closeLabel: "Close settings",
+    appearanceTitle: "Appearance",
+    appearanceHint: "Adjust how Shipcat looks to suit your workspace.",
+    themeTitle: "Theme",
+    themeHint: "Choose light, dark, or follow your system setting.",
+    themeAria: "Theme",
+    themeOptions: { light: "Light", dark: "Dark", system: "System" },
+    identityTitle: "Personalization",
+    identityHint: "Set a display name and avatar. Leave blank to use this device's info.",
+    nameTitle: "Name",
+    nameHint: "Leave blank to use your local username. When set, the sidebar and greeting use this name.",
+    nameAria: "Custom username",
+    namePlaceholder: "Local username",
+    avatarTitle: "Avatar",
+    avatarHint: "No avatar is shown when unset. Changes apply as soon as you pick an image.",
+    pickAvatar: "Choose image",
+    removeAvatar: "Remove",
+    generalNote: "Shipcat connects to Claude Desktop through the local gateway.",
+    learnMore: "Learn more",
+    privacyTitle: "Local first",
+    privacyHint: "Shipcat runs on your device and adds no intermediary services by default.",
+    privacyStatement:
+      "Providers and profiles stay on this machine. Keys are never uploaded; requests go directly to the upstream service you configure. Usage data comes from what Claude records locally.",
+    storageTitle: "Storage",
+    storageHint: "Manage providers, profiles, and usage data on this machine.",
+    systemTitle: "Application",
+    systemHint: "Installed version and startup behavior.",
+    versionTitle: "Version",
+    versionHint: "The Shipcat desktop app version.",
+    launchTitle: "Open at login",
+    launchHint: "Start Shipcat automatically when you sign in.",
+    backgroundTitle: "Keep running after closing the window",
+    backgroundHint: "Hide to the background when the window closes so the gateway and usage tracking keep working.",
+    aboutTitle: "About Shipcat",
+    aboutHint: "Shipcat client information on this device.",
+    appNameLabel: "App",
+    connectionLabel: "Connection",
+    versionLabel: "Version",
+    licenseLabel: "License",
+    localAccountLabel: "Local account",
+    hostnameLabel: "Hostname",
+    connectionValue: "Local gateway",
+  },
+};
+
+function copyFor(language: SettingsLanguage): SettingsCopy {
+  return SETTINGS_COPY[language] ?? SETTINGS_COPY.en;
 }
 
 const APP_NAME = "Shipcat";
 /** 与 package.json 的 version 保持一致；系统页与客户端信息页展示。 */
-const APP_VERSION = "0.2.1";
+const APP_VERSION = "0.2.2";
+const APP_LICENSE = "CC-BY-NC-SA-4.0";
 
-const THEME_OPTIONS: readonly ThemeOption[] = [
-  { value: "light", label: "浅色" },
-  { value: "dark", label: "深色" },
-  { value: "system", label: "系统" },
-];
-
-const SECTION_TITLES: Record<SettingsSection, string> = {
-  general: "常规",
-  privacy: "隐私",
-  system: "系统",
-  about: "关于",
-  "client-info": "关于",
-};
-
-const MENU_LABELS: Record<(typeof SETTINGS_SECTIONS)[number], string> = {
-  general: "常规",
-  privacy: "隐私",
-  system: "系统",
-  about: "关于",
-};
+const THEME_OPTIONS: readonly SettingsTheme[] = ["light", "dark", "system"];
 
 let titleSeq = 0;
 
@@ -84,6 +222,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     return element;
   };
 
+  const copy = copyFor(options.language);
   let closed = false;
   let theme: SettingsTheme = options.initialTheme;
   let section: SettingsSection =
@@ -126,12 +265,12 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const title = create("span", "ch-settings-title");
   title.id = titleId;
   title.setAttribute("data-role", "title");
-  title.textContent = "设置";
+  title.textContent = copy.title;
   sidebarHead.append(brand, title);
   sidebar.appendChild(sidebarHead);
 
   const nav = create("nav", "ch-settings-nav");
-  nav.setAttribute("aria-label", "设置导航");
+  nav.setAttribute("aria-label", copy.navLabel);
   const navButtons = new Map<(typeof SETTINGS_SECTIONS)[number], HTMLButtonElement>();
   for (const id of SETTINGS_SECTIONS) {
     const button = create("button", "ch-settings-nav-item");
@@ -140,7 +279,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     button.setAttribute("data-role", `nav-${id}`);
     button.setAttribute("data-section", id);
     button.setAttribute("aria-current", id === section ? "page" : "false");
-    button.textContent = MENU_LABELS[id];
+    button.textContent = copy.menu[id];
     button.addEventListener("click", () => {
       if (section !== id) setSection(id);
     });
@@ -158,14 +297,14 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const header = create("header", "ch-settings-header");
   const sectionTitle = create("h2", "ch-settings-section-title");
   sectionTitle.setAttribute("data-role", "section-title");
-  sectionTitle.textContent = SECTION_TITLES[section];
+  sectionTitle.textContent = copy.sectionTitles[section];
   header.appendChild(sectionTitle);
 
   const closeButton = create("button", "ch-settings-close");
   closeButton.type = "button";
   closeButton.tabIndex = 0;
   closeButton.setAttribute("data-role", "close");
-  closeButton.setAttribute("aria-label", "关闭设置");
+  closeButton.setAttribute("aria-label", copy.closeLabel);
   const closeGlyph = create("span", "ch-settings-close-glyph");
   closeGlyph.setAttribute("aria-hidden", "true");
   closeButton.appendChild(closeGlyph);
@@ -260,49 +399,50 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   appearanceGroup.setAttribute("aria-labelledby", appearanceId);
   createSectionHead(
     appearanceGroup,
-    "外观",
-    "调整 Shipcat 的外观，让它更适合你的工作环境。",
+    copy.appearanceTitle,
+    copy.appearanceHint,
     appearanceId,
   );
 
   const themeRow = create("div", "ch-settings-row ch-settings-row--stack");
   const themeRowMain = create("div", "ch-settings-row-main");
   const themeLabel = create("h4", "ch-settings-row-title");
-  themeLabel.textContent = "主题";
+  themeLabel.textContent = copy.themeTitle;
   const themeHint = create("p", "ch-settings-row-hint");
-  themeHint.textContent = "选择浅色、深色，或跟随系统设置。";
+  themeHint.textContent = copy.themeHint;
   themeRowMain.append(themeLabel, themeHint);
   themeRow.appendChild(themeRowMain);
 
   const themeGroup = create("div", "ch-settings-theme-group");
   themeGroup.setAttribute("role", "radiogroup");
-  themeGroup.setAttribute("aria-label", "主题");
+  themeGroup.setAttribute("aria-label", copy.themeAria);
 
   const themeButtons = new Map<SettingsTheme, HTMLButtonElement>();
   for (const option of THEME_OPTIONS) {
+    const labelText = copy.themeOptions[option];
     const button = create("button", "ch-settings-theme-option");
     button.type = "button";
     button.setAttribute("role", "radio");
-    button.setAttribute("data-role", `theme-${option.value}`);
-    button.setAttribute("aria-label", option.label);
+    button.setAttribute("data-role", `theme-${option}`);
+    button.setAttribute("aria-label", labelText);
 
     const preview = create("span", "ch-settings-theme-preview");
-    preview.setAttribute("data-preview", option.value);
+    preview.setAttribute("data-preview", option);
     preview.setAttribute("aria-hidden", "true");
     const previewWindow = create("span", "ch-settings-theme-preview-window");
     preview.appendChild(previewWindow);
     button.appendChild(preview);
 
     const label = create("span", "ch-settings-theme-label");
-    label.textContent = option.label;
+    label.textContent = labelText;
     button.appendChild(label);
 
     button.addEventListener("click", () => {
-      if (theme === option.value) return;
-      applyTheme(option.value, true);
+      if (theme === option) return;
+      applyTheme(option, true);
     });
 
-    themeButtons.set(option.value, button);
+    themeButtons.set(option, button);
     themeGroup.appendChild(button);
   }
   themeGroup.addEventListener("keydown", (event) => {
@@ -312,12 +452,12 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     }
     event.preventDefault();
     const step = key === "ArrowRight" || key === "ArrowDown" ? 1 : -1;
-    const currentIndex = THEME_OPTIONS.findIndex((option) => option.value === theme);
+    const currentIndex = THEME_OPTIONS.indexOf(theme);
     const nextIndex = (currentIndex + step + THEME_OPTIONS.length) % THEME_OPTIONS.length;
     const next = THEME_OPTIONS[nextIndex];
-    if (!next) return;
-    if (next.value !== theme) applyTheme(next.value, true);
-    themeButtons.get(next.value)?.focus();
+    if (next === undefined) return;
+    if (next !== theme) applyTheme(next, true);
+    themeButtons.get(next)?.focus();
   });
   themeRow.appendChild(themeGroup);
   appearanceGroup.appendChild(themeRow);
@@ -325,16 +465,12 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   /* --- 自定义：用户名 + 头像 --- */
 
   const identitySection = createSection(generalPane, "group-identity");
-  createSectionHead(
-    identitySection,
-    "自定义",
-    "设置显示名称与头像；留空时使用本机信息。",
-  );
+  createSectionHead(identitySection, copy.identityTitle, copy.identityHint);
 
   const nameRow = createRow(
     identitySection,
-    "用户名",
-    "留空则显示本机用户名；设置后侧边栏与问候语都会使用自定义名称。",
+    copy.nameTitle,
+    copy.nameHint,
     "custom-name-row",
   );
   const nameInput = create("input", "ch-settings-input");
@@ -343,9 +479,9 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   nameInput.spellcheck = false;
   nameInput.tabIndex = 0;
   nameInput.setAttribute("data-role", "custom-name");
-  nameInput.setAttribute("aria-label", "自定义用户名");
+  nameInput.setAttribute("aria-label", copy.nameAria);
   nameInput.value = options.customName ?? "";
-  nameInput.placeholder = options.localUsername?.trim() || "本机用户名";
+  nameInput.placeholder = options.localUsername?.trim() || copy.namePlaceholder;
   nameInput.addEventListener("input", () => {
     options.onUsernameChange?.(nameInput.value);
   });
@@ -353,8 +489,8 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   const avatarRow = createRow(
     identitySection,
-    "头像",
-    "未设置时不显示头像；选择图片后立即生效。",
+    copy.avatarTitle,
+    copy.avatarHint,
     "custom-avatar-row",
   );
   const avatarControl = create("div", "ch-settings-avatar-control");
@@ -366,13 +502,13 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   pickAvatarButton.type = "button";
   pickAvatarButton.tabIndex = 0;
   pickAvatarButton.setAttribute("data-role", "pick-avatar");
-  pickAvatarButton.textContent = "选择图片";
+  pickAvatarButton.textContent = copy.pickAvatar;
 
   const removeAvatarButton = create("button", "ch-settings-action ch-settings-action--danger");
   removeAvatarButton.type = "button";
   removeAvatarButton.tabIndex = 0;
   removeAvatarButton.setAttribute("data-role", "remove-avatar");
-  removeAvatarButton.textContent = "移除";
+  removeAvatarButton.textContent = copy.removeAvatar;
 
   let avatarNode: HTMLElement | null = null;
   const renderAvatarPreview = (): void => {
@@ -418,13 +554,13 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   const generalFoot = create("div", "ch-settings-pane-foot");
   const generalNote = create("p", "ch-settings-note");
-  generalNote.textContent = "Shipcat 通过本机网关连接 Claude Desktop。";
+  generalNote.textContent = copy.generalNote;
   generalFoot.appendChild(generalNote);
   const learnMore = create("button", "ch-settings-link");
   learnMore.type = "button";
   learnMore.tabIndex = 0;
   learnMore.setAttribute("data-role", "learn-more");
-  learnMore.textContent = "了解更多";
+  learnMore.textContent = copy.learnMore;
   generalFoot.appendChild(learnMore);
   generalPane.appendChild(generalFoot);
 
@@ -434,19 +570,14 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   const privacyPane = createPane("pane-privacy");
   const privacySection = createSection(privacyPane);
-  createSectionHead(
-    privacySection,
-    "本地优先",
-    "Shipcat 在你的设备上运行，默认不引入任何中转服务。",
-  );
+  createSectionHead(privacySection, copy.privacyTitle, copy.privacyHint);
   const privacyStatement = create("p", "ch-settings-statement");
   privacyStatement.setAttribute("data-role", "privacy-statement");
-  privacyStatement.textContent =
-    "供应商与档案只保存在这台机器上。密钥不会上传，请求直接发送到你配置的上游服务。用量数据来自 Claude 在本机记录的用量。";
+  privacyStatement.textContent = copy.privacyStatement;
   privacySection.appendChild(privacyStatement);
 
   const storageSection = createSection(privacyPane);
-  createRow(storageSection, "存储", "管理本机的供应商、档案与用量数据。", "storage-row");
+  createRow(storageSection, copy.storageTitle, copy.storageHint, "storage-row");
 
   /* ------------------------------------------------------------------ */
   /* 系统：版本与开机自启                                                  */
@@ -454,8 +585,8 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   const systemPane = createPane("pane-system");
   const appSection = createSection(systemPane);
-  createSectionHead(appSection, "应用", "当前安装的版本与启动方式。");
-  const versionRow = createRow(appSection, "版本", "Shipcat 桌面客户端的版本号。", "version-row");
+  createSectionHead(appSection, copy.systemTitle, copy.systemHint);
+  const versionRow = createRow(appSection, copy.versionTitle, copy.versionHint, "version-row");
   const versionValue = create("span", "ch-settings-value");
   versionValue.setAttribute("data-role", "app-version");
   versionValue.textContent = APP_VERSION;
@@ -463,24 +594,24 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   const launchRow = createRow(
     appSection,
-    "开机自启",
-    "登录系统后自动启动 Shipcat。",
+    copy.launchTitle,
+    copy.launchHint,
     "launch-row",
   );
   launchRow.control.appendChild(
-    createSwitch("launch-at-login", "开机自启", options.launchAtLogin === true, options.onLaunchAtLoginChange),
+    createSwitch("launch-at-login", copy.launchTitle, options.launchAtLogin === true, options.onLaunchAtLoginChange),
   );
 
   const backgroundRow = createRow(
     appSection,
-    "关闭窗口后继续运行",
-    "关闭窗口时隐藏到后台，网关与统计继续工作。",
+    copy.backgroundTitle,
+    copy.backgroundHint,
     "background-row",
   );
   backgroundRow.control.appendChild(
     createSwitch(
       "background-on-close",
-      "关闭窗口后继续运行",
+      copy.backgroundTitle,
       options.backgroundOnClose === true,
       options.onBackgroundOnCloseChange,
     ),
@@ -495,18 +626,23 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   clientGroup.setAttribute("aria-labelledby", clientHeadId);
   createSectionHead(
     clientGroup,
-    "关于 Shipcat",
-    "运行在这台设备上的 Shipcat 客户端信息。",
+    copy.aboutTitle,
+    copy.aboutHint,
     clientHeadId,
   );
 
   const infoList = create("dl", "ch-settings-info");
   const infoRows: readonly (readonly [string, string])[] = [
-    ["应用名", APP_NAME],
-    ["连接方式", "本地网关"],
-    ["版本", APP_VERSION],
-    ...(options.clientInfo?.username ? [["本机账户", options.clientInfo.username] as const] : []),
-    ...(options.clientInfo?.hostname ? [["主机名", options.clientInfo.hostname] as const] : []),
+    [copy.appNameLabel, APP_NAME],
+    [copy.connectionLabel, copy.connectionValue],
+    [copy.versionLabel, APP_VERSION],
+    [copy.licenseLabel, APP_LICENSE],
+    ...(options.clientInfo?.username
+      ? [[copy.localAccountLabel, options.clientInfo.username] as const]
+      : []),
+    ...(options.clientInfo?.hostname
+      ? [[copy.hostnameLabel, options.clientInfo.hostname] as const]
+      : []),
   ];
   for (const [label, value] of infoRows) {
     const row = create("div", "ch-settings-info-row");
@@ -548,7 +684,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   function setSection(next: SettingsSection): void {
     section = next;
     for (const [id, pane] of panes) pane.hidden = id !== next;
-    sectionTitle.textContent = SECTION_TITLES[next];
+    sectionTitle.textContent = copy.sectionTitles[next];
     for (const [id, button] of navButtons) {
       const active = id === next;
       button.classList.toggle("is-active", active);

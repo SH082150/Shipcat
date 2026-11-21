@@ -24,7 +24,7 @@ import type { PageId, Route } from "./state/navigation.ts";
 import { createTheme } from "./state/theme.ts";
 import type { ResolvedTheme, ThemePreference } from "./state/theme.ts";
 
-import { createTranslator, detectLanguage, isLanguage, LANGUAGE_STORAGE_KEY } from "./components/i18n.ts";
+import { createTranslator, isLanguage, LANGUAGE_STORAGE_KEY } from "./components/i18n.ts";
 import type { Language, Translator } from "./components/i18n.ts";
 import { iconSvg } from "./components/icons.ts";
 import { PAGE_TITLE_KEYS } from "./components/navigation.ts";
@@ -1684,6 +1684,7 @@ function openSettings(detail: OpenSettingsDetail): void {
   settingsOverlay = null;
 
   const overlay = createSettingsModal({
+    language,
     initialTheme: theme.getPreference(),
     initialSection: detail.section,
     clientInfo,
@@ -1744,9 +1745,9 @@ function readLanguage(): Language {
     const stored = globalThis.localStorage?.getItem(LANGUAGE_STORAGE_KEY);
     if (isLanguage(stored)) return stored;
   } catch {
-    // localStorage 不可用时跟随系统语言。
+    // localStorage 不可用时保持默认语言。
   }
-  return detectLanguage(globalThis.navigator?.language);
+  return "en";
 }
 
 function persistLanguage(value: Language): void {

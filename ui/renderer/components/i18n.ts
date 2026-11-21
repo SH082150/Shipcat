@@ -5,8 +5,8 @@
  */
 
 export const LANGUAGES = [
-  { id: "zh", label: "中文", tag: "zh-CN" },
   { id: "en", label: "English", tag: "en" },
+  { id: "zh", label: "中文", tag: "zh-CN" },
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number]["id"];
