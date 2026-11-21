@@ -52,6 +52,11 @@ let isQuitting = false;
 let lastBroadcastTheme: "light" | "dark" = effectiveTheme();
 const gateway = new GatewayService();
 
+// 单实例锁：隐藏 Dock 后即使菜单栏图标被系统收纳，再次启动应用也能唤回窗口。
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+}
+
 function effectiveTheme(): "light" | "dark" {
   return nativeTheme.shouldUseDarkColors ? "dark" : "light";
 }
@@ -275,8 +280,14 @@ app.whenReady().then(async () => {
   // 开发态没有应用包，Dock 会沿用 Electron 的默认图标，这里手动换上小猫。
   if (process.platform === "darwin" && !app.isPackaged) app.dock?.setIcon(APP_ICON);
   createWindow();
-  applyDockVisibility(hideDockMode);
   createTrayIcon();
+  // 托盘是"隐藏 Dock 后还能找回应用"的唯一入口：托盘没建起来就不隐藏。
+  if (hideDockMode && !tray) {
+    hideDockMode = false;
+    void savePreferences({ hideDock: false });
+  }
+  applyDockVisibility(hideDockMode);
+  app.on("second-instance", () => showMainWindow());
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
     else showMainWindow();
