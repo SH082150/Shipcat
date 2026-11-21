@@ -3,8 +3,8 @@
  * （hop-by-hop 表），其余头原样保留（content-type、anthropic-ratelimit-*、
  * x-should-retry、retry-after、request-id 都留给 Desktop）。
  *
- * 铁律：不解析、不修改响应体任何字节（SSE 事件、ping、错误原文全部
- * 原样）；不把上游 model 改回假名。
+ * 响应体只做一件事：把上游返回的模型名换回客户端请求的别名（交给 7-reply
+ * 按 JSON / SSE 分别处理）；其余字节、事件边界、ping、错误原文原样透传。
  */
 
 import type { IncomingHttpHeaders, ServerResponse } from "node:http";
@@ -54,7 +54,11 @@ export function filterResponseHeaders(headers: IncomingHttpHeaders): IncomingHtt
 }
 
 /** 回程加工：滤头 → 产出 { status, filteredHeaders, upstreamStream } → 7-reply。 */
-export function routeBack(upstream: UpstreamHandle, clientRes: ServerResponse): void {
+export function routeBack(
+  upstream: UpstreamHandle,
+  clientRes: ServerResponse,
+  options: { readonly requestModel?: string } = {},
+): void {
   replyToDesktop(
     {
       status: upstream.statusCode,
@@ -62,5 +66,6 @@ export function routeBack(upstream: UpstreamHandle, clientRes: ServerResponse): 
       upstreamStream: upstream.stream,
     },
     clientRes,
+    options,
   );
 }

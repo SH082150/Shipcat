@@ -120,6 +120,7 @@ async function dispatch(
     receiveUpstream(
       { statusCode: upstream.status, headers: upstream.headers, stream: upstream.stream },
       res,
+      { requestModel: plan.requestModel },
     );
     return;
   }

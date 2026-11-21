@@ -370,9 +370,9 @@ test("② model 改写：假名→deepseek-chat、其余字段不动、?beta=tru
   assert.equal(Number(rec.headers["content-length"]), rec.body.length);
 });
 
-// ---------- ③ 非流式字节一致 ----------
+// ---------- ③ 非流式：模型回写 + 头透传 ----------
 
-test("③ 非流式：响应体字节一致，ratelimit 头透传", async (t) => {
+test("③ 非流式：响应 model 回写为客户端别名，其余字段与头不变", async (t) => {
   const sg = needGateway(t);
   const upstreamBody = JSON.stringify({
     id: "msg_01ABC",
@@ -414,7 +414,12 @@ test("③ 非流式：响应体字节一致，ratelimit 头透传", async (t) =>
     body: JSON.stringify(chatBody()),
   });
   assert.equal(res.status, 200);
-  assert.deepEqual(res.body, Buffer.from(upstreamBody, "utf8"));
+  const parsed = JSON.parse(res.body.toString("utf8")) as Record<string, unknown>;
+  assert.equal(parsed.model, "claude-sonnet-main");
+  const expected = JSON.parse(upstreamBody) as Record<string, unknown>;
+  expected.model = "claude-sonnet-main";
+  assert.deepEqual(parsed, expected, "除 model 外响应字段不得变化");
+  assert.equal(Number(res.headers["content-length"]), res.body.length, "改写后必须重算 content-length");
   assert.equal(res.headers["request-id"], "req_abc");
   assert.equal(res.headers["anthropic-ratelimit-unified-requests-limit"], "1000");
   assert.equal(res.headers["anthropic-ratelimit-unified-requests-remaining"], "999");
@@ -423,7 +428,7 @@ test("③ 非流式：响应体字节一致，ratelimit 头透传", async (t) =>
 
 // ---------- ④ SSE 逐字节透传 ----------
 
-test("④ 流式：SSE 事件块 + ping 逐字节透传", async (t) => {
+test("④ 流式：SSE 事件块与 ping 保留，message_start 的 model 回写", async (t) => {
   const sg = needGateway(t);
   // §5.2 的完整事件序列 + 长思考期间的 ping（网关不得剥离）。
   const ssePayload = [
@@ -460,10 +465,10 @@ test("④ 流式：SSE 事件块 + ping 逐字节透传", async (t) => {
       "cache-control": "no-cache",
       "anthropic-ratelimit-unified-requests-remaining": "999",
     });
-    // 分三块推：前两块事件 + 第三块 ping/DONE，模拟上游逐块到达。
-    res.write(ssePayload.slice(0, 400));
+    // 分三块推：第一块切在 message_start 的 data JSON 中间，验证跨块缓冲。
+    res.write(ssePayload.slice(0, 60));
     setTimeout(() => {
-      res.write(ssePayload.slice(400, 900));
+      res.write(ssePayload.slice(60, 900));
       setTimeout(() => {
         res.end(ssePayload.slice(900));
       }, 25);
@@ -484,7 +489,11 @@ test("④ 流式：SSE 事件块 + ping 逐字节透传", async (t) => {
   assert.equal(res.status, 200);
   assert.equal(res.headers["content-type"], "text/event-stream");
   assert.equal(res.headers["anthropic-ratelimit-unified-requests-remaining"], "999");
-  assert.deepEqual(res.body, Buffer.from(ssePayload, "utf8"));
+  assert.deepEqual(
+    res.body,
+    Buffer.from(ssePayload.replace('"model":"deepseek-chat"', '"model":"claude-sonnet-main"'), "utf8"),
+    "只允许 message_start 的 model 变化，其余事件字节一致",
+  );
   assert.ok(res.body.includes("event: ping\r\ndata: {}\r\n") || res.body.includes("event: ping\ndata: {}\n"));
 });
 

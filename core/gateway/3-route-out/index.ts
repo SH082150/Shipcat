@@ -14,6 +14,8 @@ export interface UpstreamPlan {
   readonly url: string;
   readonly headers: Record<string, string>;
   readonly body: Buffer;
+  /** Desktop 请求里的路由别名；回程用它覆盖响应中的上游模型名。 */
+  readonly requestModel: string;
 }
 
 /** 一条路由的目标：假名 → 供应商连接信息 + 上游真身模型。 */
@@ -143,7 +145,12 @@ export function planUpstream(
   const url =
     target.baseUrl.replace(/\/+$/, "") + endpoint + normalizeQuery(originalQuery);
 
-  return { url, headers: buildUpstreamHeaders(target, incomingHeaders, customHeaders, body.length), body };
+  return {
+    url,
+    headers: buildUpstreamHeaders(target, incomingHeaders, customHeaders, body.length),
+    body,
+    requestModel: alias,
+  };
 }
 
 function normalizeQuery(query: string): string {

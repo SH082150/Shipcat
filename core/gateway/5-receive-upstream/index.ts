@@ -28,10 +28,12 @@ export type UpstreamResponse =
  * @param upstream 4-send 转交的响应句柄；缺失/不完整 → 502 api_error
  *   （防御：理论上 4-send 只在收到响应后才会调用本层）。
  * @param clientRes Desktop 侧的响应出口，原样下传。
+ * @param options requestModel：请求侧的路由别名，回程把它写回响应 model。
  */
 export function receiveUpstream(
   upstream: UpstreamResponse | null | undefined,
   clientRes: ServerResponse,
+  options: { readonly requestModel?: string } = {},
 ): void {
   if (upstream == null) {
     throw new GatewayError(502, "api_error", "上游响应缺失，请稍后重试");
@@ -41,5 +43,5 @@ export function receiveUpstream(
   if (typeof statusCode !== "number" || stream == null) {
     throw new GatewayError(502, "api_error", "上游响应不完整，请稍后重试");
   }
-  routeBack({ statusCode, headers: upstream.headers, stream }, clientRes);
+  routeBack({ statusCode, headers: upstream.headers, stream }, clientRes, options);
 }
