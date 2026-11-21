@@ -199,7 +199,6 @@ interface Copy {
   readonly save: string;
   readonly saveNote: string;
   readonly readOnlyNote: string;
-  readonly note: string;
   readonly fieldTitle: string;
   readonly fieldHint: string;
   readonly fieldKey: string;
@@ -267,9 +266,8 @@ const COPY: Record<Language, Copy> = {
     models: "模型",
     addModel: "添加模型",
     save: "保存修改",
-    saveNote: "原型数据 · 不会写入 core",
+    saveNote: "保存后立即写入本机配置库，并同步到 Claude 侧。",
     readOnlyNote: "只读配置 · 所有字段不可编辑",
-    note: "演示数据集中在 demoProfiles，接入 core 时替换数据源即可。",
     fieldTitle: "添加条目",
     fieldHint: "选择或输入 Claude 透传字段；布尔填 true/false，JSON 直接粘贴。",
     fieldKey: "项目",
@@ -339,9 +337,8 @@ const COPY: Record<Language, Copy> = {
     models: "Models",
     addModel: "Add model",
     save: "Save changes",
-    saveNote: "Prototype data · nothing is written to core",
+    saveNote: "Saved to the local store and synced to Claude immediately.",
     readOnlyNote: "Read-only profile · every field is disabled",
-    note: "Demo data lives in demoProfiles; replace the data source when wiring core.",
     fieldTitle: "Add field",
     fieldHint: "Pick or type a Claude passthrough field; booleans use true/false, JSON is pasted directly.",
     fieldKey: "Key",

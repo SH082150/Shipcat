@@ -637,7 +637,7 @@ root.addEventListener("click", (event) => {
         workspace.querySelector<HTMLElement>(".pv-detail-head h1")?.textContent?.trim() ?? "该供应商";
       openConfirmDialog({
         title: "删除供应商",
-        message: `确定要删除「${name}」吗？当前为原型阶段，确认后不会写入本机配置。`,
+        message: `确定要删除「${name}」吗？将从本机配置库与 Claude 侧同步移除，Claude Desktop 重启后生效。`,
         confirmLabel: "删除",
         tone: "danger",
         onConfirm: () => {
@@ -1443,7 +1443,7 @@ function readModelForm(scope: HTMLElement): ModelInput {
   const checked = (field: string): boolean =>
     scope.querySelector<HTMLInputElement>(`[data-field="${field}"]`)?.checked ?? false;
   return {
-    name: input("modelName")?.value.trim() ?? "",
+    name: input("modelName")?.value.replace(/\s+/g, "") ?? "",
     labelOverride: input("labelOverride")?.value.trim() || undefined,
     supports1m: checked("supports1m"),
     prefer1m: checked("prefer1m"),

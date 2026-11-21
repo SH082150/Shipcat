@@ -231,7 +231,7 @@ const COPY: Readonly<Record<"zh" | "en", UsageCopy>> = {
     title: "用量",
     description: "查看额度与历史用量。额度等待官方接口，历史来自本机 Claude 用量账本。",
     quotaTitle: "额度",
-    quotaDescription: "余额与额度窗口由所选配置文件读取；原型阶段只保留明确位置，不显示估值。",
+    quotaDescription: "余额与额度窗口由所选配置文件读取；暂未接入估值显示。",
     profileLabel: "配置文件",
     profileAria: "选择配置文件",
     accountSettings: "账户设置",
