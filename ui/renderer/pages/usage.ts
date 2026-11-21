@@ -963,8 +963,10 @@ function renderRangeButton(range: UsageRange, active: boolean, language: "zh" | 
 }
 
 function renderLedgerStatus(ledger: UsageLedgerState, copy: UsageCopy): string {
-  if (!ledger.lastSyncedAt) return copy.ledgerPending;
-  const day = ledger.lastSyncedAt.slice(0, 10);
+  // 右侧展示当前日期（本地时区），作为数据面板的日期标记。
+  const now = new Date();
+  const pad = (value: number): string => String(value).padStart(2, "0");
+  const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const records = ledger.recordCount === null ? "" : ` · ${copy.ledgerRecords(ledger.recordCount)}`;
   return `${day}${records}`;
 }
