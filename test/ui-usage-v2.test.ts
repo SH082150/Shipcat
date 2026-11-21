@@ -160,7 +160,11 @@ test("用量页结构：历史用量热力图 + 总使用量卡 + 按天用量�
   assert.doesNotMatch(html, /style="/i);
   assert.doesNotMatch(html, /onclick=/i);
   assert.doesNotMatch(html, /\$\s?\d/);
-  assert.doesNotMatch(html, /\d+%/);
+  assert.doesNotMatch(
+    html.replace(/<dd>\d+(?:\.\d+)?%<\/dd>/g, ""),
+    /\d+%/,
+    "只有缓存命中率可以展示百分比",
+  );
 });
 
 test("用量页英文：14 days、数据来源说明与按钮文案", () => {
@@ -207,6 +211,11 @@ test("usage.css：24×14 网格、空灰、蓝色开关、黑白主按钮、细�
   assert.match(css, /border-top:\s*0/);
   assert.match(css, /\.usage-heat-row\s*\{[\s\S]*?align-items:\s*stretch/);
   assert.match(css, /\.usage-overall\s*\{[\s\S]*?height:\s*100%/);
+  assert.match(css, /\.usage-overall\s*\{[\s\S]*?min-height:\s*0[\s\S]*?padding:\s*13px 18px/);
+  assert.match(css, /\.usage-overall-total\s*\{[\s\S]*?font-size:\s*28px/);
+  assert.match(css, /\.usage-overall-rows\s*\{[\s\S]*?margin:\s*8px 0 0/);
+  assert.match(css, /\.usage-overall-row\s*\{[\s\S]*?padding:\s*4px 0/);
+  assert.match(css, /\.usage-overall-searches\s*\{[\s\S]*?padding-top:\s*6px/);
   assert.match(css, /\.usage-chart-svg/);
   assert.match(css, /\.usage-data-table/);
   assert.match(css, /\.usage-table-wrap\s*\{[\s\S]*?overflow-y:\s*auto/);
@@ -224,7 +233,7 @@ test("usage.ts：注入页面样式并原地切换热力图，不重绘页头", 
   assert.doesNotMatch(source, /window\.location|navigate\(/);
 });
 
-test("用量页总使用量卡：真实消耗合计、四行明细与无缓存写行", () => {
+test("用量页总使用量卡：真实消耗合计、五行明细（含缓存命中率）与无缓存写行", () => {
   const cells: HeatmapCell[] = [
     {
       at: "2026-11-18T04:00:00.000Z",
@@ -275,6 +284,9 @@ test("用量页总使用量卡：真实消耗合计、四行明细与无缓存�
   assert.match(html, /最近 14 天/);
   assert.match(html, /usage-overall-total">1\.5K</, "真实消耗 = 输入 + 输出 + 缓存读 + 缓存写");
   assert.match(html, /输入（未缓存）/);
+  assert.match(html, /缓存命中率/);
+  assert.match(html, /缓存命中率[\s\S]*?<dd>20\.35%<\/dd>/, "230 / (230 + 900) = 20.35%");
+  assert.match(html, /缓存读 ÷（缓存读 \+ 输入未缓存）/);
   assert.match(html, /调用次数/);
   assert.match(html, />900</);
   assert.match(html, />300</);
@@ -299,6 +311,7 @@ test("用量页总使用量卡：真实消耗合计、四行明细与无缓存�
 
   const english = render(context("en"), data);
   assert.match(english, /Total usage/);
+  assert.match(english, /Cache hit rate[\s\S]*?<dd>20\.35%<\/dd>/);
   assert.match(english, /real consumption tokens/);
   assert.match(english, /Last 14 days/);
   assert.match(english, /1 web search/);
@@ -312,6 +325,7 @@ test("用量页总使用量卡：无数据时按同一格式显示 0；按天卡
   const html = render(context("zh"), empty);
   assert.doesNotMatch(html, /无记录/, "没有数据也保持同一套卡片格式");
   assert.match(html, /usage-overall-total">0</);
+  assert.match(html, /缓存命中率[\s\S]*?<dd>—<\/dd>/, "分母为 0 时显示破折号");
   assert.match(html, /0 次网页搜索/);
   assert.doesNotMatch(html, /\$0\.00/);
 
