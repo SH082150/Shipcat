@@ -4,7 +4,7 @@
   "version": "0.3.0",
   "private": true,
   "author": "SH082150",
-  "license": "GPL-3.0",
+  "license": "Apache-2.0",
   "type": "module",
   "bin": {
     "claudeharbor": "./bin/claudeharbor.ts"
