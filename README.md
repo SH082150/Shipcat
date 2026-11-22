@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.2.5 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
+版本：0.2.6 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
 
 ## 摘要
 
@@ -268,6 +268,10 @@ npm run typecheck
 
 ### 更新日志
 
+#### v0.2.6
+
+- 修复用量页在停留期间不自动更新：改为直接比对聚合数据，有变化才重绘；鼠标悬停在格子上时挂起重绘，移开后立即补画。此前依赖同步报告的新增行数，一旦某轮被跳过就不会再更新。
+
 #### v0.2.5
 
 - 用量页：停留期间每 5 秒同步一次本机账本，有新记录才重绘（悬停格子时让位，避免打断查看）；窗口重新获得焦点时立即刷新。热力图右侧日期改为当前日期。
@@ -317,7 +321,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.2.5 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
+**Version: 0.2.6 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
 
 ### 1. Introduction
 
@@ -447,6 +451,10 @@ npm run typecheck
 ```
 
 ### Changelog
+
+#### v0.2.6
+
+- Fixed the usage page not updating while open: it now compares aggregated data directly and redraws only on change; hovering a cell defers the redraw and restores it as soon as the pointer leaves. The previous check relied on the sync report's added-line count, so a single skipped tick stopped further updates.
 
 #### v0.2.5
 

@@ -211,6 +211,8 @@ let greetingTimer: number | null = null;
 let mascotTimer: number | null = null;
 let usageTimer: number | null = null;
 let usageRefreshing = false;
+let usageDigest: string | null = null;
+let usagePendingRefresh = false;
 let systemSettings = { launchAtLogin: false, backgroundOnClose: false, hideDock: false };
 
 /* ------------------------------------------------------------------ */
@@ -880,6 +882,8 @@ function syncUsageRefreshTimer(): void {
   if (page !== "usage") {
     if (usageTimer !== null) window.clearInterval(usageTimer);
     usageTimer = null;
+    usageDigest = null;
+    usagePendingRefresh = false;
     return;
   }
   if (usageTimer !== null) return;
@@ -893,11 +897,18 @@ async function refreshUsagePage(): Promise<void> {
   usageRefreshing = true;
   try {
     if (page !== "usage") return;
-    // 只同步；没有新记录就不重绘，避免闪烁并保住悬停/滚动状态。
-    const sync = await usageApi.sync();
-    if (page !== "usage" || sync.linesAdded <= 0) return;
-    // 鼠标正停在热力图格子上时让位：下一轮再重绘，避免悬停明细被打断。
-    if (workspace.querySelector(".usage-cell:hover")) return;
+    await usageApi.sync();
+    if (page !== "usage") return;
+    // 直接比对聚合结果：同步报告与实际数据可能不同步，以数据本身为准。
+    const rows = await usageApi.aggregate({});
+    const digest = JSON.stringify(rows);
+    if (digest === usageDigest) return;
+    // 鼠标正停在热力图格子上时挂起重绘，移开后立刻补画。
+    if (workspace.querySelector(".usage-cell:hover")) {
+      usagePendingRefresh = true;
+      return;
+    }
+    usageDigest = digest;
     await renderWorkspace();
   } catch (error) {
     console.error("refresh usage failed", error);
@@ -905,6 +916,15 @@ async function refreshUsagePage(): Promise<void> {
     usageRefreshing = false;
   }
 }
+
+// 悬停结束（鼠标离开热力图）时补一次挂起的重绘。
+workspace.addEventListener("mouseout", (event) => {
+  if (!usagePendingRefresh) return;
+  const to = event.relatedTarget as Node | null;
+  if (to && (to as HTMLElement).closest?.(".usage-heatmap-host")) return;
+  usagePendingRefresh = false;
+  if (page === "usage") void refreshUsagePage();
+});
 
 
 function hasSyncDrift(plan: SyncPlan): boolean {
@@ -1207,6 +1227,7 @@ async function renderUsagePage(context: PageContext): Promise<string> {
       usageApi.aggregate({}),
       ...ranges.map((range) => usageApi.buckets(range)),
     ]);
+    usageDigest = JSON.stringify(rows);
     const heatmap = Object.fromEntries(
       ranges.map((range, index) => [
         range,
