@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.2.6 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
+版本：0.3.0 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
 
 ## 摘要
 
@@ -268,6 +268,13 @@ npm run typecheck
 
 ### 更新日志
 
+#### v0.3.0
+
+- 用量存储重构：官方账本实时入库（`fs.watch`，300ms 防抖）到本地 SQLite（`~/.claudeharbor/database/claudeharbor.db`），事务内写事件与游标；按内容指纹跨来源去重，文件重写时安全替换。
+- 用量页改为事件驱动：进入页面取一次视图，主进程提交新数据后推送 revision，页面只局部更新三个区块，不再轮询与整页重绘；热力图悬停、图表浮窗与表格滚动不再被打断。
+- 设置页新增「用量」章节：管理采集来源（默认自动探测 Claude Desktop，可添加自定义路径、删除来源并即时生效），支持删除全部来源与恢复默认。
+- 底层新增共用 `persistence`（迁移、事务、WAL）与 `queries` 查询层，为后续 Provider/Profile 迁入数据库预留位置。
+
 #### v0.2.6
 
 - 修复用量页在停留期间不自动更新：改为直接比对聚合数据，有变化才重绘；鼠标悬停在格子上时挂起重绘，移开后立即补画。此前依赖同步报告的新增行数，一旦某轮被跳过就不会再更新。
@@ -321,7 +328,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.2.6 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
+**Version: 0.3.0 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
 
 ### 1. Introduction
 
@@ -451,6 +458,13 @@ npm run typecheck
 ```
 
 ### Changelog
+
+#### v0.3.0
+
+- Usage storage rework: the official ledger is ingested in real time (`fs.watch`, 300 ms debounce) into a local SQLite database (`~/.claudeharbor/database/claudeharbor.db`), with events and byte cursors committed in one transaction; content fingerprints deduplicate across sources and rewritten files are replaced safely.
+- The usage page is now event-driven: it loads a view once, then redraws only the three affected blocks when the main process pushes a new revision — no polling, no full-page re-render, so heatmap hover, chart tooltips, and table scrolling stay intact.
+- Settings gains a Usage section: manage collection sources (Claude Desktop detected automatically, custom paths, delete sources with immediate effect), including deleting all sources and restoring the default.
+- New shared `persistence` (migrations, transactions, WAL) and `queries` layers lay the groundwork for moving Provider/Profile data into the database later.
 
 #### v0.2.6
 

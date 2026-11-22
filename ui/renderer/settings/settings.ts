@@ -275,7 +275,7 @@ function copyFor(language: SettingsLanguage): SettingsCopy {
 
 const APP_NAME = "Shipcat";
 /** 与 package.json 的 version 保持一致；系统页与客户端信息页展示。 */
-const APP_VERSION = "0.2.6";
+const APP_VERSION = "0.3.0";
 const APP_LICENSE = "CC-BY-NC-SA-4.0";
 
 const THEME_OPTIONS: readonly SettingsTheme[] = ["light", "dark", "system"];
