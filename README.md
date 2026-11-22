@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.2.4 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
+版本：0.2.5 · 平台：macOS / Windows · 许可证：[CC BY-NC-SA 4.0](LICENSE)
 
 ## 摘要
 
@@ -268,6 +268,10 @@ npm run typecheck
 
 ### 更新日志
 
+#### v0.2.5
+
+- 用量页：停留期间每 5 秒同步一次本机账本，有新记录才重绘（悬停格子时让位，避免打断查看）；窗口重新获得焦点时立即刷新。热力图右侧日期改为当前日期。
+
 #### v0.2.4
 
 - 后台静默运行：新增菜单栏托盘（显示 / 退出），系统页可隐藏 Dock 图标（Windows 为隐藏任务栏图标）；关闭窗口后驻留后台的开关现在会持久保存，重启不再丢失。
@@ -313,7 +317,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.2.4 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
+**Version: 0.2.5 · Platforms: macOS / Windows · License: [CC BY-NC-SA 4.0](LICENSE)**
 
 ### 1. Introduction
 
@@ -443,6 +447,10 @@ npm run typecheck
 ```
 
 ### Changelog
+
+#### v0.2.5
+
+- Usage: the page now syncs the local ledger every 5 seconds while open and redraws only when new records arrive (hovered cells are left untouched); regaining window focus refreshes immediately. The date next to the heatmap now shows the current date.
 
 #### v0.2.4
 
