@@ -209,6 +209,8 @@ let disposeGatewayStatus: (() => void) | void;
 let greetingWeather: GreetingWeather | null = null;
 let greetingTimer: number | null = null;
 let mascotTimer: number | null = null;
+let usageTimer: number | null = null;
+let usageRefreshing = false;
 let systemSettings = { launchAtLogin: false, backgroundOnClose: false, hideDock: false };
 
 /* ------------------------------------------------------------------ */
@@ -719,9 +721,13 @@ root.addEventListener("click", (event) => {
   }
 });
 
+// 回到窗口时刷新用量：切换走再回来也能看到最新统计。
+window.addEventListener("focus", () => {
+  if (page === "usage") void refreshUsagePage();
+});
+
 // 键盘：⌘/Ctrl+B 切换侧栏，Esc 关闭弹窗/菜单/预览，菜单内上下键移动。
-document.addEventListener("keydown", (event) => {
-  if (event.defaultPrevented) return;
+document.addEventListener("keydown", (event) => {  if (event.defaultPrevented) return;
   const primary = event.metaKey || event.ctrlKey;
 
   if (primary && event.key === ",") {
@@ -820,6 +826,7 @@ window.addEventListener("beforeunload", () => {
   if (typeof disposeGatewayStatus === "function") disposeGatewayStatus();
   if (greetingTimer !== null) window.clearInterval(greetingTimer);
   if (mascotTimer !== null) window.clearTimeout(mascotTimer);
+  if (usageTimer !== null) window.clearInterval(usageTimer);
   disposeLanguageTrap?.();
   disposeLanguageTrap = null;
   languageOverlay?.remove();
@@ -859,8 +866,36 @@ async function renderWorkspace(resetScroll = false): Promise<void> {
   });
   if (resetScroll) workspace.scrollTop = 0;
   paintMascot();
+  syncUsageRefreshTimer();
   if (page === "profiles" && route.detailId && route.detailId !== PROFILE_CREATE_ID) {
     void openSyncForDetail(route.detailId);
+  }
+}
+
+/**
+ * 用量页停留期间定时重新同步并重绘：账本在别的客户端里随时增长，
+ * 页面不刷新就永远是打开那一刻的数据。离开用量页即停止定时器。
+ */
+function syncUsageRefreshTimer(): void {
+  if (page !== "usage") {
+    if (usageTimer !== null) window.clearInterval(usageTimer);
+    usageTimer = null;
+    return;
+  }
+  if (usageTimer !== null) return;
+  usageTimer = window.setInterval(() => {
+    void refreshUsagePage();
+  }, 60_000);
+}
+
+async function refreshUsagePage(): Promise<void> {
+  if (page !== "usage" || usageRefreshing) return;
+  usageRefreshing = true;
+  try {
+    // 同步期间可能已切走页面；重绘前再核对一次。
+    if (page === "usage") await renderWorkspace();
+  } finally {
+    usageRefreshing = false;
   }
 }
 
