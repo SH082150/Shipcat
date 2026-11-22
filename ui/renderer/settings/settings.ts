@@ -11,6 +11,7 @@
  */
 
 import type { ClientInfo } from "../components/events.ts";
+import { iconSvg } from "../components/icons.ts";
 import { createAvatarCropModal } from "./avatar-crop.ts";
 
 export const SETTINGS_SECTIONS = ["general", "privacy", "usage", "system", "about"] as const;
@@ -706,13 +707,15 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   async function persistUsageSources(next: readonly UsageSourceOption[]): Promise<void> {
     usageError.hidden = true;
+    // 来源只有"存在/不存在"两种状态：列出来的都在采集。
+    const payload = next.map((source) => ({ ...source, enabled: true }));
     try {
-      const result = await options.onSaveUsageSources?.(next);
+      const result = await options.onSaveUsageSources?.(payload);
       if (result && !result.ok) {
         showUsageError(result.error || copy.usageSaveError);
         return;
       }
-      usageSources = result?.sources ? [...result.sources] : [...next];
+      usageSources = result?.sources ? [...result.sources] : payload;
       renderUsageSources();
     } catch {
       showUsageError(copy.usageSaveError);
@@ -746,20 +749,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
       );
       rowMain.children[1]?.classList.add("ch-settings-source-path");
 
-      const enabled = createSwitch(
-        `usage-source-enabled-${source.id}`,
-        `${isDefault ? copy.usageDefaultLabel : copy.usageCustomLabel} · ${copy.usageSourcesTitle}`,
-        source.enabled,
-        (value) => {
-          const next = usageSources.map((item, position) =>
-            position === index ? { ...item, enabled: value } : item,
-          );
-          void persistUsageSources(next);
-        },
-      );
-      enabled.setAttribute("data-usage-source-toggle", source.id);
-      control.appendChild(enabled);
-
       const pick = create("button", "ch-settings-source-btn");
       pick.type = "button";
       pick.tabIndex = 0;
@@ -784,11 +773,13 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
       }
 
       if (!isDefault) {
-        const remove = create("button", "ch-settings-source-btn ch-settings-source-btn--danger");
+        const remove = create("button", "ch-settings-source-btn ch-settings-source-btn--icon");
         remove.type = "button";
         remove.tabIndex = 0;
         remove.setAttribute("data-role", `usage-source-remove-${source.id}`);
-        remove.textContent = copy.usageRemove;
+        remove.setAttribute("aria-label", copy.usageRemove);
+        remove.title = copy.usageRemove;
+        remove.innerHTML = iconSvg("trash", "ch-settings-source-icon");
         remove.addEventListener("click", () => {
           const next = usageSources.filter((_item, position) => position !== index);
           void persistUsageSources(next);

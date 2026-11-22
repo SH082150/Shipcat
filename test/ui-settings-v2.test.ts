@@ -782,23 +782,25 @@ test("用量页：展示来源路径，切换/移除/添加都会保存", async 
     assert.match(textOf(second), /自定义来源/);
     assert.match(textOf(second), /Volumes\/ledgers/);
 
-    byRole(root, "usage-source-enabled-custom-1").click();
-    await settle();
-    assert.equal(saved.length, 1);
-    assert.equal((saved[0] as { enabled: boolean }[])[1]?.enabled, false);
+    // 默认来源不可删除，自定义来源有垃圾桶按钮。
+    assert.equal(roleCount(root, "usage-source-remove-claude-desktop"), 0);
+    assert.equal(roleCount(root, "usage-source-remove-custom-1"), 1);
+    // 不再有启用开关。
+    assert.equal(roleCount(root, "usage-source-enabled-custom-1"), 0);
 
     byRole(root, "usage-source-remove-custom-1").click();
     await settle();
-    assert.equal(saved.length, 2);
-    assert.equal((saved[1] as unknown[]).length, 1);
+    assert.equal(saved.length, 1);
+    assert.equal((saved[0] as unknown[]).length, 1);
 
     byRole(root, "usage-source-add").click();
     await settle();
-    assert.equal(saved.length, 3);
-    const added = saved[2] as { kind: string; root: string | null }[];
+    assert.equal(saved.length, 2);
+    const added = saved[1] as { kind: string; root: string | null; enabled: boolean }[];
     assert.equal(added.length, 2);
     assert.equal(added[1]?.kind, "custom");
     assert.equal(added[1]?.root, "/Volumes/extra");
+    assert.equal(added[1]?.enabled, true);
   } finally {
     modal.cleanup();
   }
