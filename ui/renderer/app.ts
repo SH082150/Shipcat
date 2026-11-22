@@ -885,15 +885,22 @@ function syncUsageRefreshTimer(): void {
   if (usageTimer !== null) return;
   usageTimer = window.setInterval(() => {
     void refreshUsagePage();
-  }, 60_000);
+  }, 5_000);
 }
 
 async function refreshUsagePage(): Promise<void> {
   if (page !== "usage" || usageRefreshing) return;
   usageRefreshing = true;
   try {
-    // 同步期间可能已切走页面；重绘前再核对一次。
-    if (page === "usage") await renderWorkspace();
+    if (page !== "usage") return;
+    // 只同步；没有新记录就不重绘，避免闪烁并保住悬停/滚动状态。
+    const sync = await usageApi.sync();
+    if (page !== "usage" || sync.linesAdded <= 0) return;
+    // 鼠标正停在热力图格子上时让位：下一轮再重绘，避免悬停明细被打断。
+    if (workspace.querySelector(".usage-cell:hover")) return;
+    await renderWorkspace();
+  } catch (error) {
+    console.error("refresh usage failed", error);
   } finally {
     usageRefreshing = false;
   }
