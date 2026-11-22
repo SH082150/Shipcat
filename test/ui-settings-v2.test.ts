@@ -779,7 +779,7 @@ test("用量页：展示来源路径，切换/移除/添加都会保存", async 
     assert.ok(first && second);
     assert.match(textOf(first), /Claude Desktop/);
     assert.match(textOf(first), /Claude-3p/);
-    assert.match(textOf(second), /自定义来源/);
+    assert.match(textOf(second), /ledgers/);
     assert.match(textOf(second), /Volumes\/ledgers/);
 
     // 现在所有来源都可删除（包括默认来源）。

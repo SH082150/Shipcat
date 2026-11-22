@@ -164,7 +164,7 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     storageTitle: "存储",
     storageHint: "管理本机的供应商、档案与用量数据。",
     usageSourcesTitle: "用量来源",
-    usageSourcesHint: "选择 Shipcat 从哪里读取用量数据。默认会自动探测 Claude Desktop 的账本目录。",
+    usageSourcesHint: "选择 Shipcat 从哪里读取用量数据。可指定 Claude-3p 数据根，或其中的 local-agent-mode-sessions 目录；默认自动探测 Claude Desktop。",
     usageDefaultLabel: "Claude Desktop",
     usageCustomLabel: "自定义来源",
     usageNoPath: "未选择文件夹，暂不采集",
@@ -235,7 +235,7 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     storageHint: "Manage providers, profiles, and usage data on this machine.",
     usageSourcesTitle: "Usage sources",
     usageSourcesHint:
-      "Choose where Shipcat reads usage data. The Claude Desktop ledger is detected automatically by default.",
+      "Choose where Shipcat reads usage data. Point to the Claude-3p data root or its local-agent-mode-sessions folder; Claude Desktop is detected automatically by default.",
     usageDefaultLabel: "Claude Desktop",
     usageCustomLabel: "Custom source",
     usageNoPath: "No folder selected; nothing is collected",
@@ -720,6 +720,16 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   }
 
 
+  /** 自定义来源取路径最后一级目录名，路径缺失时回落到通用名称。 */
+  function sourceName(
+    source: { root: string | null; resolvedRoot: string },
+    fallback: string,
+  ): string {
+    const raw = source.root ?? source.resolvedRoot;
+    const segment = raw.split(/[\\/]/).filter(Boolean).pop();
+    return segment && segment.length > 0 ? segment : fallback;
+  }
+
   function renderUsageSources(): void {
     for (const child of [...usageList.children]) child.remove();
     if (usageSources.length === 0) {
@@ -744,7 +754,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
       const path = source.root ?? source.resolvedRoot;
       const { main: rowMain, control } = createRow(
         usageList,
-        isDefault ? copy.usageDefaultLabel : copy.usageCustomLabel,
+        isDefault ? copy.usageDefaultLabel : sourceName(source, copy.usageCustomLabel),
         path.length > 0 ? path : copy.usageNoPath,
         "usage-source-row",
       );
