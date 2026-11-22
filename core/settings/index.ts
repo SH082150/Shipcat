@@ -82,7 +82,7 @@ export function normalizeSettings(value: unknown): Settings {
     seen.add(source.id);
     sources.push(source);
   }
-  if (sources.length === 0) return defaultSettings();
+  // 空数组是合法状态：用户可以把所有来源都删掉，停止采集。
   return { version: 1, usage: { sources } };
 }
 

@@ -108,6 +108,7 @@ interface SettingsCopy {
   readonly usageNoPath: string;
   readonly usageRemove: string;
   readonly usageAdd: string;
+  readonly usageRestoreDefault: string;
   readonly usageFootNote: string;
   readonly usageSaveError: string;
   readonly systemTitle: string;
@@ -169,6 +170,7 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     usageNoPath: "未选择文件夹，暂不采集",
     usageRemove: "移除",
     usageAdd: "添加来源",
+    usageRestoreDefault: "恢复默认来源",
     usageFootNote: "修改会立即保存并生效。",
     usageSaveError: "保存失败，请检查路径后重试。",
     systemTitle: "应用",
@@ -239,6 +241,7 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     usageNoPath: "No folder selected; nothing is collected",
     usageRemove: "Remove",
     usageAdd: "Add source",
+    usageRestoreDefault: "Restore default source",
     usageFootNote: "Changes are saved and applied immediately.",
     usageSaveError: "Could not save. Check the folder path and try again.",
     systemTitle: "Application",
@@ -720,8 +723,20 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   function renderUsageSources(): void {
     for (const child of [...usageList.children]) child.remove();
     if (usageSources.length === 0) {
-      const empty = create("p", "ch-settings-source-empty");
-      empty.textContent = copy.usageNoPath;
+      const empty = create("div", "ch-settings-source-empty");
+      const text = create("p", "ch-settings-source-empty-text");
+      text.textContent = copy.usageNoPath;
+      const restore = create("button", "ch-settings-source-btn ch-settings-source-btn--add");
+      restore.type = "button";
+      restore.tabIndex = 0;
+      restore.setAttribute("data-role", "usage-source-restore-default");
+      restore.textContent = copy.usageRestoreDefault;
+      restore.addEventListener("click", () => {
+        void persistUsageSources([
+          { id: "claude-desktop", kind: "claude-desktop", root: null, resolvedRoot: "", enabled: true },
+        ]);
+      });
+      empty.append(text, restore);
       usageList.appendChild(empty);
     }
     usageSources.forEach((source, index) => {
@@ -735,20 +750,18 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
       );
       rowMain.children[1]?.classList.add("ch-settings-source-path");
 
-      if (!isDefault) {
-        const remove = create("button", "ch-settings-source-btn ch-settings-source-btn--icon");
-        remove.type = "button";
-        remove.tabIndex = 0;
-        remove.setAttribute("data-role", `usage-source-remove-${source.id}`);
-        remove.setAttribute("aria-label", copy.usageRemove);
-        remove.title = copy.usageRemove;
-        remove.innerHTML = iconSvg("trash", "ch-settings-source-icon");
-        remove.addEventListener("click", () => {
-          const next = usageSources.filter((_item, position) => position !== index);
-          void persistUsageSources(next);
-        });
-        control.appendChild(remove);
-      }
+      const remove = create("button", "ch-settings-source-btn ch-settings-source-btn--icon");
+      remove.type = "button";
+      remove.tabIndex = 0;
+      remove.setAttribute("data-role", `usage-source-remove-${source.id}`);
+      remove.setAttribute("aria-label", copy.usageRemove);
+      remove.title = copy.usageRemove;
+      remove.innerHTML = iconSvg("trash", "ch-settings-source-icon");
+      remove.addEventListener("click", () => {
+        const next = usageSources.filter((_item, position) => position !== index);
+        void persistUsageSources(next);
+      });
+      control.appendChild(remove);
     });
   }
 

@@ -1073,10 +1073,17 @@
 }
 
 .ch-settings-source-empty {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   padding: 12px 0;
   color: var(--ch-text-muted);
   font-size: 12px;
+}
+
+.ch-settings-source-empty-text {
+  margin: 0;
 }
 
 .ch-settings-error {

@@ -782,8 +782,8 @@ test("用量页：展示来源路径，切换/移除/添加都会保存", async 
     assert.match(textOf(second), /自定义来源/);
     assert.match(textOf(second), /Volumes\/ledgers/);
 
-    // 默认来源不可删除，自定义来源有垃圾桶按钮。
-    assert.equal(roleCount(root, "usage-source-remove-claude-desktop"), 0);
+    // 现在所有来源都可删除（包括默认来源）。
+    assert.equal(roleCount(root, "usage-source-remove-claude-desktop"), 1);
     assert.equal(roleCount(root, "usage-source-remove-custom-1"), 1);
     // 不再有启用开关。
     assert.equal(roleCount(root, "usage-source-enabled-custom-1"), 0);
@@ -801,6 +801,24 @@ test("用量页：展示来源路径，切换/移除/添加都会保存", async 
     assert.equal(added[1]?.kind, "custom");
     assert.equal(added[1]?.root, "/Volumes/extra");
     assert.equal(added[1]?.enabled, true);
+
+    // 删空后出现「恢复默认来源」，点击即恢复内置来源。
+    byRole(root, "usage-source-remove-claude-desktop").click();
+    await settle();
+    const removeButtons = findAll(root, (element) =>
+      (element.getAttribute("data-role") ?? "").startsWith("usage-source-remove-"),
+    );
+    const customRemove = removeButtons[0];
+    assert.ok(customRemove);
+    customRemove.click();
+    await settle();
+    assert.equal((saved[saved.length - 1] as unknown[]).length, 0);
+    byRole(root, "usage-source-restore-default").click();
+    await settle();
+    const restored = saved[saved.length - 1] as { id: string; kind: string }[];
+    assert.equal(restored.length, 1);
+    assert.equal(restored[0]?.id, "claude-desktop");
+    assert.equal(restored[0]?.kind, "claude-desktop");
   } finally {
     modal.cleanup();
   }
