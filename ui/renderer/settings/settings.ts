@@ -106,8 +106,6 @@ interface SettingsCopy {
   readonly usageDefaultLabel: string;
   readonly usageCustomLabel: string;
   readonly usageNoPath: string;
-  readonly usagePickFolder: string;
-  readonly usageRestoreAuto: string;
   readonly usageRemove: string;
   readonly usageAdd: string;
   readonly usageFootNote: string;
@@ -169,8 +167,6 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     usageDefaultLabel: "Claude Desktop",
     usageCustomLabel: "自定义来源",
     usageNoPath: "未选择文件夹，暂不采集",
-    usagePickFolder: "选择文件夹",
-    usageRestoreAuto: "恢复自动",
     usageRemove: "移除",
     usageAdd: "添加来源",
     usageFootNote: "修改会立即保存并生效。",
@@ -241,8 +237,6 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     usageDefaultLabel: "Claude Desktop",
     usageCustomLabel: "Custom source",
     usageNoPath: "No folder selected; nothing is collected",
-    usagePickFolder: "Choose folder",
-    usageRestoreAuto: "Restore automatic",
     usageRemove: "Remove",
     usageAdd: "Add source",
     usageFootNote: "Changes are saved and applied immediately.",
@@ -722,14 +716,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     }
   }
 
-  async function pickUsageFolder(index: number): Promise<void> {
-    const directory = await options.pickUsageDirectory?.();
-    if (!directory) return;
-    const next = usageSources.map((source, position) =>
-      position === index ? { ...source, root: directory } : source,
-    );
-    await persistUsageSources(next);
-  }
 
   function renderUsageSources(): void {
     for (const child of [...usageList.children]) child.remove();
@@ -748,29 +734,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
         "usage-source-row",
       );
       rowMain.children[1]?.classList.add("ch-settings-source-path");
-
-      const pick = create("button", "ch-settings-source-btn");
-      pick.type = "button";
-      pick.tabIndex = 0;
-      pick.setAttribute("data-role", `usage-source-pick-${source.id}`);
-      pick.textContent = copy.usagePickFolder;
-      pick.addEventListener("click", () => void pickUsageFolder(index));
-      control.appendChild(pick);
-
-      if (isDefault && source.root !== null) {
-        const restore = create("button", "ch-settings-source-btn");
-        restore.type = "button";
-        restore.tabIndex = 0;
-        restore.setAttribute("data-role", `usage-source-restore-${source.id}`);
-        restore.textContent = copy.usageRestoreAuto;
-        restore.addEventListener("click", () => {
-          const next = usageSources.map((item, position) =>
-            position === index ? { ...item, root: null } : item,
-          );
-          void persistUsageSources(next);
-        });
-        control.appendChild(restore);
-      }
 
       if (!isDefault) {
         const remove = create("button", "ch-settings-source-btn ch-settings-source-btn--icon");
