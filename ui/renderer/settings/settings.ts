@@ -13,10 +13,25 @@
 import type { ClientInfo } from "../components/events.ts";
 import { createAvatarCropModal } from "./avatar-crop.ts";
 
-export const SETTINGS_SECTIONS = ["general", "privacy", "system", "about"] as const;
+export const SETTINGS_SECTIONS = ["general", "privacy", "usage", "system", "about"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number] | "client-info";
 
 export type SettingsTheme = "light" | "dark" | "system";
+
+/** 设置页展示的用量采集来源。 */
+export interface UsageSourceOption {
+  readonly id: string;
+  readonly kind: string;
+  readonly root: string | null;
+  readonly resolvedRoot: string;
+  readonly enabled: boolean;
+}
+
+export interface UsageSourcesSaveResult {
+  readonly ok: boolean;
+  readonly sources?: readonly UsageSourceOption[];
+  readonly error?: string;
+}
 
 export type SettingsLanguage = "zh" | "en";
 
@@ -46,6 +61,14 @@ export interface SettingsModalOptions {
   onLaunchAtLoginChange?: (value: boolean) => void;
   onBackgroundOnCloseChange?: (value: boolean) => void;
   onHideDockChange?: (value: boolean) => void;
+  /** 用量采集来源；缺省为空列表。 */
+  usageSources?: readonly UsageSourceOption[];
+  /** 保存来源列表；返回最新列表或错误文案。 */
+  onSaveUsageSources?: (
+    sources: readonly UsageSourceOption[],
+  ) => Promise<UsageSourcesSaveResult>;
+  /** 选择目录；取消返回 null。 */
+  pickUsageDirectory?: () => Promise<string | null>;
 }
 
 interface SettingsCopy {
@@ -77,6 +100,17 @@ interface SettingsCopy {
   readonly privacyStatement: string;
   readonly storageTitle: string;
   readonly storageHint: string;
+  readonly usageSourcesTitle: string;
+  readonly usageSourcesHint: string;
+  readonly usageDefaultLabel: string;
+  readonly usageCustomLabel: string;
+  readonly usageNoPath: string;
+  readonly usagePickFolder: string;
+  readonly usageRestoreAuto: string;
+  readonly usageRemove: string;
+  readonly usageAdd: string;
+  readonly usageFootNote: string;
+  readonly usageSaveError: string;
   readonly systemTitle: string;
   readonly systemHint: string;
   readonly versionTitle: string;
@@ -102,8 +136,8 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
   zh: {
     title: "设置",
     navLabel: "设置导航",
-    menu: { general: "常规", privacy: "隐私", system: "系统", about: "关于" },
-    sectionTitles: { general: "常规", privacy: "隐私", system: "系统", about: "关于", "client-info": "关于" },
+    menu: { general: "常规", privacy: "隐私", usage: "用量", system: "系统", about: "关于" },
+    sectionTitles: { general: "常规", privacy: "隐私", usage: "用量", system: "系统", about: "关于", "client-info": "关于" },
     closeLabel: "关闭设置",
     appearanceTitle: "外观",
     appearanceHint: "调整 Shipcat 的外观，让它更适合你的工作环境。",
@@ -129,6 +163,17 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
       "供应商与档案只保存在这台机器上。密钥不会上传，请求直接发送到你配置的上游服务。用量数据来自 Claude 在本机记录的用量。",
     storageTitle: "存储",
     storageHint: "管理本机的供应商、档案与用量数据。",
+    usageSourcesTitle: "用量来源",
+    usageSourcesHint: "选择 Shipcat 从哪里读取用量数据。默认会自动探测 Claude Desktop 的账本目录。",
+    usageDefaultLabel: "Claude Desktop",
+    usageCustomLabel: "自定义来源",
+    usageNoPath: "未选择文件夹，暂不采集",
+    usagePickFolder: "选择文件夹",
+    usageRestoreAuto: "恢复自动",
+    usageRemove: "移除",
+    usageAdd: "添加来源",
+    usageFootNote: "修改会立即保存并生效。",
+    usageSaveError: "保存失败，请检查路径后重试。",
     systemTitle: "应用",
     systemHint: "当前安装的版本与启动方式。",
     versionTitle: "版本",
@@ -155,10 +200,11 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
   en: {
     title: "Settings",
     navLabel: "Settings navigation",
-    menu: { general: "General", privacy: "Privacy", system: "System", about: "About" },
+    menu: { general: "General", privacy: "Privacy", usage: "Usage", system: "System", about: "About" },
     sectionTitles: {
       general: "General",
       privacy: "Privacy",
+      usage: "Usage",
       system: "System",
       about: "About",
       "client-info": "About",
@@ -188,6 +234,18 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
       "Providers and profiles stay on this machine. Keys are never uploaded; requests go directly to the upstream service you configure. Usage data comes from what Claude records locally.",
     storageTitle: "Storage",
     storageHint: "Manage providers, profiles, and usage data on this machine.",
+    usageSourcesTitle: "Usage sources",
+    usageSourcesHint:
+      "Choose where Shipcat reads usage data. The Claude Desktop ledger is detected automatically by default.",
+    usageDefaultLabel: "Claude Desktop",
+    usageCustomLabel: "Custom source",
+    usageNoPath: "No folder selected; nothing is collected",
+    usagePickFolder: "Choose folder",
+    usageRestoreAuto: "Restore automatic",
+    usageRemove: "Remove",
+    usageAdd: "Add source",
+    usageFootNote: "Changes are saved and applied immediately.",
+    usageSaveError: "Could not save. Check the folder path and try again.",
     systemTitle: "Application",
     systemHint: "Installed version and startup behavior.",
     versionTitle: "Version",
@@ -610,6 +668,152 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   createRow(storageSection, copy.storageTitle, copy.storageHint, "storage-row");
 
   /* ------------------------------------------------------------------ */
+  /* 用量：采集来源管理                                                   */
+  /* ------------------------------------------------------------------ */
+
+  const usagePane = createPane("pane-usage");
+  const usageSection = createSection(usagePane);
+  createSectionHead(usageSection, copy.usageSourcesTitle, copy.usageSourcesHint);
+
+  let usageSources: UsageSourceOption[] = [...(options.usageSources ?? [])];
+
+  const usageList = create("div", "ch-settings-source-list");
+  usageList.setAttribute("data-role", "usage-source-list");
+  usageSection.appendChild(usageList);
+
+  const usageError = create("p", "ch-settings-error");
+  usageError.setAttribute("data-role", "usage-source-error");
+  usageError.hidden = true;
+  usageSection.appendChild(usageError);
+
+  const usageAddRow = create("div", "ch-settings-source-add");
+  const usageAddButton = create("button", "ch-settings-source-btn ch-settings-source-btn--add");
+  usageAddButton.type = "button";
+  usageAddButton.tabIndex = 0;
+  usageAddButton.setAttribute("data-role", "usage-source-add");
+  usageAddButton.textContent = `+ ${copy.usageAdd}`;
+  usageAddRow.appendChild(usageAddButton);
+  usageSection.appendChild(usageAddRow);
+
+  const usageFoot = create("p", "ch-settings-note");
+  usageFoot.textContent = copy.usageFootNote;
+  usageSection.appendChild(usageFoot);
+
+  function showUsageError(message: string): void {
+    usageError.textContent = message;
+    usageError.hidden = false;
+  }
+
+  async function persistUsageSources(next: readonly UsageSourceOption[]): Promise<void> {
+    usageError.hidden = true;
+    try {
+      const result = await options.onSaveUsageSources?.(next);
+      if (result && !result.ok) {
+        showUsageError(result.error || copy.usageSaveError);
+        return;
+      }
+      usageSources = result?.sources ? [...result.sources] : [...next];
+      renderUsageSources();
+    } catch {
+      showUsageError(copy.usageSaveError);
+    }
+  }
+
+  async function pickUsageFolder(index: number): Promise<void> {
+    const directory = await options.pickUsageDirectory?.();
+    if (!directory) return;
+    const next = usageSources.map((source, position) =>
+      position === index ? { ...source, root: directory } : source,
+    );
+    await persistUsageSources(next);
+  }
+
+  function renderUsageSources(): void {
+    for (const child of [...usageList.children]) child.remove();
+    if (usageSources.length === 0) {
+      const empty = create("p", "ch-settings-source-empty");
+      empty.textContent = copy.usageNoPath;
+      usageList.appendChild(empty);
+    }
+    usageSources.forEach((source, index) => {
+      const isDefault = source.kind === "claude-desktop";
+      const path = source.root ?? source.resolvedRoot;
+      const { main: rowMain, control } = createRow(
+        usageList,
+        isDefault ? copy.usageDefaultLabel : copy.usageCustomLabel,
+        path.length > 0 ? path : copy.usageNoPath,
+        "usage-source-row",
+      );
+      rowMain.children[1]?.classList.add("ch-settings-source-path");
+
+      const enabled = createSwitch(
+        `usage-source-enabled-${source.id}`,
+        `${isDefault ? copy.usageDefaultLabel : copy.usageCustomLabel} · ${copy.usageSourcesTitle}`,
+        source.enabled,
+        (value) => {
+          const next = usageSources.map((item, position) =>
+            position === index ? { ...item, enabled: value } : item,
+          );
+          void persistUsageSources(next);
+        },
+      );
+      enabled.setAttribute("data-usage-source-toggle", source.id);
+      control.appendChild(enabled);
+
+      const pick = create("button", "ch-settings-source-btn");
+      pick.type = "button";
+      pick.tabIndex = 0;
+      pick.setAttribute("data-role", `usage-source-pick-${source.id}`);
+      pick.textContent = copy.usagePickFolder;
+      pick.addEventListener("click", () => void pickUsageFolder(index));
+      control.appendChild(pick);
+
+      if (isDefault && source.root !== null) {
+        const restore = create("button", "ch-settings-source-btn");
+        restore.type = "button";
+        restore.tabIndex = 0;
+        restore.setAttribute("data-role", `usage-source-restore-${source.id}`);
+        restore.textContent = copy.usageRestoreAuto;
+        restore.addEventListener("click", () => {
+          const next = usageSources.map((item, position) =>
+            position === index ? { ...item, root: null } : item,
+          );
+          void persistUsageSources(next);
+        });
+        control.appendChild(restore);
+      }
+
+      if (!isDefault) {
+        const remove = create("button", "ch-settings-source-btn ch-settings-source-btn--danger");
+        remove.type = "button";
+        remove.tabIndex = 0;
+        remove.setAttribute("data-role", `usage-source-remove-${source.id}`);
+        remove.textContent = copy.usageRemove;
+        remove.addEventListener("click", () => {
+          const next = usageSources.filter((_item, position) => position !== index);
+          void persistUsageSources(next);
+        });
+        control.appendChild(remove);
+      }
+    });
+  }
+
+  usageAddButton.addEventListener("click", () => {
+    void (async () => {
+      const directory = await options.pickUsageDirectory?.();
+      if (!directory) return;
+      const id = `custom-${Date.now().toString(36)}`;
+      const next = [
+        ...usageSources,
+        { id, kind: "custom", root: directory, resolvedRoot: directory, enabled: true },
+      ];
+      await persistUsageSources(next);
+    })();
+  });
+
+  renderUsageSources();
+
+  /* ------------------------------------------------------------------ */
   /* 系统：版本与开机自启                                                  */
   /* ------------------------------------------------------------------ */
 
@@ -706,6 +910,7 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const panes = new Map<SettingsSection, HTMLElement>([
     ["general", generalPane],
     ["privacy", privacyPane],
+    ["usage", usagePane],
     ["system", systemPane],
     ["about", clientPane],
   ]);

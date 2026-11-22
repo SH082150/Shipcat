@@ -274,9 +274,9 @@ test("渲染居中弹窗的骨架：对话框、遮罩、常规导航与外观/�
     );
     assert.deepEqual(
       navItems.map((item) => item.getAttribute("data-role")),
-      ["nav-general", "nav-privacy", "nav-system", "nav-about"],
+      ["nav-general", "nav-privacy", "nav-usage", "nav-system", "nav-about"],
     );
-    assert.deepEqual(navItems.map(textOf), ["常规", "隐私", "系统", "关于"]);
+    assert.deepEqual(navItems.map(textOf), ["常规", "隐私", "用量", "系统", "关于"]);
 
     const group = byRole(root, "group-appearance");
     assert.match(textOf(group), /外观/);
@@ -308,7 +308,7 @@ test("英语界面：菜单、节标题、主题选项与关闭按钮均为英�
     const navItems = findAll(root, (element) =>
       (element.getAttribute("data-role") ?? "").startsWith("nav-"),
     );
-    assert.deepEqual(navItems.map(textOf), ["General", "Privacy", "System", "About"]);
+    assert.deepEqual(navItems.map(textOf), ["General", "Privacy", "Usage", "System", "About"]);
     assert.equal(textOf(byRole(root, "section-title")), "General");
     assert.deepEqual(
       ["theme-light", "theme-dark", "theme-system"].map((role) => textOf(byRole(root, role))),

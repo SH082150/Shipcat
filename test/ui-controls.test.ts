@@ -59,7 +59,7 @@ test("provider search sits left of add and expands leftwards on demand", () => {
 
 test("settings exposes About in the sidebar and keeps client-info as an alias", () => {
   const settings = read("settings/settings.ts");
-  assert.match(settings, /SETTINGS_SECTIONS = \["general", "privacy", "system", "about"\]/);
+  assert.match(settings, /SETTINGS_SECTIONS = \["general", "privacy", "usage", "system", "about"\]/);
   assert.match(settings, /about:\s*"关于"/);
   assert.match(settings, /\["about", clientPane\]/);
   assert.match(settings, /initialSection === "client-info"\s*\?\s*"about"/);

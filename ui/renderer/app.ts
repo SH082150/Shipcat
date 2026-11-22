@@ -105,7 +105,7 @@ import type { UsageViewDto, UsageViewQuery } from "../shared/ipc.ts";
 import type { PageContext } from "./pages/types.ts";
 
 import { createSettingsModal } from "./settings/settings.ts";
-import type { SettingsTheme } from "./settings/settings.ts";
+import type { SettingsTheme, UsageSourceOption } from "./settings/settings.ts";
 
 interface ClaudeHarborBridge {
   getUsername?(): string;
@@ -122,6 +122,15 @@ interface ClaudeHarborBridge {
     setLaunchAtLogin?(value: boolean): Promise<boolean>;
     setBackgroundOnClose?(value: boolean): Promise<boolean>;
     setHideDock?(value: boolean): Promise<boolean>;
+  };
+  usage?: {
+    getSources?(): Promise<{ ok: boolean; value?: UsageSourceOption[]; error?: { message?: string } }>;
+    saveSources?(
+      sources: readonly UsageSourceOption[],
+    ): Promise<{ ok: boolean; value?: UsageSourceOption[]; error?: { message?: string } }>;
+  };
+  dialog?: {
+    pickDirectory?(): Promise<{ ok: boolean; value?: string | null; error?: { message?: string } }>;
   };
 }
 
@@ -795,7 +804,7 @@ document.addEventListener("focusin", (event) => {
 });
 
 window.addEventListener(OPEN_SETTINGS_EVENT, (event) => {
-  openSettings(normalizeOpenSettingsDetail((event as CustomEvent).detail));
+  void openSettings(normalizeOpenSettingsDetail((event as CustomEvent).detail));
 });
 
 // 设置层与语言切换都可能广播客户端信息；这里只采用显式给出的字段。
@@ -1755,12 +1764,33 @@ function appendClaudeFieldEntry(): void {
   inputs[inputs.length - 1]?.focus();
 }
 
-function openSettings(detail: OpenSettingsDetail): void {
+async function openSettings(detail: OpenSettingsDetail): Promise<void> {
   settingsOverlay?.remove();
   settingsOverlay = null;
 
+  const sourcesResult = await bridge?.usage?.getSources?.();
+  const usageSources =
+    sourcesResult !== undefined && sourcesResult.ok && Array.isArray(sourcesResult.value)
+      ? sourcesResult.value
+      : [];
+
   const overlay = createSettingsModal({
     language,
+    usageSources,
+    pickUsageDirectory: async () => {
+      const result = await bridge?.dialog?.pickDirectory?.();
+      return result !== undefined && result.ok ? (result.value ?? null) : null;
+    },
+    onSaveUsageSources: async (sources) => {
+      const result = await bridge?.usage?.saveSources?.(sources);
+      if (result === undefined) {
+        return { ok: false, error: language === "zh" ? "保存失败。" : "Save failed." };
+      }
+      if (!result.ok) {
+        return { ok: false, error: result.error?.message ?? (language === "zh" ? "保存失败。" : "Save failed.") };
+      }
+      return { ok: true, sources: result.value ?? sources };
+    },
     initialTheme: theme.getPreference(),
     initialSection: detail.section,
     clientInfo,

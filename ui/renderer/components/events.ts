@@ -16,6 +16,7 @@ export const OPEN_SETTINGS_EVENT = "open-settings";
 export const SETTINGS_SECTIONS = [
   "general",
   "privacy",
+  "usage",
   "system",
   "about",
   "client-info",

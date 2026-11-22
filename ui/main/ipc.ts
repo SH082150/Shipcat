@@ -1,4 +1,5 @@
-import { BrowserWindow, ipcMain } from "electron";
+import { BrowserWindow, dialog, ipcMain } from "electron";
+import { isAbsolute } from "node:path";
 import { CHANNELS } from "../shared/ipc.ts";
 import type {
   AppResult,
@@ -8,9 +9,13 @@ import type {
   ProviderInput,
   ProviderPatch,
   UsageFilter,
+  UsageSourceDto,
   UsageViewQuery,
 } from "../shared/ipc.ts";
-import { run } from "./services/errors.ts";
+import { loadSettings, saveSettings } from "../../core/settings/index.ts";
+import type { Settings, SettingsSource } from "../../core/settings/index.ts";
+import { resolveUsageSourceRoot } from "../../core/settings/paths.ts";
+import { run, ServiceError } from "./services/errors.ts";
 import {
   createProvider,
   getProvider,
@@ -46,6 +51,43 @@ function usageUnavailable(): AppResult<never> {
     ok: false,
     error: { code: "UNAVAILABLE", message: "用量服务暂时不可用。" },
   };
+}
+
+const SOURCE_KINDS = new Set(["claude-desktop", "custom"]);
+
+/** 设置里的来源 → 设置页 DTO；resolvedRoot 由主进程按平台解析。 */
+function toSourceDtos(settings: Settings): UsageSourceDto[] {
+  return settings.usage.sources.map((source) => ({
+    id: source.id,
+    kind: source.kind,
+    root: source.root,
+    resolvedRoot: resolveUsageSourceRoot(source.root),
+    enabled: source.enabled,
+  }));
+}
+
+/** 渲染层提交的来源列表：字段校验 + 去重；非法输入返回 null。 */
+function parseSources(value: unknown): SettingsSource[] | null {
+  if (!Array.isArray(value)) return null;
+  const seen = new Set<string>();
+  const sources: SettingsSource[] = [];
+  for (const item of value) {
+    if (item === null || typeof item !== "object") return null;
+    const raw = item as Record<string, unknown>;
+    const id = typeof raw.id === "string" ? raw.id.trim() : "";
+    if (id.length === 0 || seen.has(id)) return null;
+    seen.add(id);
+    const kind = typeof raw.kind === "string" ? raw.kind.trim() : "";
+    if (!SOURCE_KINDS.has(kind)) return null;
+    let root: string | null = null;
+    if (typeof raw.root === "string" && raw.root.trim().length > 0) {
+      const candidate = raw.root.trim();
+      if (!isAbsolute(candidate)) return null;
+      root = candidate;
+    }
+    sources.push({ id, kind, root, enabled: raw.enabled !== false });
+  }
+  return sources;
 }
 
 export function registerCoreIpc(
@@ -101,6 +143,36 @@ export function registerCoreIpc(
   );
   ipcMain.handle(CHANNELS.usage.refresh, () =>
     usageService === null ? usageUnavailable() : run(() => refreshUsage(usageService)),
+  );
+  ipcMain.handle(CHANNELS.usage.sourcesGet, () => run(() => toSourceDtos(loadSettings())));
+  ipcMain.handle(CHANNELS.usage.sourcesSave, (_event, input: unknown) =>
+    run(async () => {
+      const sources = parseSources(input);
+      if (sources === null) {
+        throw new ServiceError(
+          "INVALID_SOURCES",
+          "来源配置无效：请检查路径是否为绝对路径，且来源标识不重复。",
+        );
+      }
+      const next: Settings = { version: 1, usage: { sources } };
+      const saved = saveSettings(next);
+      if (usageService !== null) await usageService.reloadSources();
+      return toSourceDtos(saved);
+    }),
+  );
+  ipcMain.handle(CHANNELS.dialog.pickDirectory, () =>
+    run(async () => {
+      const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+      const options = {
+        title: "选择用量账本目录",
+        properties: ["openDirectory"] as Array<"openDirectory">,
+      };
+      const result = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options);
+      if (result.canceled) return null;
+      return result.filePaths[0] ?? null;
+    }),
   );
 
   usageService?.onChanged((revision) => {

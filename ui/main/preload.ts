@@ -99,9 +99,14 @@ contextBridge.exposeInMainWorld("claudeHarbor", {
     buckets: (range: string) => invoke(CHANNELS.usage.buckets, range),
     getView: (query: unknown) => invoke(CHANNELS.usage.view, query),
     refresh: () => invoke(CHANNELS.usage.refresh),
+    getSources: () => invoke(CHANNELS.usage.sourcesGet),
+    saveSources: (sources: unknown) => invoke(CHANNELS.usage.sourcesSave, sources),
     onChanged(callback: (event: unknown) => void) {
       if (typeof callback !== "function") throw new TypeError("onChanged expects a function");
       return subscribe(CHANNELS.usage.changed, callback);
     },
+  },
+  dialog: {
+    pickDirectory: () => invoke(CHANNELS.dialog.pickDirectory),
   },
 });

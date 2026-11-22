@@ -233,6 +233,17 @@ export interface UsageChangedEvent {
   readonly revision: number;
 }
 
+/** 用量采集来源（设置页「用量」章节使用）。 */
+export interface UsageSourceDto {
+  readonly id: string;
+  readonly kind: string;
+  /** 用户指定路径；null 表示自动探测。 */
+  readonly root: string | null;
+  /** 解析后的实际账本根，仅在主进程计算。 */
+  readonly resolvedRoot: string;
+  readonly enabled: boolean;
+}
+
 export const CHANNELS = {
   providers: {
     list: "core:providers:list",
@@ -275,6 +286,11 @@ export const CHANNELS = {
     view: "claude-harbor:usage:view",
     refresh: "claude-harbor:usage:refresh",
     changed: "claude-harbor:usage:changed",
+    sourcesGet: "claude-harbor:usage:sources:get",
+    sourcesSave: "claude-harbor:usage:sources:save",
+  },
+  dialog: {
+    pickDirectory: "claude-harbor:dialog:pick-directory",
   },
 } as const;
 
@@ -316,6 +332,11 @@ export interface CoreBridge {
     buckets(range: UsageBucketRange): Promise<AppResult<UsageBucket[]>>;
     getView(query: UsageViewQuery): Promise<AppResult<UsageViewDto>>;
     refresh(): Promise<AppResult<unknown>>;
+    getSources(): Promise<AppResult<UsageSourceDto[]>>;
+    saveSources(sources: readonly UsageSourceDto[]): Promise<AppResult<UsageSourceDto[]>>;
     onChanged(callback: (event: UsageChangedEvent) => void): () => void;
+  };
+  readonly dialog: {
+    pickDirectory(): Promise<AppResult<string | null>>;
   };
 }

@@ -77,10 +77,10 @@ test("route: 详情页只允许 providers/profiles，解析与回写稳定", () 
   assert.equal(sameRoute(null, { page: "overview", detailId: null }), false);
 });
 
-test("settings: section 覆盖四个章节，未知值仍回落到 general", () => {
+test("settings: section 覆盖五个章节，未知值仍回落到 general", () => {
   assert.deepEqual(
     [...SETTINGS_SECTIONS],
-    ["general", "privacy", "system", "about", "client-info"],
+    ["general", "privacy", "usage", "system", "about", "client-info"],
   );
 
   for (const section of SETTINGS_SECTIONS) {
@@ -92,7 +92,7 @@ test("settings: section 覆盖四个章节，未知值仍回落到 general", () 
 
   assert.equal(createOpenSettingsDetail({ section: "privacy" }).section, "privacy");
   assert.equal(createOpenSettingsDetail({ section: "system" }).section, "system");
-  assert.equal(normalizeOpenSettingsDetail("usage").section, "general");
+  assert.equal(normalizeOpenSettingsDetail("usage").section, "usage");
   assert.equal(normalizeOpenSettingsDetail({ section: "privacy" }).section, "privacy");
   assert.equal(normalizeOpenSettingsDetail({ section: "privacy" }).source, "renderer");
 });

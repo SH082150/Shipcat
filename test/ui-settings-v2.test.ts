@@ -251,6 +251,23 @@ interface MountOptions {
   onName?: (name: string) => void;
   onAvatar?: (avatar: string) => void;
   onHideDock?: (value: boolean) => void;
+  usageSources?: Array<{
+    id: string;
+    kind: string;
+    root: string | null;
+    resolvedRoot: string;
+    enabled: boolean;
+  }>;
+  onSaveUsageSources?: (
+    sources: readonly {
+      id: string;
+      kind: string;
+      root: string | null;
+      resolvedRoot: string;
+      enabled: boolean;
+    }[],
+  ) => Promise<{ ok: boolean; error?: string } | void>;
+  pickUsageDirectory?: () => Promise<string | null>;
 }
 
 function mount(options: MountOptions = {}) {
@@ -274,6 +291,16 @@ function mount(options: MountOptions = {}) {
     ...(options.onName ? { onUsernameChange: options.onName } : {}),
     ...(options.onAvatar ? { onAvatarChange: options.onAvatar } : {}),
     ...(options.onHideDock ? { onHideDockChange: options.onHideDock } : {}),
+    ...(options.usageSources ? { usageSources: options.usageSources } : {}),
+    ...(options.onSaveUsageSources
+      ? {
+          onSaveUsageSources: async (sources: readonly unknown[]) => {
+            const result = await options.onSaveUsageSources?.(sources as never);
+            return result && typeof result === "object" && "ok" in result ? result : { ok: true };
+          },
+        }
+      : {}),
+    ...(options.pickUsageDirectory ? { pickUsageDirectory: options.pickUsageDirectory } : {}),
     onThemeChange: (mode) => themes.push(mode),
     onClose: () => {
       closes += 1;
@@ -303,12 +330,13 @@ const flushFocus = (): Promise<void> => new Promise((resolve) => setTimeout(reso
 const NAV_SECTIONS = [
   ["general", "常规"],
   ["privacy", "隐私"],
+  ["usage", "用量"],
   ["system", "系统"],
   ["about", "关于"],
 ] as const;
 
-test("菜单顺序为常规、隐私、系统、关于，且不显示版本号", () => {
-  assert.deepEqual([...SETTINGS_SECTIONS], ["general", "privacy", "system", "about"]);
+test("菜单顺序为常规、隐私、用量、系统、关于，且不显示版本号", () => {
+  assert.deepEqual([...SETTINGS_SECTIONS], ["general", "privacy", "usage", "system", "about"]);
 
   const modal = mount();
   try {
@@ -316,11 +344,11 @@ test("菜单顺序为常规、隐私、系统、关于，且不显示版本号",
     const navs = findAll(root, (element) => (element.getAttribute("data-role") ?? "").startsWith("nav-"));
     assert.deepEqual(
       navs.map((nav) => nav.getAttribute("data-section")),
-      ["general", "privacy", "system", "about"],
+      ["general", "privacy", "usage", "system", "about"],
     );
     assert.deepEqual(
       navs.map((nav) => textOf(nav)),
-      ["常规", "隐私", "系统", "关于"],
+      ["常规", "隐私", "用量", "系统", "关于"],
     );
     assert.equal(roleCount(root, "nav-client"), 0);
 
@@ -338,7 +366,7 @@ test("英语界面：菜单与章节标题使用英文", () => {
   try {
     const { root } = modal;
     const navs = findAll(root, (element) => (element.getAttribute("data-role") ?? "").startsWith("nav-"));
-    assert.deepEqual(navs.map(textOf), ["General", "Privacy", "System", "About"]);
+    assert.deepEqual(navs.map(textOf), ["General", "Privacy", "Usage", "System", "About"]);
     assert.equal(textOf(byRole(root, "section-title")), "General");
     byRole(root, "nav-system").click();
     assert.equal(textOf(byRole(root, "section-title")), "System");
@@ -362,7 +390,7 @@ test("initialSection 支持常规、隐私、系统、关于及 client-info 别�
     const modal = mount({ section });
     try {
       const { root } = modal;
-      const sections = ["general", "privacy", "system", "about"] as const;
+      const sections = ["general", "privacy", "usage", "system", "about"] as const;
       const activeSection = section === "client-info" ? "about" : section;
       for (const name of sections) {
         assert.equal(
@@ -372,7 +400,7 @@ test("initialSection 支持常规、隐私、系统、关于及 client-info 别�
         );
       }
       assert.equal(byRole(root, "section-title").textContent, title);
-      for (const name of ["general", "privacy", "system", "about"] as const) {
+      for (const name of ["general", "privacy", "usage", "system", "about"] as const) {
         assert.equal(
           byRole(root, `nav-${name}`).getAttribute("aria-current"),
           name === activeNav ? "page" : "false",
@@ -711,6 +739,66 @@ test("常规页自定义：用户名回退占位、头像选择与移除", async
       "移除后回到空占位",
     );
     assert.equal(remove.hidden, true);
+  } finally {
+    modal.cleanup();
+  }
+});
+
+test("用量页：展示来源路径，切换/移除/添加都会保存", async () => {
+  const saved: unknown[] = [];
+  const modal = mount({
+    section: "usage",
+    usageSources: [
+      {
+        id: "claude-desktop",
+        kind: "claude-desktop",
+        root: null,
+        resolvedRoot: "/Users/demo/Library/Application Support/Claude-3p/local-agent-mode-sessions",
+        enabled: true,
+      },
+      {
+        id: "custom-1",
+        kind: "custom",
+        root: "/Volumes/ledgers",
+        resolvedRoot: "/Volumes/ledgers/local-agent-mode-sessions",
+        enabled: true,
+      },
+    ],
+    onSaveUsageSources: async (sources) => {
+      saved.push(sources);
+      return { ok: true };
+    },
+    pickUsageDirectory: async () => "/Volumes/extra",
+  });
+  const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
+  try {
+    const { root } = modal;
+    const rows = findAll(root, (element) => element.getAttribute("data-role") === "usage-source-row");
+    assert.equal(rows.length, 2);
+    const [first, second] = rows;
+    assert.ok(first && second);
+    assert.match(textOf(first), /Claude Desktop/);
+    assert.match(textOf(first), /Claude-3p/);
+    assert.match(textOf(second), /自定义来源/);
+    assert.match(textOf(second), /Volumes\/ledgers/);
+
+    byRole(root, "usage-source-enabled-custom-1").click();
+    await settle();
+    assert.equal(saved.length, 1);
+    assert.equal((saved[0] as { enabled: boolean }[])[1]?.enabled, false);
+
+    byRole(root, "usage-source-remove-custom-1").click();
+    await settle();
+    assert.equal(saved.length, 2);
+    assert.equal((saved[1] as unknown[]).length, 1);
+
+    byRole(root, "usage-source-add").click();
+    await settle();
+    assert.equal(saved.length, 3);
+    const added = saved[2] as { kind: string; root: string | null }[];
+    assert.equal(added.length, 2);
+    assert.equal(added[1]?.kind, "custom");
+    assert.equal(added[1]?.root, "/Volumes/extra");
   } finally {
     modal.cleanup();
   }
