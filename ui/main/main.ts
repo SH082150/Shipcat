@@ -7,6 +7,7 @@ import { registerCoreIpc } from "./ipc.ts";
 import { GatewayService } from "./services/gateway.ts";
 import { loadPreferences, savePreferences } from "./services/preferences.ts";
 import { createTray } from "./services/tray.ts";
+import { UsageIngestService } from "../../core/usage/ingest/service.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RENDERER_INDEX = path.join(__dirname, "..", "renderer", "index.html");
@@ -46,6 +47,7 @@ const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let usageService: UsageIngestService | null = null;
 let backgroundMode = false;
 let hideDockMode = false;
 let isQuitting = false;
@@ -269,13 +271,28 @@ ipcMain.handle(WEATHER_CHANNEL, async () => {
   }
 });
 
-registerCoreIpc(gateway);
 nativeTheme.on("updated", broadcastTheme);
 
 app.whenReady().then(async () => {
   const preferences = await loadPreferences();
   backgroundMode = preferences.backgroundOnClose;
   hideDockMode = preferences.hideDock;
+
+  // 用量入库服务：单例持有 SQLite；启动时先做一次全量对账。
+  // 即使用量库打开失败，也要注册其余 IPC，避免设置/供应商页一起不可用。
+  try {
+    usageService = new UsageIngestService();
+  } catch (error) {
+    console.error("Failed to open usage database:", error);
+    usageService = null;
+  }
+  registerCoreIpc(gateway, usageService);
+  if (usageService !== null) {
+    const service = usageService;
+    void service.start().catch((error) => {
+      console.error("Failed to start usage ingest service:", error);
+    });
+  }
 
   // 开发态没有应用包，Dock 会沿用 Electron 的默认图标，这里手动换上小猫。
   if (process.platform === "darwin" && !app.isPackaged) app.dock?.setIcon(APP_ICON);
@@ -297,6 +314,8 @@ app.whenReady().then(async () => {
 app.on("before-quit", () => {
   isQuitting = true;
   void gateway.dispose();
+  usageService?.dispose();
+  usageService = null;
 });
 
 app.on("window-all-closed", () => {

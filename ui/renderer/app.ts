@@ -92,9 +92,16 @@ import type {
   ProviderOption,
 } from "./pages/profiles.ts";
 import * as profilesModule from "./pages/profiles.ts";
-import { buildUsageViewData, render as renderUsage } from "./pages/usage.ts";
-import type { HeatmapCell } from "./pages/usage.ts";
-import * as usageModule from "./pages/usage.ts";
+import {
+  DEFAULT_USAGE_STATE,
+  render as renderUsage,
+  updateUsageDaily,
+  updateUsageHeatmap,
+  updateUsageOverall,
+  updateUsageView,
+} from "./pages/usage.ts";
+import type { UsageViewState } from "./pages/usage.ts";
+import type { UsageViewDto, UsageViewQuery } from "../shared/ipc.ts";
 import type { PageContext } from "./pages/types.ts";
 
 import { createSettingsModal } from "./settings/settings.ts";
@@ -128,10 +135,6 @@ interface DetailRenderer {
   (context: PageContext, id: string, detail?: unknown, providers?: unknown): unknown;
 }
 
-interface HeatmapRenderer {
-  (range: string): unknown;
-}
-
 /**
  * 页面模块的详情/弹窗/热力图扩展是可选的：页面未提供时，路由回落到列表，
  * 通用动作安静 no-op，shell 不会白屏。
@@ -140,8 +143,6 @@ const DETAIL_RENDERERS: Readonly<Partial<Record<PageId, DetailRenderer | null>>>
   providers: resolvePageExport<DetailRenderer>(providersModule, "renderDetail"),
   profiles: resolvePageExport<DetailRenderer>(profilesModule, "renderDetail"),
 };
-
-const renderHeatmap = resolvePageExport<HeatmapRenderer>(usageModule, "renderHeatmap");
 
 const root = document.querySelector<HTMLElement>("#app");
 if (!root) throw new Error("Shipcat renderer root #app is missing");
@@ -209,10 +210,11 @@ let disposeGatewayStatus: (() => void) | void;
 let greetingWeather: GreetingWeather | null = null;
 let greetingTimer: number | null = null;
 let mascotTimer: number | null = null;
-let usageTimer: number | null = null;
-let usageRefreshing = false;
-let usageDigest: string | null = null;
-let usagePendingRefresh = false;
+let usageState: UsageViewState = { ...DEFAULT_USAGE_STATE };
+let usageView: UsageViewDto | null = null;
+let usageChangedOff: (() => void) | null = null;
+let usagePendingUpdate = false;
+let usageRequestSeq = 0;
 let systemSettings = { launchAtLogin: false, backgroundOnClose: false, hideDock: false };
 
 /* ------------------------------------------------------------------ */
@@ -443,6 +445,17 @@ root.addEventListener("click", (event) => {
   const target = event.target;
   // 图标是 SVG 时 target 不是 HTMLElement，委托必须按 Element 判断。
   if (!(target instanceof Element)) return;
+
+  // 用量页的区间/视图按钮：需要重新取数或只重绘按天卡片。
+  const usageControl = target.closest<HTMLElement>(
+    "button[data-usage-range], button[data-chart-range], button[data-chart-mode]",
+  );
+  if (usageControl) {
+    event.preventDefault();
+    handleUsageControl(usageControl);
+    return;
+  }
+
   const candidate = target.closest<HTMLElement>(ACTION_SELECTOR);
   const actionable = isShellContainer(candidate, SHELL_CONTAINERS) ? null : candidate;
 
@@ -460,11 +473,6 @@ root.addEventListener("click", (event) => {
   if (insideSidebar) pinPreview();
   if (menuOpen && !insideMenu && action !== "account") closeMenu();
   closePageSearchUnless(actionable);
-
-  if (actionable.dataset.usageRange) {
-    handleUsageRange(actionable);
-    return;
-  }
 
   if (actionable.dataset.route) {
     navigateRoute(parseRoute(actionable.dataset.route), false);
@@ -723,11 +731,6 @@ root.addEventListener("click", (event) => {
   }
 });
 
-// 回到窗口时刷新用量：切换走再回来也能看到最新统计。
-window.addEventListener("focus", () => {
-  if (page === "usage") void refreshUsagePage();
-});
-
 // 键盘：⌘/Ctrl+B 切换侧栏，Esc 关闭弹窗/菜单/预览，菜单内上下键移动。
 document.addEventListener("keydown", (event) => {  if (event.defaultPrevented) return;
   const primary = event.metaKey || event.ctrlKey;
@@ -828,7 +831,7 @@ window.addEventListener("beforeunload", () => {
   if (typeof disposeGatewayStatus === "function") disposeGatewayStatus();
   if (greetingTimer !== null) window.clearInterval(greetingTimer);
   if (mascotTimer !== null) window.clearTimeout(mascotTimer);
-  if (usageTimer !== null) window.clearInterval(usageTimer);
+  unsubscribeUsageChanges();
   disposeLanguageTrap?.();
   disposeLanguageTrap = null;
   languageOverlay?.remove();
@@ -868,64 +871,134 @@ async function renderWorkspace(resetScroll = false): Promise<void> {
   });
   if (resetScroll) workspace.scrollTop = 0;
   paintMascot();
-  syncUsageRefreshTimer();
+  if (page === "usage") {
+    subscribeUsageChanges();
+    // 补一次：覆盖“初次取数后、订阅建立前”刚提交的 revision。
+    void reloadUsageView();
+  } else {
+    unsubscribeUsageChanges();
+  }
   if (page === "profiles" && route.detailId && route.detailId !== PROFILE_CREATE_ID) {
     void openSyncForDetail(route.detailId);
   }
 }
 
-/**
- * 用量页停留期间定时重新同步并重绘：账本在别的客户端里随时增长，
- * 页面不刷新就永远是打开那一刻的数据。离开用量页即停止定时器。
- */
-function syncUsageRefreshTimer(): void {
-  if (page !== "usage") {
-    if (usageTimer !== null) window.clearInterval(usageTimer);
-    usageTimer = null;
-    usageDigest = null;
-    usagePendingRefresh = false;
-    return;
-  }
-  if (usageTimer !== null) return;
-  usageTimer = window.setInterval(() => {
-    void refreshUsagePage();
-  }, 5_000);
+function usageQuery(): UsageViewQuery {
+  return { heatmapRange: usageState.heatmapRange, dailyDays: usageState.dailyDays };
 }
 
-async function refreshUsagePage(): Promise<void> {
-  if (page !== "usage" || usageRefreshing) return;
-  usageRefreshing = true;
+function emptyUsageView(): UsageViewDto {
+  return { revision: 0, lastSyncedAt: null, heatmap: [], daily: [], warnings: [] };
+}
+
+/** 进入用量页后订阅入库 revision；离开页面由 renderWorkspace 取消。 */
+function subscribeUsageChanges(): void {
+  if (usageChangedOff !== null) return;
   try {
-    if (page !== "usage") return;
-    await usageApi.sync();
-    if (page !== "usage") return;
-    // 直接比对聚合结果：同步报告与实际数据可能不同步，以数据本身为准。
-    const rows = await usageApi.aggregate({});
-    const digest = JSON.stringify(rows);
-    if (digest === usageDigest) return;
-    // 鼠标正停在热力图格子上时挂起重绘，移开后立刻补画。
-    if (workspace.querySelector(".usage-cell:hover")) {
-      usagePendingRefresh = true;
-      return;
-    }
-    usageDigest = digest;
-    await renderWorkspace();
+    usageChangedOff = usageApi.onChanged((revision) => {
+      if (page !== "usage") {
+        unsubscribeUsageChanges();
+        return;
+      }
+      if (usageView !== null && revision === usageView.revision) return;
+      // 悬停时挂起，鼠标离开热力图后再补一次，避免格子被替换。
+      if (workspace.querySelector(".usage-cell:hover")) {
+        usagePendingUpdate = true;
+        return;
+      }
+      void reloadUsageView();
+    });
+  } catch (error) {
+    console.error("subscribe usage changes failed", error);
+    usageChangedOff = null;
+  }
+}
+
+function unsubscribeUsageChanges(): void {
+  usageChangedOff?.();
+  usageChangedOff = null;
+  usagePendingUpdate = false;
+}
+
+async function reloadUsageView(): Promise<void> {
+  if (page !== "usage") return;
+  const seq = ++usageRequestSeq;
+  try {
+    const view = await usageApi.getView(usageQuery());
+    if (page !== "usage" || seq !== usageRequestSeq) return;
+    usageView = view;
+    const root = workspace.querySelector<HTMLElement>('[data-role="page-usage"]');
+    if (!root) return;
+    updateUsageView(root, view, usageState);
   } catch (error) {
     console.error("refresh usage failed", error);
-  } finally {
-    usageRefreshing = false;
   }
 }
 
-// 悬停结束（鼠标离开热力图）时补一次挂起的重绘。
+async function loadUsageRange(kind: "heatmap" | "daily"): Promise<void> {
+  if (page !== "usage") return;
+  const seq = ++usageRequestSeq;
+  try {
+    const view = await usageApi.getView(usageQuery());
+    if (page !== "usage" || seq !== usageRequestSeq) return;
+    usageView = view;
+    const root = workspace.querySelector<HTMLElement>('[data-role="page-usage"]');
+    if (!root) return;
+    if (kind === "heatmap") {
+      updateUsageHeatmap(root, view, usageState);
+      updateUsageOverall(root, view, usageState);
+    } else {
+      updateUsageDaily(root, view, usageState);
+    }
+  } catch (error) {
+    console.error("load usage view failed", error);
+    showFloatingNotice({
+      title: "读取用量失败",
+      message: "读取失败，请稍后重试。",
+      tone: "danger",
+    });
+  }
+}
+
+/** 用量页的区间/视图按钮：范围变化要重新取数，图表模式只重绘前端。 */
+function handleUsageControl(button: HTMLElement): void {
+  const pageElement = button.closest<HTMLElement>('[data-role="page-usage"]');
+  if (!pageElement) return;
+
+  const rawRange = button.dataset.usageRange;
+  if (rawRange !== undefined) {
+    if (rawRange !== "30min" && rawRange !== "1h" && rawRange !== "1d") return;
+    if (usageState.heatmapRange === rawRange) return;
+    usageState = { ...usageState, heatmapRange: rawRange };
+    void loadUsageRange("heatmap");
+    return;
+  }
+
+  const rawDays = button.dataset.chartRange;
+  if (rawDays !== undefined) {
+    const days = Number(rawDays);
+    if (days !== 7 && days !== 30 && days !== 90) return;
+    if (usageState.dailyDays === days) return;
+    usageState = { ...usageState, dailyDays: days };
+    void loadUsageRange("daily");
+    return;
+  }
+
+  const mode = button.dataset.chartMode;
+  if (mode !== "chart" && mode !== "table") return;
+  if (usageState.dailyMode === mode || usageView === null) return;
+  usageState = { ...usageState, dailyMode: mode };
+  updateUsageDaily(pageElement, usageView, usageState);
+}
+
+// 悬停结束（鼠标离开热力图）时补一次挂起的更新。
 workspace.addEventListener("mouseout", (event) => {
-  if (!usagePendingRefresh) return;
+  if (!usagePendingUpdate) return;
   const to = event.relatedTarget as Node | null;
   if (to && (to as HTMLElement).closest?.(".usage-heatmap-host")) return;
-  usagePendingRefresh = false;
-  if (page === "usage") void refreshUsagePage();
+  usagePendingUpdate = false;
+  if (page === "usage") void reloadUsageView();
 });
-
 
 function hasSyncDrift(plan: SyncPlan): boolean {
   return (
@@ -1219,48 +1292,12 @@ async function renderOverviewPage(context: PageContext): Promise<string> {
 }
 
 async function renderUsagePage(context: PageContext): Promise<string> {
-  const base = buildUsageViewData(context.language);
+  usageState = { ...DEFAULT_USAGE_STATE };
+  usageView = null;
   try {
-    const sync = await usageApi.sync();
-    const ranges = ["30min", "1h", "1d"] as const;
-    const [rows, ...buckets] = await Promise.all([
-      usageApi.aggregate({}),
-      ...ranges.map((range) => usageApi.buckets(range)),
-    ]);
-    usageDigest = JSON.stringify(rows);
-    const heatmap = Object.fromEntries(
-      ranges.map((range, index) => [
-        range,
-        (buckets[index] ?? []).map(
-          (bucket): HeatmapCell => ({
-            at: new Date(bucket.start).toISOString(),
-            value: bucket.value,
-            level: bucket.level,
-            label: bucket.label,
-            detail: bucket.detail,
-          }),
-        ),
-      ]),
-    ) as Record<(typeof ranges)[number], HeatmapCell[]>;
-
-    const dailyMap = new Map<string, { chat: number; cowork: number; code: number }>();
-    for (const row of rows) {
-      if (row.surface !== "chat" && row.surface !== "cowork" && row.surface !== "code") continue;
-      const entry = dailyMap.get(row.day) ?? { chat: 0, cowork: 0, code: 0 };
-      entry[row.surface] += row.totals.inputTokens + row.totals.outputTokens;
-      dailyMap.set(row.day, entry);
-    }
-    const daily = [...dailyMap.entries()]
-      .map(([day, values]) => ({ day, ...values }))
-      .sort((a, b) => a.day.localeCompare(b.day));
-
-    return renderUsage(context, {
-      ...base,
-      heatmap,
-      daily,
-      demo: false,
-      ledger: { lastSyncedAt: sync.lastSyncAt, recordCount: null },
-    });
+    const view = await usageApi.getView(usageQuery());
+    usageView = view;
+    return renderUsage(context, view, usageState);
   } catch (error) {
     console.error("read usage failed", error);
     showFloatingNotice({
@@ -1268,7 +1305,9 @@ async function renderUsagePage(context: PageContext): Promise<string> {
       message: "读取失败，请稍后重试。",
       tone: "danger",
     });
-    return renderUsage(context, { ...base, demo: false });
+    const view = emptyUsageView();
+    usageView = view;
+    return renderUsage(context, view, usageState);
   }
 }
 
@@ -1338,34 +1377,6 @@ function closePageSearchUnless(target: unknown): void {
   if (!container || container.dataset.open !== "true") return;
   if (target instanceof Element && target.closest('[data-role="page-search"]')) return;
   setPageSearchOpen(false);
-}
-
-function handleUsageRange(button: HTMLElement): void {
-  const range = button.dataset.usageRange?.trim();
-  if (!range) return;
-
-  workspace.dataset.viewUsageRange = range;
-  for (const item of workspace.querySelectorAll<HTMLElement>("[data-usage-range]")) {
-    const active = item.dataset.usageRange === range;
-    item.classList.toggle("is-active", active);
-    item.setAttribute("aria-pressed", String(active));
-  }
-
-  // usage 页面自己持有热力图数据与 document 级区间监听；shell 不重复渲染。
-  if (workspace.querySelector<HTMLElement>('[data-role="usage-heatmap-host"]')) return;
-
-  const container = workspace.querySelector<HTMLElement>(
-    '[data-usage-heatmap], [data-role="usage-heatmap"], .usage-heatmap',
-  );
-  if (!container) return;
-
-  const output = renderHeatmap?.(range);
-  if (typeof output === "string") {
-    container.innerHTML = output;
-  } else if (output instanceof Node) {
-    container.replaceChildren(output);
-  }
-  container.dataset.range = range;
 }
 
 /* ------------------------------------------------------------------ */

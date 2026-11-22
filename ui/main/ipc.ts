@@ -1,6 +1,15 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { CHANNELS } from "../shared/ipc.ts";
-import type { ModelInput, ProfileCreateInput, ProfileUpdateInput, ProviderInput, ProviderPatch, UsageFilter } from "../shared/ipc.ts";
+import type {
+  AppResult,
+  ModelInput,
+  ProfileCreateInput,
+  ProfileUpdateInput,
+  ProviderInput,
+  ProviderPatch,
+  UsageFilter,
+  UsageViewQuery,
+} from "../shared/ipc.ts";
 import { run } from "./services/errors.ts";
 import {
   createProvider,
@@ -22,10 +31,27 @@ import {
 } from "./services/profiles.ts";
 import { getOverview, getStatus } from "./services/status.ts";
 import { applySync, getSyncPlan, inspectProfiles, watchProfiles } from "./services/sync.ts";
-import { aggregateUsage, loadUsageBuckets, syncUsage } from "./services/usage.ts";
+import {
+  aggregateUsage,
+  getUsageView,
+  loadUsageBuckets,
+  refreshUsage,
+  syncUsage,
+} from "./services/usage.ts";
 import { GatewayService } from "./services/gateway.ts";
+import type { UsageIngestService } from "../../core/usage/ingest/service.ts";
 
-export function registerCoreIpc(gateway: GatewayService): void {
+function usageUnavailable(): AppResult<never> {
+  return {
+    ok: false,
+    error: { code: "UNAVAILABLE", message: "用量服务暂时不可用。" },
+  };
+}
+
+export function registerCoreIpc(
+  gateway: GatewayService,
+  usageService: UsageIngestService | null,
+): void {
   ipcMain.handle(CHANNELS.providers.list, () => run(() => listProviders()));
   ipcMain.handle(CHANNELS.providers.get, (_event, id: string) => run(() => getProvider(id)));
   ipcMain.handle(CHANNELS.providers.create, (_event, input: ProviderInput) => run(() => createProvider(input)));
@@ -70,6 +96,20 @@ export function registerCoreIpc(gateway: GatewayService): void {
   ipcMain.handle(CHANNELS.usage.buckets, (_event, range: "30min" | "1h" | "1d") =>
     run(() => loadUsageBuckets(range)),
   );
+  ipcMain.handle(CHANNELS.usage.view, (_event, query: UsageViewQuery) =>
+    usageService === null ? usageUnavailable() : run(() => getUsageView(usageService, query)),
+  );
+  ipcMain.handle(CHANNELS.usage.refresh, () =>
+    usageService === null ? usageUnavailable() : run(() => refreshUsage(usageService)),
+  );
+
+  usageService?.onChanged((revision) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send(CHANNELS.usage.changed, { revision });
+      }
+    }
+  });
 
   watchProfiles(() => {
     for (const window of BrowserWindow.getAllWindows()) {

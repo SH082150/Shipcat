@@ -5,20 +5,18 @@ import test from "node:test";
 import { createTranslator } from "../ui/renderer/components/i18n.ts";
 import type { PageContext } from "../ui/renderer/pages/types.ts";
 import {
+  DEFAULT_USAGE_STATE,
   USAGE_RANGES,
   USAGE_RANGE_META,
-  buildUsageViewData,
-  createDemoCells,
-  createDemoDaily,
   render,
   renderHeatmap,
   renderRangeCaption,
+  updateUsageDaily,
+  updateUsageHeatmap,
+  updateUsageOverall,
 } from "../ui/renderer/pages/usage.ts";
-import type {
-  HeatmapCell,
-  UsageRange,
-  UsageViewData,
-} from "../ui/renderer/pages/usage.ts";
+import type { HeatmapCell, UsageViewState } from "../ui/renderer/pages/usage.ts";
+import type { UsageBucketDetailDto, UsageViewDto } from "../ui/shared/ipc.ts";
 
 const read = (relative: string): string =>
   readFileSync(new URL(`../${relative}`, import.meta.url), "utf8");
@@ -30,6 +28,78 @@ const context = (language: "zh" | "en" = "zh"): PageContext => ({
 });
 
 const count = (html: string, needle: RegExp): number => (html.match(needle) ?? []).length;
+
+const NOW = new Date(2026, 0, 1, 12, 0, 0);
+
+function localDay(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function emptyDetail(): UsageBucketDetailDto {
+  return {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    calls: 0,
+    webSearchRequests: 0,
+  };
+}
+
+interface BucketOverride {
+  readonly value?: number;
+  readonly level?: 0 | 1 | 2 | 3 | 4;
+  readonly detail?: Partial<UsageBucketDetailDto>;
+}
+
+interface ViewOptions {
+  readonly buckets?: Readonly<Record<number, BucketOverride>>;
+  readonly daily?: UsageViewDto["daily"];
+  readonly dailyDays?: number;
+  readonly lastSyncedAt?: string | null;
+  readonly revision?: number;
+}
+
+function makeView(options: ViewOptions = {}): UsageViewDto {
+  const heatmap = Array.from({ length: 336 }, (_, index) => {
+    const start = new Date(NOW.getTime() - index * 30 * 60_000);
+    const override = options.buckets?.[index];
+    const detail = { ...emptyDetail(), ...(override?.detail ?? {}) };
+    const value =
+      override?.value ??
+      detail.inputTokens +
+        detail.outputTokens +
+        detail.cacheReadTokens +
+        detail.cacheWriteTokens;
+    return {
+      start: start.toISOString(),
+      end: new Date(start.getTime() + 30 * 60_000).toISOString(),
+      value,
+      level: override?.level ?? 0,
+      label: start.toLocaleString("zh-CN", { hour12: false }),
+      detail,
+    };
+  });
+
+  const dailyDays = options.dailyDays ?? 30;
+  const daily =
+    options.daily ??
+    Array.from({ length: dailyDays }, (_, index) => {
+      const date = new Date(NOW);
+      date.setDate(date.getDate() - (dailyDays - 1 - index));
+      return { day: localDay(date), chat: 0, cowork: 0, code: 0 };
+    });
+
+  return {
+    revision: options.revision ?? 0,
+    lastSyncedAt: options.lastSyncedAt ?? null,
+    heatmap,
+    daily,
+    warnings: [],
+  };
+}
 
 test("UsageRange：三档、336 格、24×14，文案天数严格对应", () => {
   assert.deepEqual([...USAGE_RANGES], ["30min", "1h", "1d"]);
@@ -77,7 +147,7 @@ test("renderHeatmap：任何区间都输出 336 格，空数据一律低对比�
     assert.equal(count(html, /data-level="0"/g), 336);
     assert.equal(count(html, /usage-cell--empty/g), 336);
     assert.equal(count(html, /data-level="[1-4]"/g), 0);
-      assert.doesNotMatch(html, /style="/i);
+    assert.doesNotMatch(html, /style="/i);
   }
 });
 
@@ -103,51 +173,31 @@ test("renderHeatmap：外部 cells 截断/补齐到 336，转义标签，强度�
   assert.equal(count(renderHeatmap("1d", overflow), /data-usage-cell="/g), 336);
 });
 
-test("createDemoCells：确定性演示强度，不是随机数，也不是真实统计", () => {
-  for (const range of USAGE_RANGES) {
-    const first = createDemoCells(range);
-    const second = createDemoCells(range);
-    assert.equal(first.length, 336);
-    assert.deepEqual(first, second, `${range} 的演示数据必须完全确定`);
-    assert.ok(first.every((cell) => cell.level >= 0 && cell.level <= 4));
-    assert.ok(first.some((cell) => cell.level === 0), "应有低对比空格");
-    assert.ok(first.some((cell) => cell.level > 0), "应展示强度层级");
-    assert.ok(first.every((cell) => Number.isNaN(Date.parse(cell.at)) === false));
-  }
-
-  const demo = renderHeatmap("1h", createDemoCells("1h"));
-  assert.equal(demo, renderHeatmap("1h", createDemoCells("1h")));
-  assert.ok(count(demo, /data-level="[1-4]"/g) > 0);
-});
-
-test("用量页结构：历史用量热力图 + 总使用量卡 + 按天用量，绝不伪造数值", () => {
-  const html = render(context("zh"));
+test("用量页结构：历史用量热力图 + 总使用量卡 + 按天用量，默认 30min/30d", () => {
+  const html = render(context("zh"), makeView());
 
   assert.match(html, /data-role="page-usage"/);
   assert.match(html, /<h1[^>]*>用量<\/h1>/);
   assert.doesNotMatch(html, /data-role="usage-quota"/, "额度区已移除");
 
-  // 历史用量：说明数据来自本机记录，不限于网关。
   assert.match(html, /data-role="usage-history"/);
   assert.match(html, /usage-sync/);
   assert.match(html, /包含所有使用场景，不限于网关/);
   assert.doesNotMatch(html, /只统计经由本地网关/);
   assert.doesNotMatch(html, /gateway traffic/i);
 
-  // 分段切换：三个按钮，默认 1h，只带 data-usage-range。
   assert.equal(count(html, /data-usage-range="/g), 4, "3 个按钮 + 热力图自身");
   for (const range of USAGE_RANGES) {
     assert.match(html, new RegExp(`<button[^>]*data-usage-range="${range}"`));
   }
-  assert.equal(count(html, /data-usage-range="1h"[^>]*aria-pressed="true"/g), 1);
+  assert.equal(count(html, /data-usage-range="30min"[^>]*aria-pressed="true"/g), 1);
   assert.equal(count(html, /data-chart-range="30"[^>]*aria-pressed="true"/g), 1);
   assert.equal(count(html, /data-chart-mode="chart"[^>]*aria-pressed="true"/g), 1);
 
-  // 热力图与文案。
   assert.equal(count(html, /data-usage-cell="/g), 336);
   assert.match(html, /data-role="usage-heatmap-host"/);
-  assert.match(html, /data-role="usage-range-caption"[^>]*>[^<]*最近 14 天/);
-  assert.match(html, /示例强度，非真实统计/);
+  assert.match(html, /data-role="usage-range-caption"[^>]*>[^<]*最近 7 天/);
+  assert.doesNotMatch(html, /示例强度/);
   assert.match(html, />少</);
   assert.match(html, />多</);
   assert.match(html, /data-role="usage-overall"/);
@@ -167,35 +217,25 @@ test("用量页结构：历史用量热力图 + 总使用量卡 + 按天用量�
   );
 });
 
-test("用量页英文：14 days、数据来源说明与按钮文案", () => {
-  const html = render(context("en"));
+test("用量页英文：默认 7 天、数据来源说明与按钮文案", () => {
+  const html = render(context("en"), makeView());
   assert.match(html, /<h1[^>]*>Usage<\/h1>/);
-  assert.match(html, /Last 14 days/);
-  assert.match(html, /24 × 14 hours|24 \* 14 hours|14 days/);
+  assert.match(html, /Last 7 days/);
   assert.match(html, /usage-sync/);
   assert.match(html, /not only the gateway/i);
-  assert.match(html, /Sample intensity — not real usage/);
+  assert.doesNotMatch(html, /Sample intensity/);
   assert.match(html, /data-usage-range="30min"/);
 });
 
-test("UsageViewData：默认无同步记录，按天示例数据可用", () => {
-  const data = buildUsageViewData("zh");
+test("render：lastSyncedAt 显示同步日期，缺失时显示暂无用量数据", () => {
+  const withDate = render(
+    context("zh"),
+    makeView({ lastSyncedAt: "2026-01-01T00:00:00.000Z" }),
+  );
+  assert.match(withDate, /data-role="usage-sync-status">2026-01-01</);
 
-  assert.equal(data.ledger.lastSyncedAt, null);
-  assert.equal(data.demo, true);
-  assert.equal(data.daily?.length, 90);
-
-  const custom: UsageViewData = {
-    ledger: { lastSyncedAt: "2026-01-01T00:00:00.000Z", recordCount: 10 },
-    daily: createDemoDaily(30),
-    demo: false,
-  };
-  const html = render(context("zh"), custom);
-  assert.match(html, /data-role="usage-overall"/);
-  assert.match(html, /data-role="usage-daily-card"/);
-  assert.doesNotMatch(html, /示例强度/);
-  assert.equal(count(html, /data-usage-cell="/g), 336);
-  assert.equal(count(html, /data-level="[1-4]"/g), 0, "无热力图数据时不得伪造强度");
+  const empty = render(context("zh"), makeView());
+  assert.match(empty, /data-role="usage-sync-status">暂无用量数据</);
 });
 
 test("usage.css：24×14 网格、空灰、蓝色开关、黑白主按钮、细分割线", () => {
@@ -221,67 +261,58 @@ test("usage.css：24×14 网格、空灰、蓝色开关、黑白主按钮、细�
   assert.match(css, /\.usage-table-wrap\s*\{[\s\S]*?overflow-y:\s*auto/);
 });
 
-test("usage.ts：注入页面样式并原地切换热力图，不重绘页头", () => {
+test("usage.ts：区间点击交给 app.ts，页面提供三块局部更新函数", () => {
   const source = read("ui/renderer/pages/usage.ts");
 
   assert.match(source, /pages\/usage\.css/);
-  assert.match(source, /addEventListener\("click"/);
+  assert.match(source, /export function updateUsageHeatmap/);
+  assert.match(source, /export function updateUsageOverall/);
+  assert.match(source, /export function updateUsageDaily/);
+  assert.match(source, /function showCellOverall/);
+  assert.match(source, /function formatCellScope/);
   assert.match(source, /data-usage-range/);
   assert.match(source, /data-role="usage-heatmap-host"/);
   assert.match(source, /aria-pressed/);
   assert.match(source, /renderRangeCaption/);
   assert.doesNotMatch(source, /window\.location|navigate\(/);
+  assert.doesNotMatch(source, /addEventListener\("click"/, "点击由 app.ts 统一处理");
 });
 
 test("用量页总使用量卡：真实消耗合计、五行明细（含缓存命中率）与无缓存写行", () => {
-  const cells: HeatmapCell[] = [
-    {
-      at: "2026-11-18T04:00:00.000Z",
-      value: 1000,
-      level: 2,
-      detail: {
-        inputTokens: 600,
-        outputTokens: 200,
-        cacheReadTokens: 150,
-        cacheWriteTokens: 50,
-        webSearchRequests: 0,
-        calls: 3,
-        errors: 1,
-        costUsd: 1.25,
-        models: { "model-a": 1000 },
-        surfaces: { chat: 3 },
+  const view = makeView({
+    buckets: {
+      0: {
+        value: 1000,
+        level: 2,
+        detail: {
+          inputTokens: 600,
+          outputTokens: 200,
+          cacheReadTokens: 150,
+          cacheWriteTokens: 50,
+          webSearchRequests: 0,
+          calls: 3,
+        },
+      },
+      1: {
+        value: 500,
+        level: 1,
+        detail: {
+          inputTokens: 300,
+          outputTokens: 100,
+          cacheReadTokens: 80,
+          cacheWriteTokens: 20,
+          webSearchRequests: 1,
+          calls: 2,
+        },
       },
     },
-    {
-      at: "2026-11-18T05:00:00.000Z",
-      value: 500,
-      level: 1,
-      detail: {
-        inputTokens: 300,
-        outputTokens: 100,
-        cacheReadTokens: 80,
-        cacheWriteTokens: 20,
-        webSearchRequests: 1,
-        calls: 2,
-        errors: 0,
-        costUsd: 0,
-        models: { "model-b": 500 },
-        surfaces: { code: 2 },
-      },
-    },
-  ];
-  const data: UsageViewData = {
-    ledger: { lastSyncedAt: null, recordCount: null },
-    heatmap: { "1h": cells },
-    daily: createDemoDaily(30),
-    demo: false,
-  };
+  });
 
-  const html = render(context("zh"), data);
+  const html = render(context("zh"), view);
   assert.match(html, /data-role="usage-overall"/);
   assert.match(html, /总使用量/);
   assert.match(html, /实际消耗 Token/);
-  assert.match(html, /最近 14 天/);
+  assert.match(html, /最近 7 天/);
   assert.match(html, /usage-overall-total">1\.5K</, "真实消耗 = 输入 + 输出 + 缓存读 + 缓存写");
   assert.match(html, /输入（未缓存）/);
   assert.match(html, /缓存命中率/);
@@ -304,24 +335,18 @@ test("用量页总使用量卡：真实消耗合计、五行明细（含缓存�
   assert.match(html, /data-chart-mode="chart"[^>]*aria-pressed="true"/);
   assert.match(html, /data-chart-mode="table"/);
   assert.match(html, /usage-chart-svg/);
-  assert.match(html, /usage-bar--chat/);
-  assert.match(html, /usage-bar--cowork/);
-  assert.match(html, /usage-bar--code/);
   assert.match(html, /usage-chart-tip/);
 
-  const english = render(context("en"), data);
+  const english = render(context("en"), view);
   assert.match(english, /Total usage/);
   assert.match(english, /Cache hit rate[\s\S]*?<dd>20\.35%<\/dd>/);
   assert.match(english, /real consumption tokens/);
-  assert.match(english, /Last 14 days/);
+  assert.match(english, /Last 7 days/);
   assert.match(english, /1 web search/);
 });
 
 test("用量页总使用量卡：无数据时按同一格式显示 0；按天卡片支持图表/表格与滚动", () => {
-  const empty: UsageViewData = {
-    ledger: { lastSyncedAt: null, recordCount: null },
-    demo: false,
-  };
+  const empty = makeView();
   const html = render(context("zh"), empty);
   assert.doesNotMatch(html, /无记录/, "没有数据也保持同一套卡片格式");
   assert.match(html, /usage-overall-total">0</);
@@ -336,7 +361,7 @@ test("用量页总使用量卡：无数据时按同一格式显示 0；按天卡
   assert.match(source, /function formatCellScope/);
   assert.match(source, /data-chart-range/);
   assert.match(source, /data-chart-mode/);
-  assert.match(source, /function updateDailyCard/);
+  assert.match(source, /export function updateUsageDaily/);
   assert.match(source, /usage-chart-tip/);
   assert.match(source, /usage-table-wrap/);
 
@@ -345,4 +370,84 @@ test("用量页总使用量卡：无数据时按同一格式显示 0；按天卡
   assert.match(css, /\.usage-overall\s*\{[\s\S]*?position:\s*absolute/);
   assert.match(css, /\.usage-chart-svg/);
   assert.match(css, /\.usage-table-wrap\s*\{[\s\S]*?overflow-y:\s*auto/);
+});
+
+interface FakeNode {
+  innerHTML: string;
+  textContent: string;
+}
+
+function fakePage(): {
+  root: HTMLElement;
+  heat: FakeNode;
+  overall: FakeNode;
+  daily: FakeNode;
+  caption: FakeNode;
+  sync: FakeNode;
+} {
+  const heat: FakeNode = { innerHTML: "heat-old", textContent: "" };
+  const overall: FakeNode = { innerHTML: "overall-old", textContent: "" };
+  const daily: FakeNode = { innerHTML: "daily-old", textContent: "" };
+  const caption: FakeNode = { innerHTML: "", textContent: "caption-old" };
+  const sync: FakeNode = { innerHTML: "", textContent: "sync-old" };
+  const nodes = new Map<string, FakeNode>([
+    ['[data-role="usage-heatmap-host"]', heat],
+    ['[data-role="usage-overall"]', overall],
+    ['[data-role="usage-daily-card"]', daily],
+    ['[data-role="usage-range-caption"]', caption],
+    ['[data-role="usage-sync-status"]', sync],
+  ]);
+  const root = {
+    dataset: { usageLanguage: "zh" },
+    querySelector(selector: string): FakeNode | null {
+      return nodes.get(selector) ?? null;
+    },
+    querySelectorAll(): FakeNode[] {
+      return [];
+    },
+  } as unknown as HTMLElement;
+  return { root, heat, overall, daily, caption, sync };
+}
+
+test("局部更新：只替换目标容器并保留其他块", () => {
+  const page = fakePage();
+  const view = makeView({
+    buckets: { 0: { value: 10, level: 1, detail: { calls: 1 } } },
+  });
+  const state: UsageViewState = { ...DEFAULT_USAGE_STATE };
+
+  updateUsageHeatmap(page.root, view, state);
+  assert.notEqual(page.heat.innerHTML, "heat-old");
+  assert.equal(page.overall.innerHTML, "overall-old");
+  assert.equal(page.daily.innerHTML, "daily-old");
+  assert.notEqual(page.caption.textContent, "caption-old");
+  assert.notEqual(page.sync.textContent, "sync-old");
+
+  page.overall.innerHTML = "overall-old-2";
+  page.heat.innerHTML = "heat-old-2";
+  updateUsageDaily(page.root, view, { ...state, dailyMode: "table" });
+  assert.notEqual(page.daily.innerHTML, "daily-old");
+  assert.match(page.daily.innerHTML, /usage-data-table/);
+  assert.equal(page.heat.innerHTML, "heat-old-2");
+  assert.equal(page.overall.innerHTML, "overall-old-2");
+
+  page.heat.innerHTML = "heat-old-3";
+  page.daily.innerHTML = "daily-old-2";
+  updateUsageOverall(page.root, view, state);
+  assert.notEqual(page.overall.innerHTML, "overall-old-2");
+  assert.equal(page.heat.innerHTML, "heat-old-3");
+  assert.equal(page.daily.innerHTML, "daily-old-2");
+});
+
+test("app.ts：删除轮询，进入用量页订阅 revision、离开取消", () => {
+  const source = read("ui/renderer/app.ts");
+  assert.doesNotMatch(source, /usageTimer|usageRefreshing|usageDigest|usagePendingRefresh/);
+  assert.doesNotMatch(source, /refreshUsagePage|syncUsageRefreshTimer/);
+  assert.match(source, /usageApi\.onChanged/);
+  assert.match(source, /subscribeUsageChanges\(\)/);
+  assert.match(source, /unsubscribeUsageChanges\(\)/);
+  assert.match(source, /usagePendingUpdate/);
+  assert.match(source, /if \(page === "usage"\) \{/);
+  assert.match(source, /else \{\s*unsubscribeUsageChanges\(\);/);
+  assert.match(source, /reloadUsageView\(\)/);
 });

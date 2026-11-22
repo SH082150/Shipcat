@@ -7,6 +7,13 @@ import { render as renderUsage } from "../ui/renderer/pages/usage.ts";
 import { createTranslator } from "../ui/renderer/components/i18n.ts";
 
 const context = { language: "zh" as const, t: createTranslator("zh"), clientInfo: {} };
+const EMPTY_USAGE_VIEW = {
+  revision: 0,
+  lastSyncedAt: null,
+  heatmap: [],
+  daily: [],
+  warnings: [],
+};
 const read = (path: string) => readFileSync(new URL(`../ui/renderer/${path}`, import.meta.url), "utf8");
 
 test("profile rows use quiet type text and an explicit applied check", () => {
@@ -59,7 +66,7 @@ test("overview shows at most two suggestions and keeps them under the profile ca
 });
 
 test("usage leads with history and uses the brand accent blue", () => {
-  const html = renderUsage(context);
+  const html = renderUsage(context, EMPTY_USAGE_VIEW);
   assert.ok(html.indexOf('data-role="usage-history"') < html.indexOf('data-role="usage-daily"'));
   assert.doesNotMatch(html, /data-role="usage-quota"/);
   const css = read("pages/usage.css");
@@ -68,10 +75,10 @@ test("usage leads with history and uses the brand accent blue", () => {
 });
 
 test("usage removes repeated prototype explanations while retaining data provenance", () => {
-  const html = renderUsage(context);
+  const html = renderUsage(context, EMPTY_USAGE_VIEW);
   assert.equal(html.includes('class="page-note"'), false);
   assert.equal(html.includes('class="usage-cells-note"'), false);
   assert.match(html, /usage-sync/);
-  assert.match(html, /usage-demo-note/);
+  assert.doesNotMatch(html, /usage-demo-note/);
   assert.match(html, /Claude/);
 });

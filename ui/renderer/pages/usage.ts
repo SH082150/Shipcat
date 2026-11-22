@@ -12,6 +12,7 @@
 import { escapeHtml } from "../components/html.ts";
 import { iconSvg } from "../components/icons.ts";
 import { renderPageHeader } from "../components/page-chrome.ts";
+import type { UsageViewDto } from "../../shared/ipc.ts";
 import type { PageContext } from "./types.ts";
 
 /* ------------------------------------------------------------------ */
@@ -94,10 +95,11 @@ export interface UsageDetail {
   readonly cacheWriteTokens: number;
   readonly webSearchRequests: number;
   readonly calls: number;
-  readonly errors: number;
-  readonly costUsd: number;
-  readonly models: Readonly<Record<string, number>>;
-  readonly surfaces: Readonly<Record<string, number>>;
+  /** 旧分桶遗留字段；新查询层不返回，保留为可选以兼容旧测试数据。 */
+  readonly errors?: number;
+  readonly costUsd?: number;
+  readonly models?: Readonly<Record<string, number>>;
+  readonly surfaces?: Readonly<Record<string, number>>;
 }
 
 /** 按天聚合的一天；只含界面维度，token = 输入 + 输出。 */
@@ -109,31 +111,18 @@ export interface UsageDailyPoint {
   readonly code: number;
 }
 
-export interface UsageLedgerState {
-  /** 最近一次用量同步时间 ISO 8601；null = 尚未同步。 */
-  readonly lastSyncedAt: string | null;
-  /** 镜像记录行数；null = 未知。 */
-  readonly recordCount: number | null;
+/** 页面的本地视图状态：跨更新保留，重进页面时由调用方重置。 */
+export interface UsageViewState {
+  readonly heatmapRange: UsageRange;
+  readonly dailyDays: DailyRange;
+  readonly dailyMode: DailyMode;
 }
 
-export interface UsageViewData {
-  readonly ledger: UsageLedgerState;
-  /** 真实聚合数据，每个区间按需最多 336 格；缺省即空热力图。 */
-  readonly heatmap?: Partial<Record<UsageRange, readonly HeatmapCell[]>>;
-  /** 按天数据，day 为本地 YYYY-MM-DD；缺省即空图表。 */
-  readonly daily?: readonly UsageDailyPoint[];
-  /** true 时使用确定性演示数据，并在界面明确标注"示例"。 */
-  readonly demo?: boolean;
-}
-
-/** 默认视图数据：历史与按天用量使用确定性示例。 */
-export function buildUsageViewData(_language: "zh" | "en"): UsageViewData {
-  return {
-    ledger: { lastSyncedAt: null, recordCount: null },
-    daily: createDemoDaily(90),
-    demo: true,
-  };
-}
+export const DEFAULT_USAGE_STATE: UsageViewState = {
+  heatmapRange: "30min",
+  dailyDays: 30,
+  dailyMode: "chart",
+};
 
 /** 区间说明：30min = 最近 7 天，1h = 最近 14 天（24 × 14 小时），1d = 最近 336 天。 */
 export function renderRangeCaption(range: UsageRange, language: "zh" | "en"): string {
@@ -163,64 +152,6 @@ export function renderHeatmap(
 
   const aria = `用量热力图：${meta.cells} 格，${meta.columns} 列 × ${meta.rows} 行，${meta.label.zh}区间`;
   return `<div class="usage-heatmap" role="img" data-role="usage-heatmap" data-usage-range="${range}" data-columns="${meta.columns}" data-rows="${meta.rows}" aria-label="${escapeHtml(aria)}">${normalized}</div>`;
-}
-
-/** 确定性演示强度：界面必须同时标注"示例"。 */
-export function createDemoCells(range: UsageRange): HeatmapCell[] {
-  const meta = USAGE_RANGE_META[range];
-  const anchor = Date.UTC(2026, 0, 1);
-  const bucketMs = meta.bucketMinutes * 60_000;
-
-  return Array.from({ length: meta.cells }, (_, index) => {
-    const at = new Date(anchor - (meta.cells - 1 - index) * bucketMs).toISOString();
-    const level = demoLevel(range, index);
-    const value = level === 0 ? null : level * 7;
-    return {
-      at,
-      value,
-      level,
-      label: `${meta.label.en} · cell ${index + 1}`,
-      detail: value === null ? null : demoDetail(value, level),
-    };
-  });
-}
-
-/** 确定性演示按天数据：最近 days 天，day 为本地日期。 */
-export function createDemoDaily(days: number): UsageDailyPoint[] {
-  const end = new Date();
-  end.setHours(0, 0, 0, 0);
-  return Array.from({ length: days }, (_, index) => {
-    const date = new Date(end.getTime() - (days - 1 - index) * 86_400_000);
-    const noise = (hash(index + 17) % 100) / 100;
-    const weekend = date.getDay() === 0 || date.getDay() === 6;
-    const base = (weekend ? 0.55 : 1) * (0.8 + noise * 0.5);
-    return {
-      day: localDay(date),
-      chat: Math.round(32_000 * base),
-      cowork: Math.round(250_000 * base),
-      code: Math.round(1_800_000 * base),
-    };
-  });
-}
-
-/** 演示明细：按总量固定比例拆分，确定性、无费用，仅用于界面示例。 */
-function demoDetail(total: number, level: number): UsageDetail {
-  const inputTokens = Math.round(total * 0.58);
-  const outputTokens = Math.round(total * 0.2);
-  const cacheReadTokens = Math.round(total * 0.14);
-  const cacheWriteTokens = Math.max(0, total - inputTokens - outputTokens - cacheReadTokens);
-  return {
-    inputTokens,
-    outputTokens,
-    cacheReadTokens,
-    cacheWriteTokens,
-    webSearchRequests: 0,
-    calls: level,
-    errors: 0,
-    costUsd: 0,
-    models: { "demo-model": total },
-    surfaces: { chat: level },
-  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -345,26 +276,21 @@ const COPY: Readonly<Record<"zh" | "en", UsageCopy>> = {
   },
 };
 
-const DEFAULT_RANGE: UsageRange = "1h";
-const DEFAULT_DAILY_RANGE: DailyRange = 30;
-const DEFAULT_DAILY_MODE: DailyMode = "chart";
-
 export function render(
   context: PageContext,
-  data: UsageViewData = buildUsageViewData(context.language),
+  view: UsageViewDto,
+  state: UsageViewState = DEFAULT_USAGE_STATE,
 ): string {
-  activeUsageData = data;
-  const language = context.language === "en" ? "en" : "zh";
-  const copy = COPY[language];
-  const range: UsageRange = DEFAULT_RANGE;
-  activeRange = range;
+  activeView = view;
+  activeState = { ...state };
   hoveredCellIndex = null;
   hoveredCellRange = null;
-  activeDailyRange = DEFAULT_DAILY_RANGE;
-  activeDailyMode = DEFAULT_DAILY_MODE;
-  activeDailySeries = buildDailySeries(data, activeDailyRange);
-  const cells = cellsFor(data, range);
-  const ledger = renderLedgerStatus(data.ledger, copy);
+  const language = context.language === "en" ? "en" : "zh";
+  const copy = COPY[language];
+  activeDailySeries = buildDailySeries(view);
+  const cells = viewCells(view);
+  const ledger = renderLedgerStatus(view.lastSyncedAt, copy);
+  const range = activeState.heatmapRange;
 
   const historySection = `<section class="usage-block usage-history" data-role="usage-history" aria-labelledby="usage-history-title">
       <header class="usage-block-head">
@@ -383,7 +309,7 @@ export function render(
       </div>
       <div class="usage-heat-row">
         <div class="usage-heatmap-host" data-role="usage-heatmap-host">${renderHeatmap(range, cells)}</div>
-        <aside class="usage-overall" data-role="usage-overall" aria-label="${escapeHtml(copy.overallTitle)}">${renderOverallCard(cells, range, copy, data.demo === true)}</aside>
+        <aside class="usage-overall" data-role="usage-overall" aria-label="${escapeHtml(copy.overallTitle)}">${renderOverallCard(cells, range, copy)}</aside>
       </div>
       <div class="usage-heatmap-foot">
         <div class="usage-legend">
@@ -393,7 +319,6 @@ export function render(
           </span>
           <span class="usage-legend-label">${escapeHtml(copy.legendMore)}</span>
         </div>
-        ${data.demo ? `<span class="usage-demo-note">${escapeHtml(copy.demoNote)}</span>` : ""}
       </div>
     </section>`;
 
@@ -404,7 +329,7 @@ export function render(
           <p>${escapeHtml(copy.dailyDescription)}</p>
         </div>
       </header>
-      <div class="usage-daily-card" data-role="usage-daily-card">${renderDailyCard(activeDailySeries, activeDailyRange, activeDailyMode, language, copy)}</div>
+      <div class="usage-daily-card" data-role="usage-daily-card">${renderDailyCard(activeDailySeries, activeState.dailyDays, activeState.dailyMode, language, copy)}</div>
     </section>`;
 
   return `<article class="page page--usage" data-role="page-usage" data-usage-language="${language}">
@@ -465,26 +390,24 @@ function renderOverallCard(
   cells: readonly HeatmapCell[] | undefined,
   range: UsageRange,
   copy: UsageCopy,
-  demo: boolean,
 ): string {
   const totals = sumCells(cells);
   const scope = copy.overallScope(USAGE_RANGE_META[range].days);
-  return renderOverallContent(totals, scope, copy, demo);
+  return renderOverallContent(totals, scope, copy);
 }
 
 function renderOverallContent(
   totals: OverallTotals,
   scope: string,
   copy: UsageCopy,
-  demo: boolean,
 ): string {
   const head = `<header class="usage-overall-head">
       <span class="usage-overall-label">${escapeHtml(copy.overallTitle)} ${renderInfo(copy.infoRealTotal)}</span>
       <span class="usage-overall-scope">${escapeHtml(scope)}</span>
     </header>`;
 
-  const tokenText = (value: number): string => (demo ? formatTokens(value) : formatFull(value));
-  const countText = (value: number): string => (demo ? String(Math.round(value)) : formatFull(value));
+  const tokenText = (value: number): string => formatFull(value);
+  const countText = (value: number): string => formatFull(value);
   const hitRateText = (value: OverallTotals): string => {
     const denominator = value.cacheReadTokens + value.inputTokens;
     return denominator === 0
@@ -542,28 +465,35 @@ interface DailyPoint extends UsageDailyPoint {
   top?: number;
 }
 
-let activeUsageData: UsageViewData | null = null;
-let activeRange: UsageRange = DEFAULT_RANGE;
+let activeView: UsageViewDto | null = null;
+let activeState: UsageViewState = { ...DEFAULT_USAGE_STATE };
 let hoveredCellIndex: number | null = null;
 let hoveredCellRange: UsageRange | null = null;
-let activeDailyRange: DailyRange = DEFAULT_DAILY_RANGE;
-let activeDailyMode: DailyMode = DEFAULT_DAILY_MODE;
 let activeDailySeries: DailyPoint[] = [];
 let interactionsInstalled = false;
 
-function buildDailySeries(data: UsageViewData, range: DailyRange): DailyPoint[] {
-  const byDay = new Map((data.daily ?? []).map((point) => [point.day, point]));
-  const end = new Date();
-  end.setHours(0, 0, 0, 0);
+function viewCells(view: UsageViewDto): HeatmapCell[] {
+  return view.heatmap.map((bucket) => ({
+    at: bucket.start,
+    value: bucket.value,
+    level: bucket.level,
+    label: bucket.label,
+    detail: bucket.detail,
+  }));
+}
 
-  return Array.from({ length: range }, (_, index) => {
-    const date = new Date(end.getTime() - (range - 1 - index) * 86_400_000);
-    const day = localDay(date);
-    const point = byDay.get(day);
-    const chat = point?.chat ?? 0;
-    const cowork = point?.cowork ?? 0;
-    const code = point?.code ?? 0;
-    return { date, day, chat, cowork, code, total: chat + cowork + code };
+/** DTO 的 daily 已经是“最近 N 天、由远到近”的完整序列。 */
+function buildDailySeries(view: UsageViewDto): DailyPoint[] {
+  return view.daily.map((point) => {
+    const date = new Date(`${point.day}T00:00:00`);
+    return {
+      date,
+      day: point.day,
+      chat: point.chat,
+      cowork: point.cowork,
+      code: point.code,
+      total: point.chat + point.cowork + point.code,
+    };
   });
 }
 
@@ -716,72 +646,104 @@ function renderDailyTable(series: readonly DailyPoint[], language: "zh" | "en", 
 /* 原地切换                                                            */
 /* ------------------------------------------------------------------ */
 
-function cellsFor(data: UsageViewData, range: UsageRange): readonly HeatmapCell[] | undefined {
-  return data.heatmap?.[range] ?? (data.demo ? createDemoCells(range) : undefined);
+function applyView(view: UsageViewDto, state: UsageViewState): void {
+  activeView = view;
+  activeState = { ...state };
+  activeDailySeries = buildDailySeries(view);
 }
 
-function updateHeatmap(page: HTMLElement, range: UsageRange): void {
-  const host = page.querySelector<HTMLElement>('[data-role="usage-heatmap-host"]');
-  if (!host) return;
+function languageOf(root: HTMLElement): "zh" | "en" {
+  return root.dataset.usageLanguage === "en" ? "en" : "zh";
+}
 
-  const language = page.dataset.usageLanguage === "en" ? "en" : "zh";
-  const data = activeUsageData;
-  const cells = data ? cellsFor(data, range) : undefined;
+function renderOverallInto(root: HTMLElement, copy: UsageCopy): void {
+  const host = root.querySelector<HTMLElement>('[data-role="usage-overall"]');
+  if (!host || activeView === null) return;
+  host.innerHTML = renderOverallCard(viewCells(activeView), activeState.heatmapRange, copy);
+}
 
-  host.innerHTML = renderHeatmap(range, cells);
+/** 只替换热力图区：格子、区间说明、同步状态与区间按钮。 */
+export function updateUsageHeatmap(
+  root: HTMLElement,
+  view: UsageViewDto,
+  state: UsageViewState,
+): void {
+  applyView(view, state);
+  const language = languageOf(root);
+  const range = state.heatmapRange;
+  const host = root.querySelector<HTMLElement>('[data-role="usage-heatmap-host"]');
+  if (host) host.innerHTML = renderHeatmap(range, viewCells(view));
 
-  const caption = page.querySelector<HTMLElement>('[data-role="usage-range-caption"]');
+  const caption = root.querySelector<HTMLElement>('[data-role="usage-range-caption"]');
   if (caption) caption.textContent = renderRangeCaption(range, language);
 
-  for (const button of page.querySelectorAll<HTMLButtonElement>("button[data-usage-range]")) {
+  const sync = root.querySelector<HTMLElement>('[data-role="usage-sync-status"]');
+  if (sync) sync.textContent = renderLedgerStatus(view.lastSyncedAt, copyFor(language));
+
+  for (const button of root.querySelectorAll<HTMLButtonElement>("button[data-usage-range]")) {
     const active = button.dataset.usageRange === range;
     button.setAttribute("aria-pressed", String(active));
     button.classList.toggle("is-active", active);
   }
 
-  activeRange = range;
   hoveredCellIndex = null;
   hoveredCellRange = null;
-  if (data) updateOverallCard(page, range, copyFor(language));
 }
 
-function updateOverallCard(page: HTMLElement, range: UsageRange, copy: UsageCopy): void {
-  const host = page.querySelector<HTMLElement>('[data-role="usage-overall"]');
-  const data = activeUsageData;
-  if (!host || !data) return;
-  host.innerHTML = renderOverallCard(cellsFor(data, range), range, copy, data.demo === true);
+/** 只替换总使用量卡。 */
+export function updateUsageOverall(
+  root: HTMLElement,
+  view: UsageViewDto,
+  state: UsageViewState,
+): void {
+  applyView(view, state);
+  renderOverallInto(root, copyFor(languageOf(root)));
+}
+
+/** 只替换按天卡片（含 7/30/90 与图表/表格按钮）。 */
+export function updateUsageDaily(
+  root: HTMLElement,
+  view: UsageViewDto,
+  state: UsageViewState,
+): void {
+  applyView(view, state);
+  const card = root.querySelector<HTMLElement>('[data-role="usage-daily-card"]');
+  if (!card) return;
+  const language = languageOf(root);
+  card.innerHTML = renderDailyCard(
+    activeDailySeries,
+    state.dailyDays,
+    state.dailyMode,
+    language,
+    copyFor(language),
+  );
+}
+
+/** 三块一起更新；用于数据 revision 变化后的整体刷新。 */
+export function updateUsageView(
+  root: HTMLElement,
+  view: UsageViewDto,
+  state: UsageViewState,
+): void {
+  updateUsageHeatmap(root, view, state);
+  updateUsageOverall(root, view, state);
+  updateUsageDaily(root, view, state);
 }
 
 function showCellOverall(
   page: HTMLElement,
-  range: UsageRange,
   index: number,
   language: "zh" | "en",
-  copy: UsageCopy,
 ): void {
   const host = page.querySelector<HTMLElement>('[data-role="usage-overall"]');
-  const data = activeUsageData;
-  if (!host || !data) return;
-  const cell = cellsFor(data, range)?.[index];
+  if (!host || activeView === null) return;
+  const cell = viewCells(activeView)[index];
   if (!cell) return;
   host.innerHTML = renderOverallContent(
     sumCells([cell]),
-    formatCellScope(cell.at, range, language),
-    copy,
-    data.demo === true,
+    formatCellScope(cell.at, activeState.heatmapRange, language),
+    copyFor(language),
   );
-}
-
-function updateDailyCard(page: HTMLElement, range: DailyRange, mode: DailyMode): void {
-  const card = page.querySelector<HTMLElement>('[data-role="usage-daily-card"]');
-  const data = activeUsageData;
-  if (!card || !data) return;
-
-  activeDailyRange = range;
-  activeDailyMode = mode;
-  activeDailySeries = buildDailySeries(data, range);
-  const language = page.dataset.usageLanguage === "en" ? "en" : "zh";
-  card.innerHTML = renderDailyCard(activeDailySeries, range, mode, language, copyFor(language));
 }
 
 function copyFor(language: "zh" | "en"): UsageCopy {
@@ -810,40 +772,6 @@ function installUsageInteractions(): void {
   if (interactionsInstalled || typeof document === "undefined") return;
   interactionsInstalled = true;
 
-  document.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-
-    const page = target.closest<HTMLElement>('[data-role="page-usage"]');
-    if (!page) return;
-
-    const rangeButton = target.closest<HTMLElement>("button[data-usage-range]");
-    if (rangeButton) {
-      const range = rangeButton.dataset.usageRange;
-      if (range !== "30min" && range !== "1h" && range !== "1d") return;
-      event.preventDefault();
-      updateHeatmap(page, range);
-      return;
-    }
-
-    const dailyRange = target.closest<HTMLElement>("button[data-chart-range]");
-    if (dailyRange) {
-      const value = Number(dailyRange.dataset.chartRange);
-      if (!DAILY_RANGES.includes(value as DailyRange)) return;
-      event.preventDefault();
-      updateDailyCard(page, value as DailyRange, activeDailyMode);
-      return;
-    }
-
-    const dailyMode = target.closest<HTMLElement>("button[data-chart-mode]");
-    if (dailyMode) {
-      const value = dailyMode.dataset.chartMode;
-      if (value !== "chart" && value !== "table") return;
-      event.preventDefault();
-      updateDailyCard(page, activeDailyRange, value);
-    }
-  });
-
   document.addEventListener("mousemove", (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -852,24 +780,23 @@ function installUsageInteractions(): void {
     if (!page) return;
 
     const language = page.dataset.usageLanguage === "en" ? "en" : "zh";
-    const copy = copyFor(language);
     const cell = target.closest<HTMLElement>("[data-usage-cell]");
     const heatHost = cell?.closest('[data-role="usage-heatmap-host"]');
 
     if (cell && heatHost) {
       const index = Number(cell.dataset.usageCell);
       if (!Number.isInteger(index)) return;
-      if (hoveredCellIndex === index && hoveredCellRange === activeRange) return;
+      if (hoveredCellIndex === index && hoveredCellRange === activeState.heatmapRange) return;
       hoveredCellIndex = index;
-      hoveredCellRange = activeRange;
-      showCellOverall(page, activeRange, index, language, copy);
+      hoveredCellRange = activeState.heatmapRange;
+      showCellOverall(page, index, language);
       return;
     }
 
     if (hoveredCellIndex !== null) {
       hoveredCellIndex = null;
       hoveredCellRange = null;
-      updateOverallCard(page, activeRange, copy);
+      renderOverallInto(page, copyFor(language));
     }
   });
 
@@ -879,7 +806,7 @@ function installUsageInteractions(): void {
     const page = document.querySelector<HTMLElement>('[data-role="page-usage"]');
     if (!page) return;
     const language = page.dataset.usageLanguage === "en" ? "en" : "zh";
-    updateOverallCard(page, activeRange, copyFor(language));
+    renderOverallInto(page, copyFor(language));
   });
 
   document.addEventListener("pointermove", (event) => {
@@ -962,13 +889,10 @@ function renderRangeButton(range: UsageRange, active: boolean, language: "zh" | 
   return `<button type="button" class="usage-range-button${active ? " is-active" : ""}" data-usage-range="${range}" aria-pressed="${active}">${escapeHtml(USAGE_RANGE_META[range].label[language])}</button>`;
 }
 
-function renderLedgerStatus(ledger: UsageLedgerState, copy: UsageCopy): string {
-  // 右侧展示当前日期（本地时区），作为数据面板的日期标记。
-  const now = new Date();
-  const pad = (value: number): string => String(value).padStart(2, "0");
-  const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const records = ledger.recordCount === null ? "" : ` · ${copy.ledgerRecords(ledger.recordCount)}`;
-  return `${day}${records}`;
+function renderLedgerStatus(lastSyncedAt: string | null, copy: UsageCopy): string {
+  return lastSyncedAt === null || lastSyncedAt.length === 0
+    ? copy.ledgerPending
+    : lastSyncedAt.slice(0, 10);
 }
 
 function emptyCell(range: UsageRange, index: number): string {
@@ -1019,12 +943,6 @@ function formatDate(date: Date, language: "zh" | "en", withYear: boolean): strin
   });
 }
 
-function localDay(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
 /** 把轴上限抬到 1/2/2.5/5/10 的整倍数，保证四条刻度线可读。 */
 function niceStep(raw: number): number {
   if (!Number.isFinite(raw) || raw <= 0) return 1;
@@ -1034,47 +952,3 @@ function niceStep(raw: number): number {
   const step = value <= 1 ? 1 : value <= 2 ? 2 : value <= 2.5 ? 2.5 : value <= 5 ? 5 : 10;
   return step * base;
 }
-
-/** 演示强度：按区间、按位置确定性生成，不调用随机数。 */
-function demoLevel(range: UsageRange, index: number): 0 | 1 | 2 | 3 | 4 {
-  const noise = hash(index + (range === "30min" ? 11 : range === "1h" ? 29 : 47)) % 100;
-
-  if (range === "1h") {
-    const hour = index % 24;
-    if (hour < 7 || hour > 22) return 0;
-    if (noise < 18) return 0;
-    if (noise < 44) return 1;
-    if (noise < 70) return 2;
-    if (noise < 88) return 3;
-    return 4;
-  }
-
-  if (range === "30min") {
-    const halfHour = index % 48;
-    if (halfHour < 14 || halfHour > 45) return 0;
-    if (noise < 22) return 0;
-    if (noise < 50) return 1;
-    if (noise < 74) return 2;
-    if (noise < 91) return 3;
-    return 4;
-  }
-
-  const weekday = index % 7;
-  if (weekday === 5 || weekday === 6) return noise < 55 ? 0 : noise < 85 ? 1 : 2;
-  if (noise < 12) return 0;
-  if (noise < 38) return 1;
-  if (noise < 65) return 2;
-  if (noise < 87) return 3;
-  return 4;
-}
-
-function hash(value: number): number {
-  let x = Math.imul(value ^ 0x9e3779b9, 0x85ebca6b);
-  x ^= x >>> 13;
-  x = Math.imul(x, 0xc2b2ae35);
-  x ^= x >>> 16;
-  return x >>> 0;
-}
-
-installUsageInteractions();
-installUsageStyles();

@@ -190,6 +190,49 @@ export interface UsageData {
   readonly sync: UsageSyncSummary | null;
 }
 
+/** 新查询层：与 core/queries/usage.ts 的结构保持一致。 */
+export interface UsageViewQuery {
+  readonly heatmapRange: "30min" | "1h" | "1d";
+  readonly dailyDays: 7 | 30 | 90;
+}
+
+export interface UsageBucketDetailDto {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
+  readonly calls: number;
+  readonly webSearchRequests: number;
+}
+
+export interface UsageBucketDto {
+  readonly start: string;
+  readonly end: string;
+  readonly value: number;
+  readonly level: 0 | 1 | 2 | 3 | 4;
+  readonly label: string;
+  readonly detail: UsageBucketDetailDto;
+}
+
+export interface UsageDailyPointDto {
+  readonly day: string;
+  readonly chat: number;
+  readonly cowork: number;
+  readonly code: number;
+}
+
+export interface UsageViewDto {
+  readonly revision: number;
+  readonly lastSyncedAt: string | null;
+  readonly heatmap: readonly UsageBucketDto[];
+  readonly daily: readonly UsageDailyPointDto[];
+  readonly warnings: readonly string[];
+}
+
+export interface UsageChangedEvent {
+  readonly revision: number;
+}
+
 export const CHANNELS = {
   providers: {
     list: "core:providers:list",
@@ -229,6 +272,9 @@ export const CHANNELS = {
     sync: "core:usage:sync",
     aggregate: "core:usage:aggregate",
     buckets: "core:usage:buckets",
+    view: "claude-harbor:usage:view",
+    refresh: "claude-harbor:usage:refresh",
+    changed: "claude-harbor:usage:changed",
   },
 } as const;
 
@@ -268,5 +314,8 @@ export interface CoreBridge {
     sync(): Promise<AppResult<UsageSyncSummary>>;
     aggregate(filter: UsageFilter): Promise<AppResult<UsageAggregateRow[]>>;
     buckets(range: UsageBucketRange): Promise<AppResult<UsageBucket[]>>;
+    getView(query: UsageViewQuery): Promise<AppResult<UsageViewDto>>;
+    refresh(): Promise<AppResult<unknown>>;
+    onChanged(callback: (event: UsageChangedEvent) => void): () => void;
   };
 }

@@ -1,5 +1,7 @@
 import * as core from "../../../core/index.ts";
-import type { UsageAggregateRow, UsageData, UsageFilter } from "../../shared/ipc.ts";
+import type { UsageIngestService } from "../../../core/usage/ingest/service.ts";
+import type { SyncSummary } from "../../../core/usage/ingest/types.ts";
+import type { UsageAggregateRow, UsageData, UsageFilter, UsageViewDto, UsageViewQuery } from "../../shared/ipc.ts";
 import type { ServiceOptions } from "./providers.ts";
 
 function opts(options: ServiceOptions): { home?: string } | undefined {
@@ -46,4 +48,21 @@ export function aggregateUsage(filter: UsageFilter = {}, options: ServiceOptions
 
 export function loadUsageBuckets(range: "30min" | "1h" | "1d", options: ServiceOptions = {}) {
   return core.usage.aggregateUsageBuckets(range, opts(options) ?? {});
+}
+
+/**
+ * 新版查询入口：从入库服务持有的 SQLite 只读查询。
+ * query 缺省/非法时由 core 查询层回落到 30min / 30 天。
+ */
+export function getUsageView(
+  service: UsageIngestService,
+  query?: UsageViewQuery | null,
+): UsageViewDto {
+  const safe: UsageViewQuery = query ?? { heatmapRange: "30min", dailyDays: 30 };
+  return service.withDatabase((db) => core.queries.getUsageView(db, safe));
+}
+
+/** 手动触发一次入库同步；返回本轮同步摘要。 */
+export function refreshUsage(service: UsageIngestService): Promise<SyncSummary> {
+  return service.syncNow("manual");
 }

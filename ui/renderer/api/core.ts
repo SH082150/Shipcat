@@ -7,8 +7,6 @@ import type { SyncDecisions, SyncPlan } from "../../../core/sync/index.ts";
 import type { ClaudeDriftReport } from "../../../core/check/index.ts";
 import type {
   AppError,
-  UsageBucket,
-  UsageBucketRange,
   AppResult,
   CoreBridge,
   GatewayStatus,
@@ -22,9 +20,8 @@ import type {
   ProviderInput,
   ProviderPatch,
   ProviderSummary,
-  UsageAggregateRow,
-  UsageFilter,
-  UsageSyncSummary,
+  UsageViewDto,
+  UsageViewQuery,
 } from "../../shared/ipc.ts";
 
 export class CoreRequestError extends Error {
@@ -98,8 +95,9 @@ export const syncApi = {
 
 export const overviewApi = { get: (): Promise<OverviewData> => unwrap(bridge().overview.get()) };
 export const usageApi = {
-  sync: (): Promise<UsageSyncSummary> => unwrap(bridge().usage.sync()),
-  aggregate: (filter: UsageFilter = {}): Promise<UsageAggregateRow[]> =>
-    unwrap(bridge().usage.aggregate(filter)),
-  buckets: (range: UsageBucketRange): Promise<UsageBucket[]> => unwrap(bridge().usage.buckets(range)),
+  getView: (query: UsageViewQuery): Promise<UsageViewDto> =>
+    unwrap(bridge().usage.getView(query)),
+  refresh: (): Promise<unknown> => unwrap(bridge().usage.refresh()),
+  onChanged: (callback: (revision: number) => void): (() => void) =>
+    bridge().usage.onChanged((event) => callback(event.revision)),
 };

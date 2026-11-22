@@ -48,11 +48,19 @@ function translator(language: "zh" | "en"): Translator {
   return createTranslator(language);
 }
 
+const EMPTY_USAGE_VIEW = {
+  revision: 0,
+  lastSyncedAt: null,
+  heatmap: [],
+  daily: [],
+  warnings: [],
+};
+
 const PAGES = [
   ["overview", renderOverview],
   ["providers", renderProviders],
   ["profiles", renderProfiles],
-  ["usage", renderUsage],
+  ["usage", (ctx: Parameters<typeof renderUsage>[0]) => renderUsage(ctx, EMPTY_USAGE_VIEW)],
 ] as const;
 
 const ICON_PLACEHOLDER = /<span class="[^"]*\bicon-placeholder\b[^"]*"[^>]*><\/span>/g;
@@ -232,7 +240,10 @@ test("pages: 四页均可渲染中英文、标题正确、无 SVG 与伪业务�
   assert.match(profiles, /data-role="page-profiles"/);
   assert.match(profiles, /data-profile-id=/);
 
-  const usage = renderUsage({ t: translator("en"), language: "en", clientInfo });
+  const usage = renderUsage(
+    { t: translator("en"), language: "en", clientInfo },
+    EMPTY_USAGE_VIEW,
+  );
   assert.match(usage, /data-role="usage-heatmap"/);
   assert.match(usage, /data-usage-range=/);
 });

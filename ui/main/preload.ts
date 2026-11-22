@@ -97,5 +97,11 @@ contextBridge.exposeInMainWorld("claudeHarbor", {
     sync: () => invoke(CHANNELS.usage.sync),
     aggregate: (filter: unknown) => invoke(CHANNELS.usage.aggregate, filter),
     buckets: (range: string) => invoke(CHANNELS.usage.buckets, range),
+    getView: (query: unknown) => invoke(CHANNELS.usage.view, query),
+    refresh: () => invoke(CHANNELS.usage.refresh),
+    onChanged(callback: (event: unknown) => void) {
+      if (typeof callback !== "function") throw new TypeError("onChanged expects a function");
+      return subscribe(CHANNELS.usage.changed, callback);
+    },
   },
 });

@@ -130,7 +130,7 @@ test("page contract: 详情、字段弹窗与热力图导出满足 shell 适配�
   assert.match(profileHtml, /data-role="page-profile-detail"/);
   assert.match(profileHtml, /data-action="add-field"/);
 
-  const heatmap = usagePage.renderHeatmap("1h", usagePage.createDemoCells("1h"));
+  const heatmap = usagePage.renderHeatmap("1h");
   assert.match(heatmap, /data-role="usage-heatmap"/);
   assert.match(heatmap, /data-usage-range="1h"/);
 });
@@ -199,11 +199,11 @@ test("app shell v2: 详情路由与通用页面动作接线，且保留侧栏状
   assert.match(app, /profilesModule,\s*"renderDetail"/);
   assert.match(app, /renderer\(context, detailId\)/);
   assert.match(app, /renderClaudeFieldEntry/);
-  assert.match(app, /usageModule,\s*"renderHeatmap"/);
+  assert.match(app, /usageApi\.getView/);
   assert.match(app, /case "search-toggle":/);
   assert.match(app, /case "add-field":/);
-  assert.match(app, /dataset\.usageRange/);
-  assert.match(app, /data-usage-heatmap/);
+  assert.match(app, /handleUsageControl/);
+  assert.match(app, /updateUsageView/);
   assert.match(app, /workspace\.dataset\.viewDetail/);
   assert.match(app, /data-action="toggle-sidebar"/);
   assert.match(app, /data-usage-range/);
