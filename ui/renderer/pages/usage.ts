@@ -952,3 +952,6 @@ function niceStep(raw: number): number {
   const step = value <= 1 ? 1 : value <= 2 ? 2 : value <= 2.5 ? 2.5 : value <= 5 ? 5 : 10;
   return step * base;
 }
+
+// 页面级交互（热力图悬停、图表浮窗）只安装一次；模块加载即生效。
+installUsageInteractions();
