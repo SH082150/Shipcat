@@ -1,68 +1,75 @@
+/**
+ * 用量服务适配层：把 core 的文件库服务接到 Electron 主进程。
+ *
+ * 数据只来自官方 usage-ledger：Layer 1 按本地时区切桶，Layer 2 生成
+ * 固定 336 槽位的结果；渲染层只读结果，不参与聚合。
+ */
+
 import * as core from "../../../core/index.ts";
-import type { UsageIngestService } from "../../../core/usage/ingest/service.ts";
-import type { SyncSummary } from "../../../core/usage/ingest/types.ts";
-import type { UsageAggregateRow, UsageData, UsageFilter, UsageViewDto, UsageViewQuery } from "../../shared/ipc.ts";
+import { loadSettings } from "../../../core/settings/index.ts";
+import { resolveUsageSourceRoot } from "../../../core/settings/paths.ts";
+import type {
+  UsageConfigDto,
+  UsageSyncResultDto,
+  UsageViewDto,
+  UsageViewQuery,
+} from "../../shared/ipc.ts";
 import type { ServiceOptions } from "./providers.ts";
 
-function opts(options: ServiceOptions): { home?: string } | undefined {
-  return options.home === undefined ? undefined : { home: options.home };
+function usageRootOf(options: ServiceOptions): string {
+  return core.usage.usageRoot(options.home);
 }
 
-export function syncUsage(options: ServiceOptions = {}): UsageData["sync"] {
-  const result = core.usage.syncLedger(opts(options) ?? {});
-  return {
-    filesNew: result.filesNew,
-    filesAppended: result.filesAppended,
-    filesRewritten: result.filesRewritten,
-    linesAdded: result.linesAdded,
-    lastSyncAt: result.lastSyncAt,
-    warnings: result.warnings,
-  };
+/** 单账号：取第一个启用的来源；没有启用来源时停止采集。 */
+function sourceRootOf(options: ServiceOptions): {
+  root: string | null;
+  warnings: string[];
+} {
+  const settings = loadSettings(options.home);
+  const enabled = settings.usage.sources.filter((source) => source.enabled);
+  if (enabled.length === 0) {
+    return { root: null, warnings: ["未启用任何用量来源，用量采集已停止。"] };
+  }
+  const source = enabled[0];
+  if (source === undefined) return { root: null, warnings: [] };
+  const warnings =
+    enabled.length > 1
+      ? [`检测到 ${enabled.length} 个启用的用量来源；单账号模式下只使用第一个：${source.id}。`]
+      : [];
+  return { root: resolveUsageSourceRoot(source.root, options.home), warnings };
 }
 
-export function aggregateUsage(filter: UsageFilter = {}, options: ServiceOptions = {}): UsageAggregateRow[] {
-  const rows = core.usage.aggregateUsage(
-    {
-      ...(filter.day === undefined ? {} : { day: filter.day }),
-      ...(filter.from === undefined ? {} : { from: filter.from }),
-      ...(filter.to === undefined ? {} : { to: filter.to }),
-      ...(filter.surface === undefined ? {} : { surface: filter.surface }),
-      ...(filter.origin === undefined ? {} : { origin: filter.origin }),
-      ...(filter.model === undefined ? {} : { model: filter.model }),
-    },
-    opts(options) ?? {},
-  );
-  return rows.map((row) => ({
-    day: row.day,
-    surface: row.surface,
-    totals: {
-      inputTokens: row.totals.inputTokens,
-      outputTokens: row.totals.outputTokens,
-      cacheReadTokens: row.totals.cacheReadTokens,
-      cacheWriteTokens: row.totals.cacheWriteTokens,
-      calls: row.totals.calls,
-      costUsd: row.totals.costUsd,
-    },
-  }));
+export function createUsageService(
+  options: ServiceOptions = {},
+): core.usage.UsageService {
+  return new core.usage.UsageService({
+    usageRoot: usageRootOf(options),
+    sourceRoot: () => sourceRootOf(options),
+  });
 }
 
-export function loadUsageBuckets(range: "30min" | "1h" | "1d", options: ServiceOptions = {}) {
-  return core.usage.aggregateUsageBuckets(range, opts(options) ?? {});
-}
-
-/**
- * 新版查询入口：从入库服务持有的 SQLite 只读查询。
- * query 缺省/非法时由 core 查询层回落到 30min / 30 天。
- */
 export function getUsageView(
-  service: UsageIngestService,
+  service: core.usage.UsageService,
   query?: UsageViewQuery | null,
 ): UsageViewDto {
-  const safe: UsageViewQuery = query ?? { heatmapRange: "30min", dailyDays: 30 };
-  return service.withDatabase((db) => core.queries.getUsageView(db, safe));
+  return service.getView(query ?? { heatmapRange: "30min", dailyDays: 30 });
 }
 
-/** 手动触发一次入库同步；返回本轮同步摘要。 */
-export function refreshUsage(service: UsageIngestService): Promise<SyncSummary> {
+export function refreshUsage(
+  service: core.usage.UsageService,
+): Promise<UsageSyncResultDto> {
   return service.syncNow("manual");
+}
+
+export function getUsageConfig(
+  service: core.usage.UsageService,
+): UsageConfigDto {
+  return service.getConfig();
+}
+
+export function saveUsageConfig(
+  service: core.usage.UsageService,
+  value: unknown,
+): UsageConfigDto {
+  return service.updateConfig(value);
 }

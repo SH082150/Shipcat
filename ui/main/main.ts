@@ -7,7 +7,8 @@ import { registerCoreIpc } from "./ipc.ts";
 import { GatewayService } from "./services/gateway.ts";
 import { loadPreferences, savePreferences } from "./services/preferences.ts";
 import { createTray } from "./services/tray.ts";
-import { UsageIngestService } from "../../core/usage/ingest/service.ts";
+import { createUsageService } from "./services/usage.ts";
+import type { UsageService } from "../../core/usage/service.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RENDERER_INDEX = path.join(__dirname, "..", "renderer", "index.html");
@@ -47,7 +48,7 @@ const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let usageService: UsageIngestService | null = null;
+let usageService: UsageService | null = null;
 let backgroundMode = false;
 let hideDockMode = false;
 let isQuitting = false;
@@ -278,19 +279,19 @@ app.whenReady().then(async () => {
   backgroundMode = preferences.backgroundOnClose;
   hideDockMode = preferences.hideDock;
 
-  // 用量入库服务：单例持有 SQLite；启动时先做一次全量对账。
-  // 即使用量库打开失败，也要注册其余 IPC，避免设置/供应商页一起不可用。
+  // 用量服务：自建文件库（Layer 1 / Layer 2），启动时先跑一轮并开启常驻时钟。
+  // 即使初始化失败，也要注册其余 IPC，避免设置/供应商页一起不可用。
   try {
-    usageService = new UsageIngestService();
+    usageService = createUsageService();
   } catch (error) {
-    console.error("Failed to open usage database:", error);
+    console.error("Failed to create usage service:", error);
     usageService = null;
   }
   registerCoreIpc(gateway, usageService);
   if (usageService !== null) {
     const service = usageService;
     void service.start().catch((error) => {
-      console.error("Failed to start usage ingest service:", error);
+      console.error("Failed to start usage service:", error);
     });
   }
 

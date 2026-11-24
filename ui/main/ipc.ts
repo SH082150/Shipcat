@@ -8,7 +8,6 @@ import type {
   ProfileUpdateInput,
   ProviderInput,
   ProviderPatch,
-  UsageFilter,
   UsageSourceDto,
   UsageViewQuery,
 } from "../shared/ipc.ts";
@@ -37,14 +36,13 @@ import {
 import { getOverview, getStatus } from "./services/status.ts";
 import { applySync, getSyncPlan, inspectProfiles, watchProfiles } from "./services/sync.ts";
 import {
-  aggregateUsage,
+  getUsageConfig,
   getUsageView,
-  loadUsageBuckets,
   refreshUsage,
-  syncUsage,
+  saveUsageConfig,
 } from "./services/usage.ts";
 import { GatewayService } from "./services/gateway.ts";
-import type { UsageIngestService } from "../../core/usage/ingest/service.ts";
+import type { UsageService } from "../../core/usage/service.ts";
 
 function usageUnavailable(): AppResult<never> {
   return {
@@ -87,12 +85,13 @@ function parseSources(value: unknown): SettingsSource[] | null {
     }
     sources.push({ id, kind, root, enabled: raw.enabled !== false });
   }
-  return sources;
+  // 单账号：只保留第一个启用来源，避免历史配置里多来源静默并存。
+  return sources.filter((source) => source.enabled).slice(0, 1);
 }
 
 export function registerCoreIpc(
   gateway: GatewayService,
-  usageService: UsageIngestService | null,
+  usageService: UsageService | null,
 ): void {
   ipcMain.handle(CHANNELS.providers.list, () => run(() => listProviders()));
   ipcMain.handle(CHANNELS.providers.get, (_event, id: string) => run(() => getProvider(id)));
@@ -131,18 +130,24 @@ export function registerCoreIpc(
 
   ipcMain.handle(CHANNELS.overview.get, () => run(() => getOverview(gateway)));
   ipcMain.handle(CHANNELS.status.get, () => run(() => getStatus()));
-  ipcMain.handle(CHANNELS.usage.sync, () => run(() => syncUsage()));
-  ipcMain.handle(CHANNELS.usage.aggregate, (_event, filter: UsageFilter) =>
-    run(() => aggregateUsage(filter)),
-  );
-  ipcMain.handle(CHANNELS.usage.buckets, (_event, range: "30min" | "1h" | "1d") =>
-    run(() => loadUsageBuckets(range)),
-  );
   ipcMain.handle(CHANNELS.usage.view, (_event, query: UsageViewQuery) =>
     usageService === null ? usageUnavailable() : run(() => getUsageView(usageService, query)),
   );
   ipcMain.handle(CHANNELS.usage.refresh, () =>
     usageService === null ? usageUnavailable() : run(() => refreshUsage(usageService)),
+  );
+  ipcMain.handle(CHANNELS.usage.configGet, () =>
+    usageService === null ? usageUnavailable() : run(() => getUsageConfig(usageService)),
+  );
+  ipcMain.handle(CHANNELS.usage.configSave, (_event, value: unknown) =>
+    usageService === null
+      ? usageUnavailable()
+      : run(async () => {
+          const previousTimezone = usageService.getConfig().timezone;
+          const config = saveUsageConfig(usageService, value);
+          if (config.timezone !== previousTimezone) await usageService.reloadSource();
+          return config;
+        }),
   );
   ipcMain.handle(CHANNELS.usage.sourcesGet, () => run(() => toSourceDtos(loadSettings())));
   ipcMain.handle(CHANNELS.usage.sourcesSave, (_event, input: unknown) =>
@@ -156,7 +161,7 @@ export function registerCoreIpc(
       }
       const next: Settings = { version: 1, usage: { sources } };
       const saved = saveSettings(next);
-      if (usageService !== null) await usageService.reloadSources();
+      if (usageService !== null) await usageService.reloadSource();
       return toSourceDtos(saved);
     }),
   );

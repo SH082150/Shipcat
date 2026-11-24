@@ -128,6 +128,19 @@ interface ClaudeHarborBridge {
     saveSources?(
       sources: readonly UsageSourceOption[],
     ): Promise<{ ok: boolean; value?: UsageSourceOption[]; error?: { message?: string } }>;
+    getConfig?(): Promise<{
+      ok: boolean;
+      value?: { timezone: string; syncIntervalMinutes: number };
+      error?: { message?: string };
+    }>;
+    saveConfig?(config: {
+      timezone: string;
+      syncIntervalMinutes: number;
+    }): Promise<{
+      ok: boolean;
+      value?: { timezone: string; syncIntervalMinutes: number };
+      error?: { message?: string };
+    }>;
   };
   dialog?: {
     pickDirectory?(): Promise<{ ok: boolean; value?: string | null; error?: { message?: string } }>;
@@ -1773,10 +1786,34 @@ async function openSettings(detail: OpenSettingsDetail): Promise<void> {
     sourcesResult !== undefined && sourcesResult.ok && Array.isArray(sourcesResult.value)
       ? sourcesResult.value
       : [];
+  const configResult = await bridge?.usage?.getConfig?.();
+  const usageSyncInterval =
+    configResult !== undefined && configResult.ok && configResult.value !== undefined
+      ? configResult.value.syncIntervalMinutes
+      : undefined;
 
   const overlay = createSettingsModal({
     language,
     usageSources,
+    usageSyncInterval,
+    onSaveUsageInterval: async (minutes) => {
+      const current = await bridge?.usage?.getConfig?.();
+      if (current === undefined || !current.ok || current.value === undefined) {
+        return { ok: false, error: language === "zh" ? "保存失败。" : "Save failed." };
+      }
+      const result = await bridge?.usage?.saveConfig?.({
+        timezone: current.value.timezone,
+        syncIntervalMinutes: minutes,
+      });
+      if (result === undefined || !result.ok || result.value === undefined) {
+        return {
+          ok: false,
+          error:
+            result?.error?.message ?? (language === "zh" ? "保存失败。" : "Save failed."),
+        };
+      }
+      return { ok: true, value: result.value.syncIntervalMinutes };
+    },
     pickUsageDirectory: async () => {
       const result = await bridge?.dialog?.pickDirectory?.();
       return result !== undefined && result.ok ? (result.value ?? null) : null;

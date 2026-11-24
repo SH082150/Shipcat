@@ -20,6 +20,7 @@ import type {
   ProviderInput,
   ProviderPatch,
   ProviderSummary,
+  UsageConfigDto,
   UsageViewDto,
   UsageViewQuery,
 } from "../../shared/ipc.ts";
@@ -98,6 +99,9 @@ export const usageApi = {
   getView: (query: UsageViewQuery): Promise<UsageViewDto> =>
     unwrap(bridge().usage.getView(query)),
   refresh: (): Promise<unknown> => unwrap(bridge().usage.refresh()),
+  getConfig: (): Promise<UsageConfigDto> => unwrap(bridge().usage.getConfig()),
+  saveConfig: (config: UsageConfigDto): Promise<UsageConfigDto> =>
+    unwrap(bridge().usage.saveConfig(config)),
   onChanged: (callback: (revision: number) => void): (() => void) =>
     bridge().usage.onChanged((event) => callback(event.revision)),
 };

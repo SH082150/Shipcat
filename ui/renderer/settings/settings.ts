@@ -70,6 +70,12 @@ export interface SettingsModalOptions {
   ) => Promise<UsageSourcesSaveResult>;
   /** 选择目录；取消返回 null。 */
   pickUsageDirectory?: () => Promise<string | null>;
+  /** 用量同步频率（分钟）；缺省 5。 */
+  usageSyncInterval?: number;
+  /** 保存同步频率；返回生效值或错误文案。 */
+  onSaveUsageInterval?: (
+    minutes: number,
+  ) => Promise<{ ok: boolean; value?: number; error?: string }>;
 }
 
 interface SettingsCopy {
@@ -111,6 +117,10 @@ interface SettingsCopy {
   readonly usageRestoreDefault: string;
   readonly usageFootNote: string;
   readonly usageSaveError: string;
+  readonly usageReplace: string;
+  readonly usageSyncTitle: string;
+  readonly usageSyncHint: string;
+  readonly usageSyncOption: (minutes: number) => string;
   readonly systemTitle: string;
   readonly systemHint: string;
   readonly versionTitle: string;
@@ -164,7 +174,7 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     storageTitle: "存储",
     storageHint: "管理本机的供应商、档案与用量数据。",
     usageSourcesTitle: "用量来源",
-    usageSourcesHint: "选择 Shipcat 从哪里读取用量数据。可指定 Claude-3p 数据根，或其中的 local-agent-mode-sessions 目录；默认自动探测 Claude Desktop。",
+    usageSourcesHint: "选择 Shipcat 从哪里读取用量数据。单账号，只保留一个来源；可指定 Claude-3p 数据根或其中的 local-agent-mode-sessions 目录，默认自动探测 Claude Desktop。",
     usageDefaultLabel: "Claude Desktop",
     usageCustomLabel: "自定义来源",
     usageNoPath: "未选择文件夹，暂不采集",
@@ -173,6 +183,10 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     usageRestoreDefault: "恢复默认来源",
     usageFootNote: "修改会立即保存并生效。",
     usageSaveError: "保存失败，请检查路径后重试。",
+    usageReplace: "更换来源",
+    usageSyncTitle: "同步频率",
+    usageSyncHint: "按系统时钟对齐到整间隔刷新用量；更改后从下一个间隔边界生效。",
+    usageSyncOption: (minutes) => `每 ${minutes} 分钟`,
     systemTitle: "应用",
     systemHint: "当前安装的版本与启动方式。",
     versionTitle: "版本",
@@ -235,7 +249,7 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     storageHint: "Manage providers, profiles, and usage data on this machine.",
     usageSourcesTitle: "Usage sources",
     usageSourcesHint:
-      "Choose where Shipcat reads usage data. Point to the Claude-3p data root or its local-agent-mode-sessions folder; Claude Desktop is detected automatically by default.",
+      "Choose where Shipcat reads usage data. Single account: only one source is kept. Point to the Claude-3p data root or its local-agent-mode-sessions folder; Claude Desktop is detected automatically by default.",
     usageDefaultLabel: "Claude Desktop",
     usageCustomLabel: "Custom source",
     usageNoPath: "No folder selected; nothing is collected",
@@ -244,6 +258,12 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     usageRestoreDefault: "Restore default source",
     usageFootNote: "Changes are saved and applied immediately.",
     usageSaveError: "Could not save. Check the folder path and try again.",
+    usageReplace: "Change source",
+    usageSyncTitle: "Sync interval",
+    usageSyncHint:
+      "Usage refreshes on clock-aligned intervals; changes apply from the next boundary.",
+    usageSyncOption: (minutes) =>
+      minutes === 1 ? "Every minute" : `Every ${minutes} minutes`,
     systemTitle: "Application",
     systemHint: "Installed version and startup behavior.",
     versionTitle: "Version",
@@ -673,7 +693,10 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const usageSection = createSection(usagePane);
   createSectionHead(usageSection, copy.usageSourcesTitle, copy.usageSourcesHint);
 
-  let usageSources: UsageSourceOption[] = [...(options.usageSources ?? [])];
+  // 单账号：只保留第一个启用来源，旧配置里多出来的不再展示。
+  let usageSources: UsageSourceOption[] = [...(options.usageSources ?? [])]
+    .filter((source) => source.enabled)
+    .slice(0, 1);
 
   const usageList = create("div", "ch-settings-source-list");
   usageList.setAttribute("data-role", "usage-source-list");
@@ -696,6 +719,41 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   const usageFoot = create("p", "ch-settings-note");
   usageFoot.textContent = copy.usageFootNote;
   usageSection.appendChild(usageFoot);
+
+  // 同步频率：只改 ClockService 的对齐间隔，不触发立即重扫。
+  const usageSyncSection = createSection(usagePane, "usage-sync-section");
+  const { control: usageSyncControl } = createRow(
+    usageSyncSection,
+    copy.usageSyncTitle,
+    copy.usageSyncHint,
+    "usage-sync-row",
+  );
+  let usageSyncInterval = options.usageSyncInterval ?? 5;
+  const usageSyncSelect = create("select", "ch-settings-select");
+  usageSyncSelect.setAttribute("data-role", "usage-sync-interval");
+  usageSyncSelect.setAttribute("aria-label", copy.usageSyncTitle);
+  for (const minutes of [1, 5, 10, 15, 30]) {
+    const option = create("option");
+    option.value = String(minutes);
+    option.textContent = copy.usageSyncOption(minutes);
+    usageSyncSelect.appendChild(option);
+  }
+  usageSyncSelect.value = String(usageSyncInterval);
+  usageSyncSelect.addEventListener("change", () => {
+    const next = Number(usageSyncSelect.value);
+    void (async () => {
+      usageError.hidden = true;
+      const result = await options.onSaveUsageInterval?.(next);
+      if (result && !result.ok) {
+        showUsageError(result.error || copy.usageSaveError);
+        usageSyncSelect.value = String(usageSyncInterval);
+        return;
+      }
+      usageSyncInterval = result?.value ?? next;
+      usageSyncSelect.value = String(usageSyncInterval);
+    })();
+  });
+  usageSyncControl.appendChild(usageSyncSelect);
 
   function showUsageError(message: string): void {
     usageError.textContent = message;
@@ -731,6 +789,8 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   }
 
   function renderUsageSources(): void {
+    usageAddButton.textContent =
+      usageSources.length === 0 ? `+ ${copy.usageAdd}` : copy.usageReplace;
     for (const child of [...usageList.children]) child.remove();
     if (usageSources.length === 0) {
       const empty = create("div", "ch-settings-source-empty");
@@ -780,11 +840,10 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
       const directory = await options.pickUsageDirectory?.();
       if (!directory) return;
       const id = `custom-${Date.now().toString(36)}`;
-      const next = [
-        ...usageSources,
+      // 单账号：新来源直接替换旧来源。
+      await persistUsageSources([
         { id, kind: "custom", root: directory, resolvedRoot: directory, enabled: true },
-      ];
-      await persistUsageSources(next);
+      ]);
     })();
   });
 

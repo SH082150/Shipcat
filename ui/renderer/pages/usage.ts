@@ -94,12 +94,8 @@ export interface UsageDetail {
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
   readonly webSearchRequests: number;
+  /** 工具调用次数（官方账本 tools 计数合计）。 */
   readonly calls: number;
-  /** 旧分桶遗留字段；新查询层不返回，保留为可选以兼容旧测试数据。 */
-  readonly errors?: number;
-  readonly costUsd?: number;
-  readonly models?: Readonly<Record<string, number>>;
-  readonly surfaces?: Readonly<Record<string, number>>;
 }
 
 /** 按天聚合的一天；只含界面维度，token = 输入 + 输出。 */
@@ -216,7 +212,7 @@ const COPY: Readonly<Record<"zh" | "en", UsageCopy>> = {
     overallOutput: "输出",
     overallCacheRead: "缓存读",
     overallCacheHitRate: "缓存命中率",
-    overallCalls: "调用次数",
+    overallCalls: "工具调用次数",
     overallScope: (days) => `最近 ${days} 天`,
     overallSearches: (count) => `${count.toLocaleString("en-US")} 次网页搜索`,
     infoInput: "未从提示缓存读取、也未写入提示缓存的输入 Token",
@@ -255,7 +251,7 @@ const COPY: Readonly<Record<"zh" | "en", UsageCopy>> = {
     overallOutput: "Output",
     overallCacheRead: "Cache read",
     overallCacheHitRate: "Cache hit rate",
-    overallCalls: "Calls",
+    overallCalls: "Tool calls",
     overallScope: (days) => `Last ${days} days`,
     overallSearches: (count) => (count === 1 ? "1 web search" : `${count.toLocaleString("en-US")} web searches`),
     infoInput: "Input tokens not read from or written to the prompt cache",
@@ -289,7 +285,7 @@ export function render(
   const copy = COPY[language];
   activeDailySeries = buildDailySeries(view);
   const cells = viewCells(view);
-  const ledger = renderLedgerStatus(view.lastSyncedAt, copy);
+  const ledger = renderLedgerStatus(view.lastSyncedAt, view.lastSyncDisplay, copy);
   const range = activeState.heatmapRange;
 
   const historySection = `<section class="usage-block usage-history" data-role="usage-history" aria-labelledby="usage-history-title">
@@ -307,6 +303,7 @@ export function render(
         <span data-role="usage-range-caption">${escapeHtml(renderRangeCaption(range, language))}</span>
         <span class="usage-sync" data-role="usage-sync-status">${escapeHtml(ledger)}</span>
       </div>
+      <p class="usage-warning" data-role="usage-warning"${view.warnings.length === 0 ? " hidden" : ""}>${escapeHtml(view.warnings.join(" "))}</p>
       <div class="usage-heat-row">
         <div class="usage-heatmap-host" data-role="usage-heatmap-host">${renderHeatmap(range, cells)}</div>
         <aside class="usage-overall" data-role="usage-overall" aria-label="${escapeHtml(copy.overallTitle)}">${renderOverallCard(cells, range, copy)}</aside>
@@ -678,7 +675,15 @@ export function updateUsageHeatmap(
   if (caption) caption.textContent = renderRangeCaption(range, language);
 
   const sync = root.querySelector<HTMLElement>('[data-role="usage-sync-status"]');
-  if (sync) sync.textContent = renderLedgerStatus(view.lastSyncedAt, copyFor(language));
+  if (sync) {
+    sync.textContent = renderLedgerStatus(view.lastSyncedAt, view.lastSyncDisplay, copyFor(language));
+  }
+
+  const warning = root.querySelector<HTMLElement>('[data-role="usage-warning"]');
+  if (warning) {
+    warning.textContent = view.warnings.join(" ");
+    warning.hidden = view.warnings.length === 0;
+  }
 
   for (const button of root.querySelectorAll<HTMLButtonElement>("button[data-usage-range]")) {
     const active = button.dataset.usageRange === range;
@@ -741,7 +746,7 @@ function showCellOverall(
   if (!cell) return;
   host.innerHTML = renderOverallContent(
     sumCells([cell]),
-    formatCellScope(cell.at, activeState.heatmapRange, language),
+    cell.label ?? formatCellScope(cell.at, activeState.heatmapRange, language),
     copyFor(language),
   );
 }
@@ -889,10 +894,14 @@ function renderRangeButton(range: UsageRange, active: boolean, language: "zh" | 
   return `<button type="button" class="usage-range-button${active ? " is-active" : ""}" data-usage-range="${range}" aria-pressed="${active}">${escapeHtml(USAGE_RANGE_META[range].label[language])}</button>`;
 }
 
-function renderLedgerStatus(lastSyncedAt: string | null, copy: UsageCopy): string {
-  return lastSyncedAt === null || lastSyncedAt.length === 0
-    ? copy.ledgerPending
-    : lastSyncedAt.slice(0, 10);
+function renderLedgerStatus(
+  lastSyncedAt: string | null,
+  lastSyncDisplay: string | null | undefined,
+  copy: UsageCopy,
+): string {
+  const display =
+    lastSyncDisplay ?? (lastSyncedAt === null ? null : lastSyncedAt.slice(0, 10));
+  return display === null || display.length === 0 ? copy.ledgerPending : display.slice(0, 10);
 }
 
 function emptyCell(range: UsageRange, index: number): string {

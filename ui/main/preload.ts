@@ -94,13 +94,12 @@ contextBridge.exposeInMainWorld("claudeHarbor", {
   overview: { get: () => invoke(CHANNELS.overview.get) },
   status: { get: () => invoke(CHANNELS.status.get) },
   usage: {
-    sync: () => invoke(CHANNELS.usage.sync),
-    aggregate: (filter: unknown) => invoke(CHANNELS.usage.aggregate, filter),
-    buckets: (range: string) => invoke(CHANNELS.usage.buckets, range),
     getView: (query: unknown) => invoke(CHANNELS.usage.view, query),
     refresh: () => invoke(CHANNELS.usage.refresh),
     getSources: () => invoke(CHANNELS.usage.sourcesGet),
     saveSources: (sources: unknown) => invoke(CHANNELS.usage.sourcesSave, sources),
+    getConfig: () => invoke(CHANNELS.usage.configGet),
+    saveConfig: (config: unknown) => invoke(CHANNELS.usage.configSave, config),
     onChanged(callback: (event: unknown) => void) {
       if (typeof callback !== "function") throw new TypeError("onChanged expects a function");
       return subscribe(CHANNELS.usage.changed, callback);

@@ -773,38 +773,29 @@ test("用量页：展示来源路径，切换/移除/添加都会保存", async 
   const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
   try {
     const { root } = modal;
+    // 单账号：旧配置里多出来的来源不再展示，只保留第一个。
     const rows = findAll(root, (element) => element.getAttribute("data-role") === "usage-source-row");
-    assert.equal(rows.length, 2);
-    const [first, second] = rows;
-    assert.ok(first && second);
+    assert.equal(rows.length, 1);
+    const [first] = rows;
+    assert.ok(first);
     assert.match(textOf(first), /Claude Desktop/);
     assert.match(textOf(first), /Claude-3p/);
-    assert.match(textOf(second), /ledgers/);
-    assert.match(textOf(second), /Volumes\/ledgers/);
-
-    // 现在所有来源都可删除（包括默认来源）。
     assert.equal(roleCount(root, "usage-source-remove-claude-desktop"), 1);
-    assert.equal(roleCount(root, "usage-source-remove-custom-1"), 1);
+    assert.equal(roleCount(root, "usage-source-remove-custom-1"), 0);
     // 不再有启用开关。
     assert.equal(roleCount(root, "usage-source-enabled-custom-1"), 0);
 
-    byRole(root, "usage-source-remove-custom-1").click();
-    await settle();
-    assert.equal(saved.length, 1);
-    assert.equal((saved[0] as unknown[]).length, 1);
-
+    // 更换来源：新来源替换旧来源，不追加。
     byRole(root, "usage-source-add").click();
     await settle();
-    assert.equal(saved.length, 2);
-    const added = saved[1] as { kind: string; root: string | null; enabled: boolean }[];
-    assert.equal(added.length, 2);
-    assert.equal(added[1]?.kind, "custom");
-    assert.equal(added[1]?.root, "/Volumes/extra");
-    assert.equal(added[1]?.enabled, true);
+    assert.equal(saved.length, 1);
+    const replaced = saved[0] as { kind: string; root: string | null; enabled: boolean }[];
+    assert.equal(replaced.length, 1);
+    assert.equal(replaced[0]?.kind, "custom");
+    assert.equal(replaced[0]?.root, "/Volumes/extra");
+    assert.equal(replaced[0]?.enabled, true);
 
     // 删空后出现「恢复默认来源」，点击即恢复内置来源。
-    byRole(root, "usage-source-remove-claude-desktop").click();
-    await settle();
     const removeButtons = findAll(root, (element) =>
       (element.getAttribute("data-role") ?? "").startsWith("usage-source-remove-"),
     );

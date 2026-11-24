@@ -131,63 +131,26 @@ export interface StatusData {
   readonly providers: readonly ProviderSummary[];
 }
 
-export interface UsageFilter {
-  readonly day?: string;
-  readonly from?: string;
-  readonly to?: string;
-  readonly surface?: string;
-  readonly origin?: string;
-  readonly model?: string;
+/** 文件库同步频率：只能取这几档，和 ClockService 的对齐边界一致。 */
+export type UsageSyncInterval = 1 | 5 | 10 | 15 | 30;
+
+export interface UsageConfigDto {
+  readonly timezone: string;
+  readonly syncIntervalMinutes: UsageSyncInterval;
 }
 
-export interface UsageAggregateRow {
-  readonly day: string;
-  readonly surface: string;
-  readonly totals: {
-    readonly inputTokens: number;
-    readonly outputTokens: number;
-    readonly cacheReadTokens: number;
-    readonly cacheWriteTokens: number;
-    readonly calls: number;
-    readonly costUsd: number;
-  };
-}
-
-export interface UsageSyncSummary {
-  readonly filesNew: number;
-  readonly filesAppended: number;
-  readonly filesRewritten: number;
-  readonly linesAdded: number;
-  readonly lastSyncAt: string;
+/** 一轮同步的结果摘要；不是统计数据本身。 */
+export interface UsageSyncResultDto {
+  readonly reason: "startup" | "manual" | "clock" | "reload";
+  readonly skipped: boolean;
+  readonly lastSyncAt: number;
+  readonly rebuiltLevels: readonly string[];
+  readonly eventsProcessed: number;
+  readonly filesRead: number;
+  readonly badLines: number;
+  readonly partialLines: number;
+  readonly unknownVersions: Readonly<Record<string, number>>;
   readonly warnings: readonly string[];
-}
-
-export type UsageBucketRange = "30min" | "1h" | "1d";
-
-export interface UsageBucketDetail {
-  readonly inputTokens: number;
-  readonly outputTokens: number;
-  readonly cacheReadTokens: number;
-  readonly cacheWriteTokens: number;
-  readonly webSearchRequests: number;
-  readonly calls: number;
-  readonly errors: number;
-  readonly costUsd: number;
-  readonly models: Readonly<Record<string, number>>;
-  readonly surfaces: Readonly<Record<string, number>>;
-}
-
-export interface UsageBucket {
-  readonly start: number;
-  readonly value: number | null;
-  readonly level: number;
-  readonly label: string;
-  readonly detail: UsageBucketDetail | null;
-}
-
-export interface UsageData {
-  readonly rows: readonly UsageAggregateRow[];
-  readonly sync: UsageSyncSummary | null;
 }
 
 /** 新查询层：与 core/queries/usage.ts 的结构保持一致。 */
@@ -224,6 +187,8 @@ export interface UsageDailyPointDto {
 export interface UsageViewDto {
   readonly revision: number;
   readonly lastSyncedAt: string | null;
+  /** 已按 config.timezone 格式化；UI 只显示日期部分。 */
+  readonly lastSyncDisplay?: string | null;
   readonly heatmap: readonly UsageBucketDto[];
   readonly daily: readonly UsageDailyPointDto[];
   readonly warnings: readonly string[];
@@ -280,14 +245,13 @@ export const CHANNELS = {
     get: "core:status:get",
   },
   usage: {
-    sync: "core:usage:sync",
-    aggregate: "core:usage:aggregate",
-    buckets: "core:usage:buckets",
     view: "claude-harbor:usage:view",
     refresh: "claude-harbor:usage:refresh",
     changed: "claude-harbor:usage:changed",
     sourcesGet: "claude-harbor:usage:sources:get",
     sourcesSave: "claude-harbor:usage:sources:save",
+    configGet: "claude-harbor:usage:config:get",
+    configSave: "claude-harbor:usage:config:save",
   },
   dialog: {
     pickDirectory: "claude-harbor:dialog:pick-directory",
@@ -327,13 +291,12 @@ export interface CoreBridge {
   readonly overview: { get(): Promise<AppResult<OverviewData>> };
   readonly status: { get(): Promise<AppResult<StatusData>> };
   readonly usage: {
-    sync(): Promise<AppResult<UsageSyncSummary>>;
-    aggregate(filter: UsageFilter): Promise<AppResult<UsageAggregateRow[]>>;
-    buckets(range: UsageBucketRange): Promise<AppResult<UsageBucket[]>>;
     getView(query: UsageViewQuery): Promise<AppResult<UsageViewDto>>;
-    refresh(): Promise<AppResult<unknown>>;
+    refresh(): Promise<AppResult<UsageSyncResultDto>>;
     getSources(): Promise<AppResult<UsageSourceDto[]>>;
     saveSources(sources: readonly UsageSourceDto[]): Promise<AppResult<UsageSourceDto[]>>;
+    getConfig(): Promise<AppResult<UsageConfigDto>>;
+    saveConfig(config: UsageConfigDto): Promise<AppResult<UsageConfigDto>>;
     onChanged(callback: (event: UsageChangedEvent) => void): () => void;
   };
   readonly dialog: {

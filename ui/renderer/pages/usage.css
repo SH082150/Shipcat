@@ -690,3 +690,14 @@ html:not([data-theme="dark"]) .page--usage .usage-mode-switch button.is-active {
     transition: none;
   }
 }
+
+.usage-warning {
+  margin: -2px 0 10px;
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+html[data-theme="dark"] .usage-warning {
+  color: #f08c84;
+}
