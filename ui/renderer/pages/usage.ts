@@ -905,9 +905,11 @@ function renderLedgerStatus(
   lastSyncDisplay: string | null | undefined,
   copy: UsageCopy,
 ): string {
+  // 精确到分钟：lastSyncDisplay 已是本地时间（YYYY-MM-DD HH:mm:ss）。
   const display =
-    lastSyncDisplay ?? (lastSyncedAt === null ? null : lastSyncedAt.slice(0, 10));
-  return display === null || display.length === 0 ? copy.ledgerPending : display.slice(0, 10);
+    lastSyncDisplay ??
+    (lastSyncedAt === null ? null : lastSyncedAt.slice(0, 16).replace("T", " "));
+  return display === null || display.length === 0 ? copy.ledgerPending : display.slice(0, 16);
 }
 
 function emptyCell(range: UsageRange, index: number): string {

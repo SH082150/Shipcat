@@ -59,6 +59,7 @@ interface ViewOptions {
   readonly daily?: UsageViewDto["daily"];
   readonly dailyDays?: number;
   readonly lastSyncedAt?: string | null;
+  readonly lastSyncDisplay?: string | null;
   readonly revision?: number;
 }
 
@@ -95,6 +96,7 @@ function makeView(options: ViewOptions = {}): UsageViewDto {
   return {
     revision: options.revision ?? 0,
     lastSyncedAt: options.lastSyncedAt ?? null,
+    lastSyncDisplay: options.lastSyncDisplay ?? null,
     heatmap,
     daily,
     warnings: [],
@@ -227,12 +229,18 @@ test("用量页英文：默认 7 天、数据来源说明与按钮文案", () =>
   assert.match(html, /data-usage-range="30min"/);
 });
 
-test("render：lastSyncedAt 显示同步日期，缺失时显示暂无用量数据", () => {
+test("render：lastSyncDisplay 显示到分钟，缺失时显示暂无用量数据", () => {
   const withDate = render(
     context("zh"),
     makeView({ lastSyncedAt: "2026-01-01T00:00:00.000Z" }),
   );
-  assert.match(withDate, /data-role="usage-sync-status">2026-01-01</);
+  assert.match(withDate, /data-role="usage-sync-status">2026-01-01 00:00</);
+
+  const withDisplay = render(
+    context("zh"),
+    makeView({ lastSyncDisplay: "2026-01-01 09:05:42" }),
+  );
+  assert.match(withDisplay, /data-role="usage-sync-status">2026-01-01 09:05</);
 
   const empty = render(context("zh"), makeView());
   assert.match(empty, /data-role="usage-sync-status">暂无用量数据</);
