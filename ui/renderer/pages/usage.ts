@@ -15,10 +15,6 @@ import { renderPageHeader } from "../components/page-chrome.ts";
 import type { UsageViewDto } from "../../shared/ipc.ts";
 import type { PageContext } from "./types.ts";
 
-/* ------------------------------------------------------------------ */
-/* 公共接口                                                            */
-/* ------------------------------------------------------------------ */
-
 export const USAGE_RANGES = ["30min", "1h", "1d"] as const;
 
 export type UsageRange = (typeof USAGE_RANGES)[number];
@@ -149,10 +145,6 @@ export function renderHeatmap(
   const aria = `用量热力图：${meta.cells} 格，${meta.columns} 列 × ${meta.rows} 行，${meta.label.zh}区间`;
   return `<div class="usage-heatmap" role="img" data-role="usage-heatmap" data-usage-range="${range}" data-columns="${meta.columns}" data-rows="${meta.rows}" aria-label="${escapeHtml(aria)}">${normalized}</div>`;
 }
-
-/* ------------------------------------------------------------------ */
-/* 页面渲染                                                            */
-/* ------------------------------------------------------------------ */
 
 interface UsageCopy {
   readonly eyebrow: string;
@@ -346,10 +338,6 @@ export function render(
   </article>`;
 }
 
-/* ------------------------------------------------------------------ */
-/* 总使用量卡                                                          */
-/* ------------------------------------------------------------------ */
-
 interface OverallTotals {
   readonly inputTokens: number;
   readonly outputTokens: number;
@@ -456,10 +444,6 @@ function formatCellScope(at: string, range: UsageRange, language: "zh" | "en"): 
 function renderInfo(text: string): string {
   return `<button type="button" class="usage-info" aria-label="${escapeHtml(text)}"><span class="usage-tip">${escapeHtml(text)}</span></button>`;
 }
-
-/* ------------------------------------------------------------------ */
-/* 按天用量：数据、图表、表格                                          */
-/* ------------------------------------------------------------------ */
 
 interface DailyPoint extends UsageDailyPoint {
   readonly date: Date;
@@ -644,10 +628,6 @@ function renderDailyTable(series: readonly DailyPoint[], language: "zh" | "en", 
     </table>
   </div>`;
 }
-
-/* ------------------------------------------------------------------ */
-/* 原地切换                                                            */
-/* ------------------------------------------------------------------ */
 
 function applyView(view: UsageViewDto, state: UsageViewState): void {
   activeView = view;
@@ -891,10 +871,6 @@ function installUsageStyles(): void {
   link.dataset.usageStyles = "true";
   document.head.append(link);
 }
-
-/* ------------------------------------------------------------------ */
-/* 小部件                                                              */
-/* ------------------------------------------------------------------ */
 
 function renderRangeButton(range: UsageRange, active: boolean, language: "zh" | "en"): string {
   return `<button type="button" class="usage-range-button${active ? " is-active" : ""}" data-usage-range="${range}" aria-pressed="${active}">${escapeHtml(USAGE_RANGE_META[range].label[language])}</button>`;

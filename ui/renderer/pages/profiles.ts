@@ -708,10 +708,6 @@ export function renderClaudeFieldEntry(language: Language): string {
   </div>`;
 }
 
-/* ------------------------------------------------------------------ */
-/* 片段                                                                */
-/* ------------------------------------------------------------------ */
-
 function typeTag(profile: ProfileDraft, copy: Copy): string {
   return `<span class="profile-type-tag profile-type-tag--${profile.mode}" data-type="${profile.mode}">${escapeHtml(copy.modeLabels[profile.mode])}</span>`;
 }

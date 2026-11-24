@@ -239,10 +239,6 @@ let usagePendingUpdate = false;
 let usageRequestSeq = 0;
 let systemSettings = { launchAtLogin: false, backgroundOnClose: false, hideDock: false };
 
-/* ------------------------------------------------------------------ */
-/* 初始化                                                              */
-/* ------------------------------------------------------------------ */
-
 if (window.location.hash !== routeHash(route)) {
   window.history.replaceState(null, "", routeHash(route));
 }
@@ -375,18 +371,10 @@ sidebar.subscribe((state) => {
   syncChrome();
 });
 
-/* ------------------------------------------------------------------ */
-/* 侧栏：点击固定、悬停预览、移入面板后保持                              */
-/* ------------------------------------------------------------------ */
-
 toggleButton.addEventListener("pointerenter", () => sidebar.pointerEnter("trigger"));
 toggleButton.addEventListener("pointerleave", () => sidebar.pointerLeave("trigger"));
 sidebarSlot.addEventListener("pointerenter", () => sidebar.pointerEnter("panel"));
 sidebarSlot.addEventListener("pointerleave", () => sidebar.pointerLeave("panel"));
-
-/* ------------------------------------------------------------------ */
-/* 事件委托                                                            */
-/* ------------------------------------------------------------------ */
 
 // 添加档案页：模式切换只在本页切换进阶字段的可见性。
 workspace.addEventListener("change", (event) => {
@@ -868,10 +856,6 @@ window.addEventListener("beforeunload", () => {
   languageOverlay = null;
   sidebar.dispose();
 });
-
-/* ------------------------------------------------------------------ */
-/* 渲染                                                                */
-/* ------------------------------------------------------------------ */
 
 function renderSidebarView(): void {
   sidebarSlot.innerHTML = renderSidebar({
@@ -1396,10 +1380,6 @@ function syncChrome(): void {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/* 页面通用动作                                                        */
-/* ------------------------------------------------------------------ */
-
 function handleSearchToggle(actionable: HTMLElement): void {
   const container = workspace.querySelector<HTMLElement>('[data-role="page-search"]');
   if (!container) return;
@@ -1432,10 +1412,6 @@ function closePageSearchUnless(target: unknown): void {
   if (target instanceof Element && target.closest('[data-role="page-search"]')) return;
   setPageSearchOpen(false);
 }
-
-/* ------------------------------------------------------------------ */
-/* 动作                                                                */
-/* ------------------------------------------------------------------ */
 
 function pinPreview(): void {
   const state = sidebar.getState();
@@ -1921,10 +1897,6 @@ async function openSettings(detail: OpenSettingsDetail): Promise<void> {
   settingsOverlay = overlay;
   document.body.appendChild(overlay);
 }
-
-/* ------------------------------------------------------------------ */
-/* 主题、语言、客户端信息                                               */
-/* ------------------------------------------------------------------ */
 
 function applyTheme(resolved: ResolvedTheme): void {
   document.documentElement.dataset.theme = resolved;

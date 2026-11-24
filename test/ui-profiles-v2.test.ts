@@ -69,10 +69,6 @@ function profileRow(html: string, id: string): string {
   return match[0];
 }
 
-/* ------------------------------------------------------------------ */
-/* 列表                                                                */
-/* ------------------------------------------------------------------ */
-
 test("profiles v2 列表：标题、搜索/添加按钮与当前激活区（排序已移除）", () => {
   const html = render(context("zh"));
 
@@ -278,10 +274,6 @@ test("profiles v2 列表：动态文本转义、图标占位为空、无内联�
   }
 });
 
-/* ------------------------------------------------------------------ */
-/* 详情                                                                */
-/* ------------------------------------------------------------------ */
-
 test("profiles v2 详情：返回、名称、类型、状态、模式与高级字段", () => {
   const profile = profileByMode("advanced");
   const html = renderDetail(context("zh"), profile.id);
@@ -427,10 +419,6 @@ test("profiles v2 路由接口：profileHref", () => {
   assert.equal(profileHref("a b"), "#profiles/a%20b");
 });
 
-/* ------------------------------------------------------------------ */
-/* 宿主接线                                                            */
-/* ------------------------------------------------------------------ */
-
 test("profiles v2 宿主接线：open-profile、可切换搜索框与英文文案", () => {
   const html = render(context("zh"));
   assert.match(html, /data-action="open-profile"/);
@@ -449,10 +437,6 @@ test("profiles v2 宿主接线：open-profile、可切换搜索框与英文文�
   assert.match(enDetail, /Save changes/);
   assert.equal(typeof renderClaudeFieldEntry, "function");
 });
-
-/* ------------------------------------------------------------------ */
-/* 样式                                                                */
-/* ------------------------------------------------------------------ */
 
 test("profiles.css：黑白主按钮、蓝色开关、细分隔线与粘性保存", () => {
   const css = read("ui/renderer/pages/profiles.css");

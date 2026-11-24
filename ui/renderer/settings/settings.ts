@@ -347,10 +347,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   dialog.tabIndex = -1;
   overlay.appendChild(dialog);
 
-  /* ------------------------------------------------------------------ */
-  /* 侧栏：品牌标识 + 标题 + 五节菜单（不含版本号）                        */
-  /* ------------------------------------------------------------------ */
-
   const sidebar = create("aside", "ch-settings-sidebar");
   sidebar.setAttribute("data-role", "sidebar");
 
@@ -393,10 +389,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   }
   sidebar.appendChild(nav);
   dialog.appendChild(sidebar);
-
-  /* ------------------------------------------------------------------ */
-  /* 主区域：页头 + 关闭按钮 + 章节容器                                    */
-  /* ------------------------------------------------------------------ */
 
   const main = create("section", "ch-settings-main");
   const header = create("header", "ch-settings-header");
@@ -494,10 +486,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     });
     return button;
   };
-
-  /* ------------------------------------------------------------------ */
-  /* 常规：外观无外框，保留三主题卡片                                      */
-  /* ------------------------------------------------------------------ */
 
   const generalPane = createPane("pane-general");
   const appearanceGroup = createSection(generalPane, "group-appearance");
@@ -683,10 +671,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
   generalFoot.appendChild(learnMore);
   generalPane.appendChild(generalFoot);
 
-  /* ------------------------------------------------------------------ */
-  /* 隐私：本地优先声明 + Storage/Manage 行                               */
-  /* ------------------------------------------------------------------ */
-
   const privacyPane = createPane("pane-privacy");
   const privacySection = createSection(privacyPane);
   createSectionHead(privacySection, copy.privacyTitle, copy.privacyHint);
@@ -697,10 +681,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   const storageSection = createSection(privacyPane);
   createRow(storageSection, copy.storageTitle, copy.storageHint, "storage-row");
-
-  /* ------------------------------------------------------------------ */
-  /* 用量：采集来源管理                                                   */
-  /* ------------------------------------------------------------------ */
 
   const usagePane = createPane("pane-usage");
   const usageSection = createSection(usagePane);
@@ -866,7 +846,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     }
   }
 
-
   /** 自定义来源取路径最后一级目录名，路径缺失时回落到通用名称。 */
   function sourceName(
     source: { root: string | null; resolvedRoot: string },
@@ -938,10 +917,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   renderUsageSources();
 
-  /* ------------------------------------------------------------------ */
-  /* 系统：版本与开机自启                                                  */
-  /* ------------------------------------------------------------------ */
-
   const systemPane = createPane("pane-system");
   const appSection = createSection(systemPane);
   createSectionHead(appSection, copy.systemTitle, copy.systemHint);
@@ -987,10 +962,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     createSwitch("hide-dock", hideDockTitle, options.hideDock === true, options.onHideDockChange),
   );
 
-  /* ------------------------------------------------------------------ */
-  /* 关于：设置菜单中的正式章节，承载客户端信息                            */
-  /* ------------------------------------------------------------------ */
-
   const clientPane = createPane("pane-about");
   const clientGroup = createSection(clientPane);
   clientGroup.setAttribute("aria-labelledby", clientHeadId);
@@ -1027,10 +998,6 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
 
   main.appendChild(body);
   dialog.appendChild(main);
-
-  /* ------------------------------------------------------------------ */
-  /* 状态与交互                                                           */
-  /* ------------------------------------------------------------------ */
 
   const panes = new Map<SettingsSection, HTMLElement>([
     ["general", generalPane],
