@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.3.0 · 平台：macOS / Windows · 许可证：[Apache License 2.0](LICENSE)
+版本：0.3.1 · 平台：macOS / Windows · 许可证：[Apache License 2.0](LICENSE)
 
 ## 摘要
 
@@ -280,13 +280,22 @@ npm run typecheck
 
 ### 更新日志
 
-#### v0.3.0
+#### v0.3.1
+
+- 本版以架构更新为主：用量存储从 SQLite 迁移为自建文件库，运行链路不再依赖任何数据库服务。
 
 - 用量存储重构为自建文件库，SQLite 与镜像账本退场：`~/.claudeharbor/usage/` 下由 `config.json`、`layer1/` 与 `layer2/` 组成，只读官方 `usage-ledger`，不读取会话明细。
 - 第一层按 `config.timezone` 的本地墙钟切桶：30 分钟、1 小时与 1 天各 336 格，另有 7/30/90 天 tokens-per-day 目录；格内只存七个合计，元数据仅记录最后事件时间与行哈希，崩溃后整库重建。
 - 第二层为每个粒度生成固定 336 槽位的 `cells.json`（桶起点、展示时间、等级、窗口合计）；界面只读结果，悬停时以 `ts[i]` 回第一层读取单格。
 - 同步由常驻系统时钟循环驱动，按 1/5/10/15/30 分钟对齐边界触发，单轮串行、15 秒死区、不补跑；手动同步是唯一补救手段，用量页右上角提供同步按钮与分钟级同步时间。
 - 旧 SQLite 用量服务与 `usage.sync/aggregate/buckets/audit` IPC 断开；设置页改为单来源、同步频率与时区（按 UTC 偏移选择，修改后全量重建），卡片“调用次数”改为“工具调用次数”。
+
+#### v0.3.0
+
+- 用量存储重构：官方账本实时入库（`fs.watch`，300ms 防抖）到本地 SQLite（`~/.claudeharbor/database/claudeharbor.db`），事务内写事件与游标；按内容指纹跨来源去重，文件重写时安全替换。
+- 用量页改为事件驱动：进入页面取一次视图，主进程提交新数据后推送 revision，页面只局部更新三个区块，不再轮询与整页重绘；热力图悬停、图表浮窗与表格滚动不再被打断。
+- 设置页新增「用量」章节：管理采集来源（默认自动探测 Claude Desktop，可添加自定义路径、删除来源并即时生效），支持删除全部来源与恢复默认。
+- 底层新增共用 `persistence`（迁移、事务、WAL）与 `queries` 查询层，为后续 Provider/Profile 迁入数据库预留位置。
 
 #### v0.2.6
 
@@ -341,7 +350,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.3.0 · Platforms: macOS / Windows · License: [Apache License 2.0](LICENSE)**
+**Version: 0.3.1 · Platforms: macOS / Windows · License: [Apache License 2.0](LICENSE)**
 
 ### 1. Introduction
 
@@ -484,13 +493,22 @@ npm run typecheck
 
 ### Changelog
 
-#### v0.3.0
+#### v0.3.1
+
+- This release is primarily an architecture update: usage storage moves from SQLite to a custom file database, and the runtime no longer depends on any database service.
 
 - Usage storage is rebuilt as a custom file database; SQLite and the mirrored ledger are retired. `~/.claudeharbor/usage/` now contains `config.json`, `layer1/`, and `layer2/`, and reads only the official `usage-ledger`, never session detail.
 - Layer 1 buckets by the local wall clock of `config.timezone`: 336 cells each for 30 minutes, 1 hour, and 1 day, plus 7/30/90-day tokens-per-day directories. Cells keep seven totals, metadata records only the last event time and line hash, and a crash triggers a full rebuild.
 - Layer 2 materializes one fixed 336-slot `cells.json` per granularity (start times, display labels, levels, window total); the UI only reads results and follows `ts[i]` back to a single Layer 1 cell on hover.
 - Synchronization is driven by a resident system-clock loop aligned to 1/5/10/15/30-minute boundaries, with one round in flight, a 15-second dead zone, and no catch-up; manual sync is the only remedy, exposed as a button with a minute-precision timestamp on the usage page.
 - The old SQLite usage service and the `usage.sync/aggregate/buckets/audit` IPC channels are disconnected; settings now expose a single source, the sync interval, and a UTC-offset timezone selector (changing it rebuilds all data), and the card's "calls" label becomes "tool calls".
+
+#### v0.3.0
+
+- Usage storage rework: the official ledger is ingested in real time (`fs.watch`, 300 ms debounce) into a local SQLite database (`~/.claudeharbor/database/claudeharbor.db`), with events and byte cursors committed in one transaction; content fingerprints deduplicate across sources and rewritten files are replaced safely.
+- The usage page is now event-driven: it loads a view once, then redraws only the three affected blocks when the main process pushes a new revision — no polling, no full-page re-render, so heatmap hover, chart tooltips, and table scrolling stay intact.
+- Settings gains a Usage section: manage collection sources (Claude Desktop detected automatically, custom paths, delete sources with immediate effect), including deleting all sources and restoring the default.
+- New shared `persistence` (migrations, transactions, WAL) and `queries` layers lay the groundwork for moving Provider/Profile data into the database later.
 
 #### v0.2.6
 
