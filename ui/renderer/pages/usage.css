@@ -136,6 +136,49 @@ html[data-theme="dark"] .page--usage {
   font-variant-numeric: tabular-nums;
 }
 
+.page--usage .usage-sync-group {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 4px;
+}
+
+.page--usage .usage-sync-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: var(--usage-faint);
+  transition: background-color 0.14s var(--harbor-ease, ease), color 0.14s var(--harbor-ease, ease);
+}
+
+.page--usage .usage-sync-button:hover {
+  color: var(--usage-fg);
+  background: var(--usage-hover);
+}
+
+.page--usage .usage-sync-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.page--usage .usage-sync-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.page--usage .usage-sync-button.is-syncing .usage-sync-icon {
+  animation: usage-sync-spin 0.9s linear infinite;
+}
+
+@keyframes usage-sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ---- 热力图 + 总使用量卡 ---------------------------------------------- */
 
 .page--usage .usage-heat-row {

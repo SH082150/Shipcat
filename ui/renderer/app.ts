@@ -478,6 +478,14 @@ root.addEventListener("click", (event) => {
     return;
   }
 
+  // 用量页手动同步：时钟触发之外的唯一补救入口。
+  const usageSync = target.closest<HTMLElement>('[data-role="usage-sync-button"]');
+  if (usageSync) {
+    event.preventDefault();
+    void manualSyncUsage(usageSync);
+    return;
+  }
+
   const candidate = target.closest<HTMLElement>(ACTION_SELECTOR);
   const actionable = isShellContainer(candidate, SHELL_CONTAINERS) ? null : candidate;
 
@@ -954,6 +962,30 @@ async function reloadUsageView(): Promise<void> {
     updateUsageView(root, view, usageState);
   } catch (error) {
     console.error("refresh usage failed", error);
+  }
+}
+
+/** 手动同步：调用主进程跑一轮，再重新取数；期间按钮禁用并转圈。 */
+async function manualSyncUsage(button: HTMLElement): Promise<void> {
+  if (page !== "usage" || button.hasAttribute("data-syncing")) return;
+  button.setAttribute("data-syncing", "true");
+  button.setAttribute("disabled", "disabled");
+  button.classList.add("is-syncing");
+  try {
+    await usageApi.refresh();
+    await reloadUsageView();
+    showFloatingNotice({ title: "用量已同步", tone: "success" });
+  } catch (error) {
+    console.error("manual usage sync failed", error);
+    showFloatingNotice({
+      title: "同步失败",
+      message: "同步用量失败，请稍后重试。",
+      tone: "danger",
+    });
+  } finally {
+    button.removeAttribute("data-syncing");
+    button.removeAttribute("disabled");
+    button.classList.remove("is-syncing");
   }
 }
 

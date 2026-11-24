@@ -25,7 +25,8 @@ export type IconName =
   | "usage-note"
   | "config-lines"
   | "check"
-  | "alert";
+  | "alert"
+  | "refresh";
 
 const PATHS: Record<IconName, string> = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M15.8 15.8 20 20"/>',
@@ -58,6 +59,8 @@ const PATHS: Record<IconName, string> = {
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   alert:
     '<path d="M12 4.5 21 20H3Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/>',
+  refresh:
+    '<path d="M20 11a8 8 0 0 0-14.1-4.9L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.1 4.9L20 16"/><path d="M20 20v-4h-4"/>',
 };
 
 export function iconSvg(name: IconName, className = ""): string {

@@ -162,6 +162,7 @@ interface UsageCopy {
   readonly historyDescription: string;
   readonly ledgerPending: string;
   readonly ledgerRecords: (count: number) => string;
+  readonly syncNow: string;
   readonly rangeAria: string;
   readonly legendLess: string;
   readonly legendMore: string;
@@ -201,6 +202,7 @@ const COPY: Readonly<Record<"zh" | "en", UsageCopy>> = {
     historyDescription: "数据来自 Claude 在本机记录的用量，包含所有使用场景，不限于网关。",
     ledgerPending: "暂无用量数据",
     ledgerRecords: (count) => `已统计 ${count} 条记录`,
+    syncNow: "立即同步",
     rangeAria: "时间粒度",
     legendLess: "少",
     legendMore: "多",
@@ -240,6 +242,7 @@ const COPY: Readonly<Record<"zh" | "en", UsageCopy>> = {
       "Data comes from usage recorded by Claude on this machine, including every surface — not only the gateway.",
     ledgerPending: "No usage data yet",
     ledgerRecords: (count) => `${count} records counted`,
+    syncNow: "Sync now",
     rangeAria: "Time granularity",
     legendLess: "Less",
     legendMore: "More",
@@ -301,7 +304,10 @@ export function render(
 
       <div class="usage-heatmap-meta">
         <span data-role="usage-range-caption">${escapeHtml(renderRangeCaption(range, language))}</span>
-        <span class="usage-sync" data-role="usage-sync-status">${escapeHtml(ledger)}</span>
+        <span class="usage-sync-group">
+          <span class="usage-sync" data-role="usage-sync-status">${escapeHtml(ledger)}</span>
+          <button type="button" class="usage-sync-button" data-role="usage-sync-button" aria-label="${escapeHtml(copy.syncNow)}" title="${escapeHtml(copy.syncNow)}">${iconSvg("refresh", "usage-sync-icon")}</button>
+        </span>
       </div>
       <p class="usage-warning" data-role="usage-warning"${view.warnings.length === 0 ? " hidden" : ""}>${escapeHtml(view.warnings.join(" "))}</p>
       <div class="usage-heat-row">
