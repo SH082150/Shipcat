@@ -22,7 +22,7 @@ Claude Desktop 的第三方 inference profile 同时承担客户端连接参数�
 
 ## 3. 内核模块与依赖方向
 
-`core/types.ts` 是纯领域类型定义，不包含运行时行为。`core/platform/` 是全项目唯一的平台差异出处，负责按操作系统计算 Claude 数据根与 Harbor 数据根（macOS / Windows 双形态探测，见 [docs/windows-port.md](docs/windows-port.md)）；`core/archive/` 按存储区域组织，负责全部档案读写；`core/check/` 按检查场景组织，负责双侧扫描与内容门禁；`core/validate/` 按校验对象组织，负责在写入前拒绝非法输入；`core/usage/` 按镜像与查询组织，负责官方 usage-ledger 账本的增量镜像与按天聚合（数据源与格式见 `docs/usage-format.md`）；`core/gateway/` 按请求生命周期组织，负责运行时转发。`core/index.ts` 是唯一公共出口，CLI 和未来 UI 不应绕过它直接拼写内部业务路径。
+`core/types.ts` 是纯领域类型定义，不包含运行时行为。`core/platform/` 是全项目唯一的平台差异出处，负责按操作系统计算 Claude 数据根与 Harbor 数据根（macOS / Windows 双形态探测，见 [docs/windows-port.md](docs/windows-port.md)）；`core/archive/` 按存储区域组织，负责全部档案读写；`core/check/` 按检查场景组织，负责双侧扫描与内容门禁；`core/validate/` 按校验对象组织，负责在写入前拒绝非法输入；`core/usage/` 按文件库分层组织：第一层只筛选官方 usage-ledger，按本地时区切分为固定窗口，第二层生成固定槽位的展示结果，并由常驻授时循环驱动同步（数据源与格式见 `docs/usage-format.md`）；`core/gateway/` 按请求生命周期组织，负责运行时转发。`core/index.ts` 是唯一公共出口，CLI 和未来 UI 不应绕过它直接拼写内部业务路径。
 
 依赖方向保持单向：路径与文件原语不依赖业务模块，供应商和 profile 档案模块依赖文件原语，生成器依赖领域类型但不读写文件，检查模块组合档案与生成器，网关只接收启动参数和供应商解析函数。错误信封、文件原子写和路径计算是共享基础能力；网关流水线中的对称规则允许少量自包含重复，以便按阶段定位和测试，而不是为了抽象而把请求旅程拆散到过细的共享函数中。
 

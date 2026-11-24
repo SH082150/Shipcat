@@ -8,15 +8,15 @@
 
 ## 摘要
 
-针对 Claude Desktop 第三方 inference profile 中供应商配置与模型条目耦合，以及多供应商路由过程中模型档位语义容易丢失的问题，本项目设计并实现了 ClaudeHarbor 内核与 Shipcat 桌面端。系统以 UUID v4 作为跨存储引用键，采用以 Claude 侧元数据为主索引的 superset 双边存储模型，并通过六段式本地网关将可读的模型档位别名映射至多个 Anthropic Messages 兼容上游。Shipcat 桌面端直接调用同一内核的公共能力，提供供应商、配置文件、用量统计与设置的可视化管理，并内置本地网关的启停与激活切换。当前实现覆盖 profile 生命周期管理、双侧一致性检查、模型发现、凭证隔离、JSON/SSE 字节透传与官方用量账本镜像。自动化测试、隔离端到端验收与 macOS 客户端联调验证了该架构在当前客户端版本下的可行性。
+针对 Claude Desktop 第三方 inference profile 中供应商配置与模型条目耦合，以及多供应商路由过程中模型档位语义容易丢失的问题，本项目设计并实现了 ClaudeHarbor 内核与 Shipcat 桌面端。系统以 UUID v4 作为跨存储引用键，采用以 Claude 侧元数据为主索引的 superset 双边存储模型，并通过六段式本地网关将可读的模型档位别名映射至多个 Anthropic Messages 兼容上游。Shipcat 桌面端直接调用同一内核的公共能力，提供供应商、配置文件、用量统计与设置的可视化管理，并内置本地网关的启停与激活切换。当前实现覆盖 profile 生命周期管理、双侧一致性检查、模型发现、凭证隔离、JSON/SSE 字节透传，以及基于官方 usage-ledger 的双层文件用量库。该用量库不依赖 SQLite：第一层按本地时区把账本切分为固定窗口的小格，第二层生成固定 336 槽位的展示结果，界面只读取结果而不参与汇算。自动化测试、隔离端到端验收与 macOS 客户端联调验证了该架构在当前客户端版本下的可行性。
 
-**关键词：** Claude Desktop；本地网关；多供应商路由；profile 管理；双边存储；UUID 引用；桌面应用
+**关键词：** Claude Desktop；本地网关；多供应商路由；profile 管理；双边存储；UUID 引用；用量文件库；桌面应用
 
 ## Abstract
 
-Shipcat pairs a desktop interface with the ClaudeHarbor kernel to address two problems in Claude Desktop third-party inference profiles: the coupling between provider configuration and model entries, and the loss of model-tier semantics during multi-provider routing. The design uses UUID v4 references, a superset dual-storage model indexed by Claude-side metadata, and a six-stage local gateway that maps readable tier aliases to multiple Anthropic Messages-compatible upstreams. The Shipcat desktop app calls the very same core APIs to manage providers, profiles, usage, and settings, and to start or stop the local gateway. The current implementation provides profile lifecycle management, dual-side consistency checks, model discovery, credential isolation, byte-preserving JSON/SSE relay, and an official usage-ledger mirror. Automated tests, isolated end-to-end verification, and macOS client integration tests demonstrate the feasibility of this architecture for the tested client version.
+Shipcat pairs a desktop interface with the ClaudeHarbor kernel to address two problems in Claude Desktop third-party inference profiles: the coupling between provider configuration and model entries, and the loss of model-tier semantics during multi-provider routing. The design uses UUID v4 references, a superset dual-storage model indexed by Claude-side metadata, and a six-stage local gateway that maps readable tier aliases to multiple Anthropic Messages-compatible upstreams. The Shipcat desktop app calls the very same core APIs to manage providers, profiles, usage, and settings, and to start or stop the local gateway. The current implementation provides profile lifecycle management, dual-side consistency checks, model discovery, credential isolation, byte-preserving JSON/SSE relay, and a two-layer usage database built from the official usage ledger without SQLite: the first layer partitions the ledger into fixed time windows in local time, and the second layer materializes 336 display slots that the UI reads without performing any aggregation. Automated tests, isolated end-to-end verification, and macOS client integration tests demonstrate the feasibility of this architecture for the tested client version.
 
-**Keywords:** Claude Desktop; local gateway; multi-provider routing; profile management; dual-side storage; desktop application
+**Keywords:** Claude Desktop; local gateway; multi-provider routing; profile management; dual-side storage; usage database; desktop application
 
 ---
 
@@ -127,13 +127,25 @@ ui/
 └── shared/ipc.ts          # 通道契约
 ```
 
-主要能力：概览页显示按时段问候语、建议条目与错误通知条；供应商与配置文件页提供完整的增删改查，档案页内置网关开关与激活切换；用量页同步官方账本，以热力图与按天图表（柱状/表格两种视图）呈现，悬停热力图格子可查看该时段明细；设置页包含主题（浅色 / 深色 / 跟随系统）、语言、头像、开机自启与"关闭窗口后驻留后台"开关。欢迎区每小时轮换一只像素小猫，点击可触发眨眼或摇尾巴动画。
+主要能力：概览页显示按时段问候语、建议条目与错误通知条；供应商与配置文件页提供完整的增删改查，档案页内置网关开关与激活切换；用量页读取第二层固定槽位，以热力图与按天图表（柱状/表格两种视图）呈现，悬停热力图格子可查看该时段明细，右上角显示最近同步时间（精确到分钟）并提供手动同步按钮；设置页包含主题（浅色 / 深色 / 跟随系统）、语言、头像、开机自启与"关闭窗口后驻留后台"开关。欢迎区每小时轮换一只像素小猫，点击可触发眨眼或摇尾巴动画。
 
 打包使用 electron-builder：`npm run pack` 产出未压缩目录便于检查，`npm run dist` 产出 macOS 的 dmg/zip 与 Windows 的 NSIS 安装包。
 
+#### 2.7 用量文件库：以稳定窗口换取可预测性
+
+用量数据只来自 Claude-3p 官方 `usage-ledger`，不读取会话明细，也不依赖任何数据库服务。本节的设计目标不是实时性，而是可重现性：只要账本与配置未变，336 个展示槽位在任意时刻都应得到相同结果。系统因此移除 SQLite 与镜像账本，改用由 `config.json`、`layer1/` 与 `layer2/` 组成的自建文件库。
+
+**第一层只筛选官方账本。** 30 分钟、1 小时与 1 天三个粒度各维护 336 个格子文件，另设 7/30/90 天三个 tokens-per-day 目录。桶边界按 `config.timezone` 的本地墙钟计算：30 分钟与 1 小时用 epoch 对齐，以区分夏令时回拨时重复的本地小时；1 天按日历日推进，因此 DST 日可以是 23 或 25 小时。每个格子只保存输入、输出、缓存读写、网页搜索、成本与工具调用次数七个合计，模型名、会话标识和来源信息均不落盘。`_meta_.json` 仅记录最后处理事件的时间与行哈希，二者只随新事件前进；空闲滚动窗口绝不覆盖游标，避免把迟到事件误判为旧数据。同步时从最新账本文件由新到旧读取，遇到游标或窗口边界即停；`_syncing_` 残留或元数据不完整时整库重建，以一次全量扫描换取不重复计数。
+
+**第二层只组织第一层。** 每个粒度生成一个 `cells.json`，包含 336 个槽位的桶起点、展示时间、颜色等级与窗口合计。该文件不复制单格明细；界面悬停时以 `ts[i]` 为指针回第一层读取单个格子。由此，两层之间只有"窗口到槽位"一种映射，界面不再执行范围查询或聚合。
+
+**调度由系统时钟驱动，不做补跑。** 主进程常驻一个每秒查询系统时钟的授时循环，按用户选择的 1/5/10/15/30 分钟对齐边界触发；休眠唤醒后只观测到一次边界跨越，因此只触发一轮。同一时刻仅允许一轮在途，时钟触发与手动刷新共享同一轮；距上一轮结束不足 15 秒的时钟触发被跳过。系统不补跑、不重试、不猜测缺失数据，手动同步是唯一补救手段。这一约束把"数据可能短暂滞后"与"链路状态不可预测"区分开来：时区变化触发全部重建，同步频率变化只重排下一次边界。界面右上角显示最近一次同步时间（精确到分钟），并提供手动同步按钮。
+
+**验证。** 新增用例覆盖本地时区与 DST、增量与去重、窗口滚动、tpd 分面、第二层槽位、崩溃恢复与授时边界；当前测试集共 472 项，468 项通过、4 项跳过，类型检查无错误。
+
 ### 3. 运行模式与数据边界
 
-`standard` 模式用于单供应商直连，模型名称不经过本地网关改写，适合上游本身能够处理对应模型名的场景；`advanced` 模式用于多供应商、多模型条目的显式路由，每个别名对应一个确定的真实上游模型；`readOnly` 模式则用于接纳并非由 ClaudeHarbor 创建的 Claude profile，系统可以读取、展示或删除它，但不会尝试编辑未知字段或推导出可能破坏原配置的内容。三种模式共享供应商与 profile 的 UUID 组织方式，但只有 advanced 模式需要运行本地网关。当前版本以 profile 级配置为边界，不管理 Claude Desktop 的应用级配置，也不自动执行官方模式恢复。
+`standard` 模式用于单供应商直连，模型名称不经过本地网关改写，适合上游本身能够处理对应模型名的场景；`advanced` 模式用于多供应商、多模型条目的显式路由，每个别名对应一个确定的真实上游模型；`readOnly` 模式则用于接纳并非由 ClaudeHarbor 创建的 Claude profile，系统可以读取、展示或删除它，但不会尝试编辑未知字段或推导出可能破坏原配置的内容。三种模式共享供应商与 profile 的 UUID 组织方式，但只有 advanced 模式需要运行本地网关。当前版本以 profile 级配置为边界，不管理 Claude Desktop 的应用级配置，也不自动执行官方模式恢复。用量模块遵循同一数据边界：只读取官方 `usage-ledger`，不读取会话明细；后续日志模块使用独立存储，与用量库不共享写入路径。
 
 ### 4. 安全模型与故障边界
 
@@ -145,7 +157,7 @@ ui/
 
 ### 5. 验证方法
 
-验证分为纯函数测试、文件系统测试、真实 socket 集成测试、隔离安装验收和 macOS 客户端联调。纯函数与文件系统测试覆盖 UUID 索引、原子写入、权限、校验和双侧生命周期；网关测试使用本地假上游检查鉴权、模型改写、查询保留、JSON/SSE 透传、错误矩阵和客户端断连；隔离安装验收通过安装后的 `claudeharbor` 命令完成双供应商建库、profile 创建、路由添加、激活、模型发现和实际 HTTP 转发。当前测试命令包含 428 项用例，macOS 上 424 项通过、0 项失败、4 项跳过；类型检查无错误。真机联调已覆盖模型发现、真实对话、多供应商调用、工作流子智能体以及按"最便宜"要求选择 haiku 档位的行为，但这些结论仍受当前 Claude Desktop 版本约束，客户端升级后应重新验证。Windows 侧的路径探测、`%APPDATA%` 壳判定、权限降级与 rename 重试已由隔离测试覆盖，真机验收项见 [docs/windows-port.md](docs/windows-port.md)。
+验证分为纯函数测试、文件系统测试、真实 socket 集成测试、隔离安装验收和 macOS 客户端联调。纯函数与文件系统测试覆盖 UUID 索引、原子写入、权限、校验和双侧生命周期；网关测试使用本地假上游检查鉴权、模型改写、查询保留、JSON/SSE 透传、错误矩阵和客户端断连；隔离安装验收通过安装后的 `claudeharbor` 命令完成双供应商建库、profile 创建、路由添加、激活、模型发现和实际 HTTP 转发。当前测试命令包含 472 项用例，macOS 上 468 项通过、0 项失败、4 项跳过；类型检查无错误。真机联调已覆盖模型发现、真实对话、多供应商调用、工作流子智能体以及按"最便宜"要求选择 haiku 档位的行为，但这些结论仍受当前 Claude Desktop 版本约束，客户端升级后应重新验证。Windows 侧的路径探测、`%APPDATA%` 壳判定、权限降级与 rename 重试已由隔离测试覆盖，真机验收项见 [docs/windows-port.md](docs/windows-port.md)。
 
 ### 6. 后续优化空间
 
@@ -270,10 +282,11 @@ npm run typecheck
 
 #### v0.3.0
 
-- 用量存储重构：官方账本实时入库（`fs.watch`，300ms 防抖）到本地 SQLite（`~/.claudeharbor/database/claudeharbor.db`），事务内写事件与游标；按内容指纹跨来源去重，文件重写时安全替换。
-- 用量页改为事件驱动：进入页面取一次视图，主进程提交新数据后推送 revision，页面只局部更新三个区块，不再轮询与整页重绘；热力图悬停、图表浮窗与表格滚动不再被打断。
-- 设置页新增「用量」章节：管理采集来源（默认自动探测 Claude Desktop，可添加自定义路径、删除来源并即时生效），支持删除全部来源与恢复默认。
-- 底层新增共用 `persistence`（迁移、事务、WAL）与 `queries` 查询层，为后续 Provider/Profile 迁入数据库预留位置。
+- 用量存储重构为自建文件库，SQLite 与镜像账本退场：`~/.claudeharbor/usage/` 下由 `config.json`、`layer1/` 与 `layer2/` 组成，只读官方 `usage-ledger`，不读取会话明细。
+- 第一层按 `config.timezone` 的本地墙钟切桶：30 分钟、1 小时与 1 天各 336 格，另有 7/30/90 天 tokens-per-day 目录；格内只存七个合计，元数据仅记录最后事件时间与行哈希，崩溃后整库重建。
+- 第二层为每个粒度生成固定 336 槽位的 `cells.json`（桶起点、展示时间、等级、窗口合计）；界面只读结果，悬停时以 `ts[i]` 回第一层读取单格。
+- 同步由常驻系统时钟循环驱动，按 1/5/10/15/30 分钟对齐边界触发，单轮串行、15 秒死区、不补跑；手动同步是唯一补救手段，用量页右上角提供同步按钮与分钟级同步时间。
+- 旧 SQLite 用量服务与 `usage.sync/aggregate/buckets/audit` IPC 断开；设置页改为单来源与同步频率，卡片“调用次数”改为“工具调用次数”。
 
 #### v0.2.6
 
@@ -388,11 +401,23 @@ Creation, route edits, renaming, deletion, activation, and gateway startup have 
 
 #### 2.6 The Shipcat desktop app
 
-Shipcat is an Electron shell that calls the public APIs of `core/index.ts` directly instead of duplicating profile or routing logic, so the CLI and the GUI share the same consistency gates and lifecycle rules. The UI and the kernel communicate through the channel contract in `ui/shared/ipc.ts`; the main process (`ui/main/`) owns the gateway lifecycle, file dialogs, weather queries, and system capabilities, while the renderer (`ui/renderer/`) is organized by page module: overview, providers, profiles, usage, settings, shell components (sidebar, menus, dialogs, a pixel-art kitten mascot), navigation/theme state, and a greeting generator that rotates time-, weather-, holiday-, and kitten-themed greetings. The overview page shows time-based greetings, suggestions, and an error banner; the providers and profiles pages offer full CRUD, and the profiles page hosts the gateway toggle and activation switching. The usage page syncs the official ledger and presents it as a heatmap plus a per-day chart (bar or table view), with per-cell detail on hover. Settings include theme (light / dark / system), language, avatar, launch-at-login, and "keep running after window close". The welcome area rotates an hourly pixel kitten that blinks or wags its tail when clicked. Packaging uses electron-builder (`npm run pack` for an unpacked directory, `npm run dist` for macOS dmg/zip and Windows NSIS installers).
+Shipcat is an Electron shell that calls the public APIs of `core/index.ts` directly instead of duplicating profile or routing logic, so the CLI and the GUI share the same consistency gates and lifecycle rules. The UI and the kernel communicate through the channel contract in `ui/shared/ipc.ts`; the main process (`ui/main/`) owns the gateway lifecycle, file dialogs, weather queries, and system capabilities, while the renderer (`ui/renderer/`) is organized by page module: overview, providers, profiles, usage, settings, shell components (sidebar, menus, dialogs, a pixel-art kitten mascot), navigation/theme state, and a greeting generator that rotates time-, weather-, holiday-, and kitten-themed greetings. The overview page shows time-based greetings, suggestions, and an error banner; the providers and profiles pages offer full CRUD, and the profiles page hosts the gateway toggle and activation switching. The usage page reads the fixed slots of the second layer and presents them as a heatmap plus a per-day chart (bar or table view), with per-cell detail on hover; the top-right corner shows the last sync time to the minute and offers a manual sync button. Settings include theme (light / dark / system), language, avatar, launch-at-login, and "keep running after window close". The welcome area rotates an hourly pixel kitten that blinks or wags its tail when clicked. Packaging uses electron-builder (`npm run pack` for an unpacked directory, `npm run dist` for macOS dmg/zip and Windows NSIS installers).
+
+#### 2.7 The usage database: stable windows over immediacy
+
+Usage data comes only from Claude-3p's official `usage-ledger`; no session detail is read and no database service is involved. The design goal is reproducibility rather than real-time freshness: given an unchanged ledger and configuration, the 336 display slots must resolve identically at any moment. The implementation therefore retires SQLite and the mirrored ledger in favor of a file database made of `config.json`, `layer1/`, and `layer2/`.
+
+**Layer 1 filters the official ledger.** The 30-minute, 1-hour, and 1-day granularities each maintain 336 cell files, alongside 7/30/90-day tokens-per-day directories. Bucket boundaries follow the local wall clock of `config.timezone`: 30-minute and 1-hour buckets align on the epoch so that the repeated local hour of a DST fall-back remains distinguishable, while 1-day buckets advance by calendar day and may therefore be 23 or 25 hours long. Each cell stores only seven totals — input, output, cache read, cache write, web search, cost, and tool calls — and never model names, session identifiers, or surface labels. `_meta_.json` records only the timestamp and line hash of the last processed event, and both advance only when a new event arrives; an idle window roll never overwrites the cursor, so a late event is not mistaken for stale data. Synchronization reads the newest ledger file backwards and stops at the cursor or the window boundary; a leftover `_syncing_` marker or incomplete metadata triggers a full rebuild, trading one complete scan for the guarantee that nothing is counted twice.
+
+**Layer 2 only organizes Layer 1.** Each granularity produces a `cells.json` holding 336 slot start times, display labels, color levels, and the window total. It does not copy per-cell detail; on hover the UI follows `ts[i]` back to Layer 1 and reads a single cell. The only mapping between the layers is therefore "window to slot", and the interface performs no range queries or aggregation.
+
+**Scheduling is clock-driven and deliberately does not catch up.** The main process runs a resident loop that reads the system clock once per second and fires on boundaries aligned to the user-selected 1/5/10/15/30-minute interval; after a sleep the loop observes a single boundary crossing and therefore fires once. Only one round may be in flight, and clock-triggered and manual runs share it; a clock trigger within 15 seconds of the previous round is skipped. The system does not retry, backfill, or guess missed data — manual synchronization is the only remedy. This separates "data may be briefly stale" from "the pipeline state is unpredictable": a timezone change rebuilds every database, while a frequency change only realigns the next boundary. The top-right corner of the usage page shows the last sync time to the minute and offers a manual sync button.
+
+**Verification.** New tests cover local time and DST, incremental ingestion and deduplication, window rolling, the tpd breakdown, Layer 2 slots, crash recovery, and clock boundaries. The suite currently reports 472 tests: 468 pass with four skipped, and type checking completes without errors.
 
 ### 3. Modes and boundaries
 
-`standard` provides direct single-provider access without model rewriting, `advanced` provides explicit multi-provider gateway routes, and `readOnly` represents an external Claude profile that can be viewed or deleted but not edited. Only advanced profiles require a running gateway. This release manages profile-level configuration only and does not manage app-level settings or provide a one-command official-mode restore.
+`standard` provides direct single-provider access without model rewriting, `advanced` provides explicit multi-provider gateway routes, and `readOnly` represents an external Claude profile that can be viewed or deleted but not edited. Only advanced profiles require a running gateway. This release manages profile-level configuration only and does not manage app-level settings or provide a one-command official-mode restore. The usage module follows the same boundary: it reads only the official `usage-ledger`, never session detail, and the future log module will use separate storage that shares no write path with the usage database.
 
 ### 4. Security and failure boundaries
 
@@ -404,7 +429,7 @@ Local validation and routing failures produce explicit Anthropic-shaped errors; 
 
 ### 5. Verification
 
-Verification covers pure functions, filesystem behavior, real-socket gateway integration, isolated installation, and macOS client integration. Tests exercise UUID indexes, atomic writes, permissions, lifecycle reconciliation, authentication, model rewriting, query preservation, JSON/SSE relay, error handling, and client cancellation. The isolated installation test uses the installed CLI to configure two providers, create and activate a profile, discover models, and forward a real HTTP request to a local fake upstream. The current suite reports 428 tests: 424 pass with four skipped and zero failures on macOS; type checking completes without errors. Client integration has covered model discovery, conversation, multiple providers, workflow subagents, and haiku-tier selection, but compatibility remains tied to the tested Claude Desktop version. Windows data-root discovery, `%APPDATA%` shell detection, permission degradation, and rename retries are covered by isolated tests; the real-machine checklist is in [docs/windows-port.md](docs/windows-port.md).
+Verification covers pure functions, filesystem behavior, real-socket gateway integration, isolated installation, and macOS client integration. Tests exercise UUID indexes, atomic writes, permissions, lifecycle reconciliation, authentication, model rewriting, query preservation, JSON/SSE relay, error handling, and client cancellation. The isolated installation test uses the installed CLI to configure two providers, create and activate a profile, discover models, and forward a real HTTP request to a local fake upstream. The current suite reports 472 tests: 468 pass with four skipped and zero failures on macOS; type checking completes without errors. Client integration has covered model discovery, conversation, multiple providers, workflow subagents, and haiku-tier selection, but compatibility remains tied to the tested Claude Desktop version. Windows data-root discovery, `%APPDATA%` shell detection, permission degradation, and rename retries are covered by isolated tests; the real-machine checklist is in [docs/windows-port.md](docs/windows-port.md).
 
 ### 6. Future work
 
@@ -461,10 +486,11 @@ npm run typecheck
 
 #### v0.3.0
 
-- Usage storage rework: the official ledger is ingested in real time (`fs.watch`, 300 ms debounce) into a local SQLite database (`~/.claudeharbor/database/claudeharbor.db`), with events and byte cursors committed in one transaction; content fingerprints deduplicate across sources and rewritten files are replaced safely.
-- The usage page is now event-driven: it loads a view once, then redraws only the three affected blocks when the main process pushes a new revision — no polling, no full-page re-render, so heatmap hover, chart tooltips, and table scrolling stay intact.
-- Settings gains a Usage section: manage collection sources (Claude Desktop detected automatically, custom paths, delete sources with immediate effect), including deleting all sources and restoring the default.
-- New shared `persistence` (migrations, transactions, WAL) and `queries` layers lay the groundwork for moving Provider/Profile data into the database later.
+- Usage storage is rebuilt as a custom file database; SQLite and the mirrored ledger are retired. `~/.claudeharbor/usage/` now contains `config.json`, `layer1/`, and `layer2/`, and reads only the official `usage-ledger`, never session detail.
+- Layer 1 buckets by the local wall clock of `config.timezone`: 336 cells each for 30 minutes, 1 hour, and 1 day, plus 7/30/90-day tokens-per-day directories. Cells keep seven totals, metadata records only the last event time and line hash, and a crash triggers a full rebuild.
+- Layer 2 materializes one fixed 336-slot `cells.json` per granularity (start times, display labels, levels, window total); the UI only reads results and follows `ts[i]` back to a single Layer 1 cell on hover.
+- Synchronization is driven by a resident system-clock loop aligned to 1/5/10/15/30-minute boundaries, with one round in flight, a 15-second dead zone, and no catch-up; manual sync is the only remedy, exposed as a button with a minute-precision timestamp on the usage page.
+- The old SQLite usage service and the `usage.sync/aggregate/buckets/audit` IPC channels are disconnected; settings now expose a single source and the sync interval, and the card's "calls" label becomes "tool calls".
 
 #### v0.2.6
 
