@@ -127,7 +127,7 @@ ui/
 └── shared/ipc.ts          # 通道契约
 ```
 
-主要能力：概览页显示按时段问候语、建议条目与错误通知条；供应商与配置文件页提供完整的增删改查，档案页内置网关开关与激活切换；用量页读取第二层固定槽位，以热力图与按天图表（柱状/表格两种视图）呈现，悬停热力图格子可查看该时段明细，右上角显示最近同步时间（精确到分钟）并提供手动同步按钮；设置页包含主题（浅色 / 深色 / 跟随系统）、语言、头像、开机自启与"关闭窗口后驻留后台"开关。欢迎区每小时轮换一只像素小猫，点击可触发眨眼或摇尾巴动画。
+主要能力：概览页显示按时段问候语、建议条目与错误通知条；供应商与配置文件页提供完整的增删改查，档案页内置网关开关与激活切换；用量页读取第二层固定槽位，以热力图与按天图表（柱状/表格两种视图）呈现，悬停热力图格子可查看该时段明细，右上角显示最近同步时间（精确到分钟）并提供手动同步按钮；设置页包含主题（浅色 / 深色 / 跟随系统）、语言、头像、开机自启与"关闭窗口后驻留后台"开关，以及用量来源、同步频率与按 UTC 偏移选择的时区。欢迎区每小时轮换一只像素小猫，点击可触发眨眼或摇尾巴动画。
 
 打包使用 electron-builder：`npm run pack` 产出未压缩目录便于检查，`npm run dist` 产出 macOS 的 dmg/zip 与 Windows 的 NSIS 安装包。
 
@@ -286,7 +286,7 @@ npm run typecheck
 - 第一层按 `config.timezone` 的本地墙钟切桶：30 分钟、1 小时与 1 天各 336 格，另有 7/30/90 天 tokens-per-day 目录；格内只存七个合计，元数据仅记录最后事件时间与行哈希，崩溃后整库重建。
 - 第二层为每个粒度生成固定 336 槽位的 `cells.json`（桶起点、展示时间、等级、窗口合计）；界面只读结果，悬停时以 `ts[i]` 回第一层读取单格。
 - 同步由常驻系统时钟循环驱动，按 1/5/10/15/30 分钟对齐边界触发，单轮串行、15 秒死区、不补跑；手动同步是唯一补救手段，用量页右上角提供同步按钮与分钟级同步时间。
-- 旧 SQLite 用量服务与 `usage.sync/aggregate/buckets/audit` IPC 断开；设置页改为单来源与同步频率，卡片“调用次数”改为“工具调用次数”。
+- 旧 SQLite 用量服务与 `usage.sync/aggregate/buckets/audit` IPC 断开；设置页改为单来源、同步频率与时区（按 UTC 偏移选择，修改后全量重建），卡片“调用次数”改为“工具调用次数”。
 
 #### v0.2.6
 
@@ -401,7 +401,7 @@ Creation, route edits, renaming, deletion, activation, and gateway startup have 
 
 #### 2.6 The Shipcat desktop app
 
-Shipcat is an Electron shell that calls the public APIs of `core/index.ts` directly instead of duplicating profile or routing logic, so the CLI and the GUI share the same consistency gates and lifecycle rules. The UI and the kernel communicate through the channel contract in `ui/shared/ipc.ts`; the main process (`ui/main/`) owns the gateway lifecycle, file dialogs, weather queries, and system capabilities, while the renderer (`ui/renderer/`) is organized by page module: overview, providers, profiles, usage, settings, shell components (sidebar, menus, dialogs, a pixel-art kitten mascot), navigation/theme state, and a greeting generator that rotates time-, weather-, holiday-, and kitten-themed greetings. The overview page shows time-based greetings, suggestions, and an error banner; the providers and profiles pages offer full CRUD, and the profiles page hosts the gateway toggle and activation switching. The usage page reads the fixed slots of the second layer and presents them as a heatmap plus a per-day chart (bar or table view), with per-cell detail on hover; the top-right corner shows the last sync time to the minute and offers a manual sync button. Settings include theme (light / dark / system), language, avatar, launch-at-login, and "keep running after window close". The welcome area rotates an hourly pixel kitten that blinks or wags its tail when clicked. Packaging uses electron-builder (`npm run pack` for an unpacked directory, `npm run dist` for macOS dmg/zip and Windows NSIS installers).
+Shipcat is an Electron shell that calls the public APIs of `core/index.ts` directly instead of duplicating profile or routing logic, so the CLI and the GUI share the same consistency gates and lifecycle rules. The UI and the kernel communicate through the channel contract in `ui/shared/ipc.ts`; the main process (`ui/main/`) owns the gateway lifecycle, file dialogs, weather queries, and system capabilities, while the renderer (`ui/renderer/`) is organized by page module: overview, providers, profiles, usage, settings, shell components (sidebar, menus, dialogs, a pixel-art kitten mascot), navigation/theme state, and a greeting generator that rotates time-, weather-, holiday-, and kitten-themed greetings. The overview page shows time-based greetings, suggestions, and an error banner; the providers and profiles pages offer full CRUD, and the profiles page hosts the gateway toggle and activation switching. The usage page reads the fixed slots of the second layer and presents them as a heatmap plus a per-day chart (bar or table view), with per-cell detail on hover; the top-right corner shows the last sync time to the minute and offers a manual sync button. Settings include theme (light / dark / system), language, avatar, launch-at-login, "keep running after window close", plus the usage source, sync interval, and a UTC-offset timezone selector. The welcome area rotates an hourly pixel kitten that blinks or wags its tail when clicked. Packaging uses electron-builder (`npm run pack` for an unpacked directory, `npm run dist` for macOS dmg/zip and Windows NSIS installers).
 
 #### 2.7 The usage database: stable windows over immediacy
 
@@ -490,7 +490,7 @@ npm run typecheck
 - Layer 1 buckets by the local wall clock of `config.timezone`: 336 cells each for 30 minutes, 1 hour, and 1 day, plus 7/30/90-day tokens-per-day directories. Cells keep seven totals, metadata records only the last event time and line hash, and a crash triggers a full rebuild.
 - Layer 2 materializes one fixed 336-slot `cells.json` per granularity (start times, display labels, levels, window total); the UI only reads results and follows `ts[i]` back to a single Layer 1 cell on hover.
 - Synchronization is driven by a resident system-clock loop aligned to 1/5/10/15/30-minute boundaries, with one round in flight, a 15-second dead zone, and no catch-up; manual sync is the only remedy, exposed as a button with a minute-precision timestamp on the usage page.
-- The old SQLite usage service and the `usage.sync/aggregate/buckets/audit` IPC channels are disconnected; settings now expose a single source and the sync interval, and the card's "calls" label becomes "tool calls".
+- The old SQLite usage service and the `usage.sync/aggregate/buckets/audit` IPC channels are disconnected; settings now expose a single source, the sync interval, and a UTC-offset timezone selector (changing it rebuilds all data), and the card's "calls" label becomes "tool calls".
 
 #### v0.2.6
 

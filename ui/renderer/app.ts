@@ -1823,11 +1823,34 @@ async function openSettings(detail: OpenSettingsDetail): Promise<void> {
     configResult !== undefined && configResult.ok && configResult.value !== undefined
       ? configResult.value.syncIntervalMinutes
       : undefined;
+  const usageTimezone =
+    configResult !== undefined && configResult.ok && configResult.value !== undefined
+      ? configResult.value.timezone
+      : undefined;
 
   const overlay = createSettingsModal({
     language,
     usageSources,
     usageSyncInterval,
+    usageTimezone,
+    onSaveUsageTimezone: async (timezone) => {
+      const current = await bridge?.usage?.getConfig?.();
+      if (current === undefined || !current.ok || current.value === undefined) {
+        return { ok: false, error: language === "zh" ? "保存失败。" : "Save failed." };
+      }
+      const result = await bridge?.usage?.saveConfig?.({
+        timezone,
+        syncIntervalMinutes: current.value.syncIntervalMinutes,
+      });
+      if (result === undefined || !result.ok || result.value === undefined) {
+        return {
+          ok: false,
+          error:
+            result?.error?.message ?? (language === "zh" ? "保存失败。" : "Save failed."),
+        };
+      }
+      return { ok: true, value: result.value.timezone };
+    },
     onSaveUsageInterval: async (minutes) => {
       const current = await bridge?.usage?.getConfig?.();
       if (current === undefined || !current.ok || current.value === undefined) {

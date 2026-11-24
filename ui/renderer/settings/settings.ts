@@ -76,6 +76,12 @@ export interface SettingsModalOptions {
   onSaveUsageInterval?: (
     minutes: number,
   ) => Promise<{ ok: boolean; value?: number; error?: string }>;
+  /** 用量时区（IANA）；缺省系统时区。 */
+  usageTimezone?: string;
+  /** 保存时区；返回生效值或错误文案。 */
+  onSaveUsageTimezone?: (
+    timezone: string,
+  ) => Promise<{ ok: boolean; value?: string; error?: string }>;
 }
 
 interface SettingsCopy {
@@ -121,6 +127,8 @@ interface SettingsCopy {
   readonly usageSyncTitle: string;
   readonly usageSyncHint: string;
   readonly usageSyncOption: (minutes: number) => string;
+  readonly usageTimezoneTitle: string;
+  readonly usageTimezoneHint: string;
   readonly systemTitle: string;
   readonly systemHint: string;
   readonly versionTitle: string;
@@ -187,6 +195,8 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
     usageSyncTitle: "同步频率",
     usageSyncHint: "按系统时钟对齐到整间隔刷新用量；更改后从下一个间隔边界生效。",
     usageSyncOption: (minutes) => `每 ${minutes} 分钟`,
+    usageTimezoneTitle: "时区",
+    usageTimezoneHint: "用量按此时区切分时间桶并生成展示时间。修改会重建全部用量数据，可能需要几秒。",
     systemTitle: "应用",
     systemHint: "当前安装的版本与启动方式。",
     versionTitle: "版本",
@@ -264,6 +274,9 @@ const SETTINGS_COPY: Record<SettingsLanguage, SettingsCopy> = {
       "Usage refreshes on clock-aligned intervals; changes apply from the next boundary.",
     usageSyncOption: (minutes) =>
       minutes === 1 ? "Every minute" : `Every ${minutes} minutes`,
+    usageTimezoneTitle: "Timezone",
+    usageTimezoneHint:
+      "Usage buckets and display times follow this zone. Changing it rebuilds all usage data and may take a few seconds.",
     systemTitle: "Application",
     systemHint: "Installed version and startup behavior.",
     versionTitle: "Version",
@@ -754,6 +767,82 @@ export function createSettingsModal(options: SettingsModalOptions): HTMLElement 
     })();
   });
   usageSyncControl.appendChild(usageSyncSelect);
+
+  // 时区：只影响用量切桶与展示，修改会触发全量重建。
+  const { control: usageTimezoneControl } = createRow(
+    usageSyncSection,
+    copy.usageTimezoneTitle,
+    copy.usageTimezoneHint,
+    "usage-timezone-row",
+  );
+  const systemTimezone = (): string => {
+    try {
+      return new Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+      return "UTC";
+    }
+  };
+  /** 当前时区相对 UTC 的分钟偏移（含 DST），只用于显示。 */
+  const zoneOffsetMinutes = (zone: string): number => {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: zone,
+        timeZoneName: "shortOffset",
+      }).formatToParts(new Date());
+      const name = parts.find((part) => part.type === "timeZoneName")?.value ?? "GMT";
+      const match = /GMT([+-])(\d{1,2})(?::(\d{2}))?/.exec(name);
+      if (match === null) return 0;
+      const sign = match[1] === "-" ? -1 : 1;
+      return sign * (Number(match[2]) * 60 + Number(match[3] ?? 0));
+    } catch {
+      return 0;
+    }
+  };
+  const offsetLabel = (minutes: number): string => {
+    const sign = minutes < 0 ? "-" : "+";
+    const abs = Math.abs(minutes);
+    const hours = Math.floor(abs / 60);
+    const rest = abs % 60;
+    return `UTC${sign}${hours}${rest === 0 ? "" : `:${String(rest).padStart(2, "0")}`}`;
+  };
+  let usageTimezone = options.usageTimezone ?? systemTimezone();
+  const currentOffset = zoneOffsetMinutes(usageTimezone);
+  // 当前时区保留原名（可含 DST），其余选项用固定偏移的 Etc/GMT 区。
+  const timezoneOptions: { value: string; label: string }[] = [
+    { value: usageTimezone, label: offsetLabel(currentOffset) },
+  ];
+  for (let hours = -12; hours <= 14; hours += 1) {
+    const minutes = hours * 60;
+    if (minutes === currentOffset) continue;
+    const value = hours === 0 ? "Etc/GMT" : `Etc/GMT${hours > 0 ? "-" : "+"}${Math.abs(hours)}`;
+    timezoneOptions.push({ value, label: offsetLabel(minutes) });
+  }
+
+  const usageTimezoneSelect = create("select", "ch-settings-select");
+  usageTimezoneSelect.setAttribute("data-role", "usage-timezone");
+  usageTimezoneSelect.setAttribute("aria-label", copy.usageTimezoneTitle);
+  for (const zone of timezoneOptions) {
+    const option = create("option");
+    option.value = zone.value;
+    option.textContent = zone.label;
+    usageTimezoneSelect.appendChild(option);
+  }
+  usageTimezoneSelect.value = usageTimezone;
+  usageTimezoneSelect.addEventListener("change", () => {
+    const next = usageTimezoneSelect.value;
+    void (async () => {
+      usageError.hidden = true;
+      const result = await options.onSaveUsageTimezone?.(next);
+      if (result && !result.ok) {
+        showUsageError(result.error || copy.usageSaveError);
+        usageTimezoneSelect.value = usageTimezone;
+        return;
+      }
+      usageTimezone = result?.value ?? next;
+      usageTimezoneSelect.value = usageTimezone;
+    })();
+  });
+  usageTimezoneControl.appendChild(usageTimezoneSelect);
 
   function showUsageError(message: string): void {
     usageError.textContent = message;

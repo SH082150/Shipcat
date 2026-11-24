@@ -268,6 +268,10 @@ interface MountOptions {
     }[],
   ) => Promise<{ ok: boolean; error?: string } | void>;
   pickUsageDirectory?: () => Promise<string | null>;
+  usageTimezone?: string;
+  onSaveUsageTimezone?: (
+    timezone: string,
+  ) => Promise<{ ok: boolean; value?: string; error?: string }>;
 }
 
 function mount(options: MountOptions = {}) {
@@ -301,6 +305,10 @@ function mount(options: MountOptions = {}) {
         }
       : {}),
     ...(options.pickUsageDirectory ? { pickUsageDirectory: options.pickUsageDirectory } : {}),
+    ...(options.usageTimezone ? { usageTimezone: options.usageTimezone } : {}),
+    ...(options.onSaveUsageTimezone
+      ? { onSaveUsageTimezone: options.onSaveUsageTimezone }
+      : {}),
     onThemeChange: (mode) => themes.push(mode),
     onClose: () => {
       closes += 1;
@@ -746,8 +754,14 @@ test("常规页自定义：用户名回退占位、头像选择与移除", async
 
 test("用量页：展示来源路径，切换/移除/添加都会保存", async () => {
   const saved: unknown[] = [];
+  const savedTz: string[] = [];
   const modal = mount({
     section: "usage",
+    usageTimezone: "Asia/Shanghai",
+    onSaveUsageTimezone: async (timezone) => {
+      savedTz.push(timezone);
+      return { ok: true, value: timezone };
+    },
     usageSources: [
       {
         id: "claude-desktop",
@@ -810,6 +824,21 @@ test("用量页：展示来源路径，切换/移除/添加都会保存", async 
     assert.equal(restored.length, 1);
     assert.equal(restored[0]?.id, "claude-desktop");
     assert.equal(restored[0]?.kind, "claude-desktop");
+
+    // 时区：只显示 UTC 偏移，不出现城市名；修改会保存。
+    const tzSelect = byRole(root, "usage-timezone");
+    assert.equal(tzSelect.value, "Asia/Shanghai");
+    const tzLabels = findAll(tzSelect, (element) => element.tagName === "OPTION").map(textOf);
+    assert.ok(tzLabels.includes("UTC+8"), `时区选项缺少 UTC+8：${tzLabels.slice(0, 6).join(",")}`);
+    assert.equal(
+      tzLabels.some((label) => /[A-Za-z]{3,}\/[A-Za-z]/.test(label)),
+      false,
+      "时区选项不应出现城市名",
+    );
+    tzSelect.value = "Etc/GMT-5";
+    tzSelect.dispatchEvent(new FakeEvent("change"));
+    await settle();
+    assert.deepEqual(savedTz, ["Etc/GMT-5"]);
   } finally {
     modal.cleanup();
   }
