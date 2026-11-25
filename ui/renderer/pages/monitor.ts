@@ -33,11 +33,11 @@ export function renderMonitorPage(context: PageContext): string {
       <div class="page-actions monitor-actions">
         <div class="monitor-tools">
           <div class="monitor-search" data-monitor-search data-open="false">
-            <button type="button" class="monitor-square" data-monitor-action="search-open" aria-label="${escapeHtml(t.t("monitor.search.aria"))}">${iconSvg("search", "monitor-icon")}</button>
+            <button type="button" class="monitor-search-toggle" data-monitor-action="search-open" aria-label="${escapeHtml(t.t("monitor.search.aria"))}" title="${escapeHtml(t.t("monitor.search.aria"))}">${iconSvg("search", "monitor-search-icon")}</button>
             <div class="monitor-search-field">
               ${iconSvg("search", "monitor-search-icon")}
               <input type="search" data-monitor-query aria-label="${escapeHtml(t.t("monitor.search.aria"))}" placeholder="${escapeHtml(t.t("monitor.search.placeholder"))}" autocomplete="off" spellcheck="false" />
-              <button type="button" class="monitor-search-close" data-monitor-action="search-close" aria-label="${escapeHtml(t.t("monitor.search.close"))}">${iconSvg("close", "monitor-icon")}</button>
+              <button type="button" class="monitor-search-close" data-monitor-action="search-close" aria-label="${escapeHtml(t.t("monitor.search.close"))}">${iconSvg("close", "monitor-search-close-icon")}</button>
             </div>
           </div>
           <button type="button" class="monitor-square" data-monitor-action="refresh" aria-label="${escapeHtml(t.t("monitor.refresh"))}" title="${escapeHtml(t.t("monitor.refresh"))}">${iconSvg("refresh", "monitor-icon")}</button>

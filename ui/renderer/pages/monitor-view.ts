@@ -44,6 +44,7 @@ let t: Translator = createTranslator("zh");
 let liveTimer: number | null = null;
 let searchTimer: number | null = null;
 let unsubscribeUsage: (() => void) | null = null;
+let onDocumentClick: ((event: MouseEvent) => void) | null = null;
 let requestSeq = 0;
 
 function systemTimeZone(): string {
@@ -307,6 +308,23 @@ function render(): void {
   if (next !== null) next.disabled = state.page >= pages;
 }
 
+/** 收起搜索并清掉筛选，供 × 与点击空白处共用。 */
+function closeSearch(root: HTMLElement): void {
+  if (state === null) return;
+  const search = root.querySelector<HTMLElement>("[data-monitor-search]");
+  if (search !== null) search.dataset.open = "false";
+  const input = root.querySelector<HTMLInputElement>("[data-monitor-query]");
+  if (input !== null) input.value = "";
+  if (searchTimer !== null) {
+    window.clearTimeout(searchTimer);
+    searchTimer = null;
+  }
+  if (state.query.length === 0) return;
+  state.query = "";
+  state.page = 1;
+  void fetchPage();
+}
+
 function setPageEditing(root: HTMLElement, editing: boolean): void {
   const display = root.querySelector<HTMLElement>("[data-monitor-page]");
   const entry = root.querySelector<HTMLElement>("[data-monitor-page-entry]");
@@ -407,17 +425,7 @@ export function mountMonitorView(root: HTMLElement, lang: Language): void {
       if (search !== null) search.dataset.open = "true";
       pageRoot.querySelector<HTMLInputElement>("[data-monitor-query]")?.focus();
     } else if (action === "search-close" && state !== null) {
-      const search = pageRoot.querySelector<HTMLElement>("[data-monitor-search]");
-      if (search !== null) search.dataset.open = "false";
-      const input = pageRoot.querySelector<HTMLInputElement>("[data-monitor-query]");
-      if (input !== null) input.value = "";
-      if (searchTimer !== null) {
-        window.clearTimeout(searchTimer);
-        searchTimer = null;
-      }
-      state.query = "";
-      state.page = 1;
-      void fetchPage();
+      closeSearch(pageRoot);
     } else if (action === "refresh") {
       void fetchPage();
     } else if (action === "page-edit" && state !== null) {
@@ -452,6 +460,17 @@ export function mountMonitorView(root: HTMLElement, lang: Language): void {
       void fetchPage();
     }, 180);
   });
+
+  onDocumentClick = (event) => {
+    const root = document.querySelector<HTMLElement>(".page--monitor");
+    if (root === null || state === null) return;
+    const search = root.querySelector<HTMLElement>("[data-monitor-search]");
+    if (search === null || search.dataset.open !== "true") return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-monitor-search]")) return;
+    closeSearch(root);
+  };
+  document.addEventListener("click", onDocumentClick);
 
   const dialog = pageRoot.querySelector<HTMLDialogElement>("[data-monitor-dialog]");
   dialog?.addEventListener("click", (event) => {
@@ -492,6 +511,10 @@ export function unmountMonitorView(): void {
   unsubscribe = null;
   unsubscribeUsage?.();
   unsubscribeUsage = null;
+  if (onDocumentClick !== null) {
+    document.removeEventListener("click", onDocumentClick);
+    onDocumentClick = null;
+  }
   if (searchTimer !== null) {
     window.clearTimeout(searchTimer);
     searchTimer = null;
