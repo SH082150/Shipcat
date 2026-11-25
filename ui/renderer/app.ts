@@ -100,6 +100,8 @@ import {
   updateUsageOverall,
   updateUsageView,
 } from "./pages/usage.ts";
+import { renderMonitorPage } from "./pages/monitor.ts";
+import { mountMonitorView, unmountMonitorView } from "./pages/monitor-view.ts";
 import type { UsageViewState } from "./pages/usage.ts";
 import type { UsageViewDto, UsageViewQuery } from "../shared/ipc.ts";
 import type { PageContext } from "./pages/types.ts";
@@ -761,8 +763,8 @@ document.addEventListener("keydown", (event) => {  if (event.defaultPrevented) r
     return;
   }
 
-  if (primary && /^[1-4]$/.test(event.key) && !settingsOverlay) {
-    const target = (["overview", "providers", "profiles", "usage"] as const)[Number(event.key) - 1];
+  if (primary && /^[1-5]$/.test(event.key) && !settingsOverlay) {
+    const target = (["overview", "providers", "profiles", "usage", "monitor"] as const)[Number(event.key) - 1];
     if (target) {
       event.preventDefault();
       navigateRoute({ page: target, detailId: null }, true);
@@ -891,6 +893,11 @@ async function renderWorkspace(resetScroll = false): Promise<void> {
     void reloadUsageView();
   } else {
     unsubscribeUsageChanges();
+  }
+  if (page === "monitor") {
+    mountMonitorView(workspace, language);
+  } else {
+    unmountMonitorView();
   }
   if (page === "profiles" && route.detailId && route.detailId !== PROFILE_CREATE_ID) {
     void openSyncForDetail(route.detailId);
@@ -1354,6 +1361,7 @@ async function renderPageContent(context: PageContext): Promise<string> {
   if (page === "providers") return renderProvidersPage(context, route.detailId);
   if (page === "profiles") return renderProfilesPage(context, route.detailId);
   if (page === "usage") return renderUsagePage(context);
+  if (page === "monitor") return renderMonitorPage(context);
 
   return renderOverview(context);
 }

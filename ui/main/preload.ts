@@ -105,6 +105,14 @@ contextBridge.exposeInMainWorld("claudeHarbor", {
       return subscribe(CHANNELS.usage.changed, callback);
     },
   },
+  monitor: {
+    query: (input: unknown) => invoke(CHANNELS.monitor.query, input),
+    rebuild: () => invoke(CHANNELS.monitor.rebuild),
+    onRecord(callback: (record: unknown) => void) {
+      if (typeof callback !== "function") throw new TypeError("onRecord expects a function");
+      return subscribe(CHANNELS.monitor.record, callback);
+    },
+  },
   dialog: {
     pickDirectory: () => invoke(CHANNELS.dialog.pickDirectory),
   },

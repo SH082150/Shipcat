@@ -138,8 +138,8 @@ function createFakeMedia(initial: boolean): {
   };
 }
 
-test("navigation: 只有四个合法页，默认 overview", () => {
-  assert.deepEqual([...PAGE_IDS], ["overview", "providers", "profiles", "usage"]);
+test("navigation: 只有五个合法页，默认 overview", () => {
+  assert.deepEqual([...PAGE_IDS], ["overview", "providers", "profiles", "usage", "monitor"]);
   assert.equal(DEFAULT_PAGE, "overview");
   for (const page of PAGE_IDS) assert.equal(isPageId(page), true);
   for (const value of ["settings", "", null, undefined, 1, {}]) {

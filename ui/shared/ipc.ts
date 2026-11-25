@@ -198,6 +198,51 @@ export interface UsageChangedEvent {
   readonly revision: number;
 }
 
+/** Monitor 记录明细：一条官方账本记录经供应商/上游模型归类后的结果。 */
+export interface MonitorTokenDto {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
+  readonly webSearchRequests: number;
+}
+
+export interface MonitorRecordDto {
+  readonly eventId: string;
+  readonly ts: number;
+  readonly surface: string;
+  readonly origin: string;
+  readonly sessionId: string | null;
+  readonly isError: boolean;
+  readonly provider: Readonly<Record<string, Readonly<Record<string, MonitorTokenDto>>>>;
+  /** 供应商 UUID → 显示名；档案引用已删除的供应商时缺省。 */
+  readonly providerNames?: Readonly<Record<string, string>>;
+  readonly tools: Readonly<Record<string, number>>;
+  readonly rawLine: string;
+}
+
+/** Monitor 分页查询：offset/limit 以「最新一条」为第 0 位。 */
+export interface MonitorQueryDto {
+  readonly surface: string;
+  readonly query: string;
+  readonly offset: number;
+  readonly limit: number;
+}
+
+/** 当前筛选条件下的全量汇总，不受分页影响。 */
+export interface MonitorTotalsDto {
+  readonly tokens: number;
+  readonly outputTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheableTokens: number;
+}
+
+export interface MonitorPageDto {
+  readonly total: number;
+  readonly records: readonly MonitorRecordDto[];
+  readonly totals: MonitorTotalsDto;
+}
+
 /** 用量采集来源（设置页「用量」章节使用）。 */
 export interface UsageSourceDto {
   readonly id: string;
@@ -253,6 +298,11 @@ export const CHANNELS = {
     configGet: "claude-harbor:usage:config:get",
     configSave: "claude-harbor:usage:config:save",
   },
+  monitor: {
+    query: "claude-harbor:monitor:query",
+    record: "claude-harbor:monitor:record",
+    rebuild: "claude-harbor:monitor:rebuild",
+  },
   dialog: {
     pickDirectory: "claude-harbor:dialog:pick-directory",
   },
@@ -298,6 +348,11 @@ export interface CoreBridge {
     getConfig(): Promise<AppResult<UsageConfigDto>>;
     saveConfig(config: UsageConfigDto): Promise<AppResult<UsageConfigDto>>;
     onChanged(callback: (event: UsageChangedEvent) => void): () => void;
+  };
+  readonly monitor: {
+    query(input: MonitorQueryDto): Promise<AppResult<MonitorPageDto>>;
+    rebuild(): Promise<AppResult<unknown>>;
+    onRecord(callback: (record: MonitorRecordDto) => void): () => void;
   };
   readonly dialog: {
     pickDirectory(): Promise<AppResult<string | null>>;

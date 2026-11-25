@@ -111,17 +111,17 @@ test("html: 动态文本全部转义，图标占位保持空元素", () => {
 test("navigation: 四条导航严格对应四个主页面", () => {
   assert.deepEqual(
     NAV_ITEMS.map((item) => item.id),
-    ["overview", "providers", "profiles", "usage"],
+    ["overview", "providers", "profiles", "usage", "monitor"],
   );
   const zh = translator("zh");
   assert.deepEqual(
     NAV_ITEMS.map((item) => zh.t(item.labelKey)),
-    ["概览", "供应商", "档案", "用量"],
+    ["概览", "供应商", "档案", "用量", "事件监测"],
   );
   const en = translator("en");
   assert.deepEqual(
     NAV_ITEMS.map((item) => en.t(item.labelKey)),
-    ["Overview", "Providers", "Profiles", "Usage"],
+    ["Overview", "Providers", "Profiles", "Usage", "Monitor"],
   );
   for (const item of NAV_ITEMS) {
     assert.equal(typeof item.hintKey, "string");
@@ -138,8 +138,8 @@ test("sidebar: 四个导航、底部一体账户、独立齿轮，当前页唯�
   });
 
   assert.match(html, /data-role="sidebar"/);
-  assert.equal((html.match(/data-page="/g) ?? []).length, 4, "四个导航按钮都应带 data-page");
-  for (const page of ["overview", "providers", "profiles", "usage"]) {
+  assert.equal((html.match(/data-page="/g) ?? []).length, 5, "五个导航按钮都应带 data-page");
+  for (const page of ["overview", "providers", "profiles", "usage", "monitor"]) {
     assert.match(html, new RegExp(`data-page="${page}"`));
   }
   assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);

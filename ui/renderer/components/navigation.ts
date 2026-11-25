@@ -1,4 +1,4 @@
-/** 四个顶层导航项：页面 id 与文案键的唯一来源。 */
+/** 五个顶层导航项：页面 id 与文案键的唯一来源。 */
 
 import type { PageId } from "../state/navigation.ts";
 import type { MessageKey } from "./i18n.ts";
@@ -30,6 +30,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
     labelKey: "nav.usage",
     hintKey: "nav.usageHint",
   },
+  {
+    id: "monitor",
+    labelKey: "nav.monitor",
+    hintKey: "nav.monitorHint",
+  },
 ];
 
 export const PAGE_TITLE_KEYS: Record<PageId, MessageKey> = {
@@ -37,5 +42,6 @@ export const PAGE_TITLE_KEYS: Record<PageId, MessageKey> = {
   providers: "providers.title",
   profiles: "profiles.title",
   usage: "usage.title",
+  monitor: "monitor.title",
 };
 

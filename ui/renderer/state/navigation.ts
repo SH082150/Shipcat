@@ -1,11 +1,11 @@
 /**
- * 导航页状态：UI 只有四个顶层页面，非法输入一律回落到 overview。
+ * 导航页状态：UI 只有五个顶层页面，非法输入一律回落到 overview。
  *
  * 顶层页面之外，providers 与 profiles 允许 `#<page>/<detailId>` 详情路由。
  * 这里只做纯解析，不触碰 history 或 DOM；app.ts 负责把 Route 写回 hash。
  */
 
-export const PAGE_IDS = ["overview", "providers", "profiles", "usage"] as const;
+export const PAGE_IDS = ["overview", "providers", "profiles", "usage", "monitor"] as const;
 
 export type PageId = (typeof PAGE_IDS)[number];
 

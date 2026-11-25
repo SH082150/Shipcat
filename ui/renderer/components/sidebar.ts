@@ -32,6 +32,7 @@ const NAV_ICONS: Record<PageId, IconName> = {
   providers: "providers",
   profiles: "profiles",
   usage: "usage",
+  monitor: "monitor",
 };
 
 export function renderSidebar(props: SidebarProps): string {

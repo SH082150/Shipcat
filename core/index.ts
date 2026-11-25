@@ -16,6 +16,7 @@ export * as fs from "./archive/fs/index.ts";
 export * as paths from "./archive/paths/index.ts";
 export * as gateway from "./gateway/0-server/index.ts";
 export * as usage from "./usage/index.ts";
+export * as monitor from "./monitor/index.ts";
 export * as persistence from "./persistence/index.ts";
 export * as settings from "./settings/index.ts";
 export * as queries from "./queries/index.ts";

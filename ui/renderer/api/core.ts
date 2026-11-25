@@ -20,6 +20,9 @@ import type {
   ProviderInput,
   ProviderPatch,
   ProviderSummary,
+  MonitorPageDto,
+  MonitorQueryDto,
+  MonitorRecordDto,
   UsageConfigDto,
   UsageViewDto,
   UsageViewQuery,
@@ -92,6 +95,14 @@ export const syncApi = {
   inspect: (): Promise<ClaudeDriftReport> =>
     unwrap(bridge().profiles.inspect() as Promise<AppResult<ClaudeDriftReport>>),
   onChanged: (callback: () => void): (() => void) => bridge().profiles.onChanged(callback),
+};
+
+export const monitorApi = {
+  query: (input: MonitorQueryDto): Promise<MonitorPageDto> =>
+    unwrap(bridge().monitor.query(input)),
+  rebuild: (): Promise<unknown> => unwrap(bridge().monitor.rebuild()),
+  onRecord: (callback: (record: MonitorRecordDto) => void): (() => void) =>
+    bridge().monitor.onRecord(callback),
 };
 
 export const overviewApi = { get: (): Promise<OverviewData> => unwrap(bridge().overview.get()) };

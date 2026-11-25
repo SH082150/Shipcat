@@ -8,7 +8,9 @@ import { GatewayService } from "./services/gateway.ts";
 import { loadPreferences, savePreferences } from "./services/preferences.ts";
 import { createTray } from "./services/tray.ts";
 import { createUsageService } from "./services/usage.ts";
+import { createMonitorService } from "./services/monitor.ts";
 import type { UsageService } from "../../core/usage/service.ts";
+import type { MonitorService } from "../../core/monitor/service.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RENDERER_INDEX = path.join(__dirname, "..", "renderer", "index.html");
@@ -49,6 +51,7 @@ const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let usageService: UsageService | null = null;
+let monitorService: MonitorService | null = null;
 let backgroundMode = false;
 let hideDockMode = false;
 let isQuitting = false;
@@ -287,7 +290,19 @@ app.whenReady().then(async () => {
     console.error("Failed to create usage service:", error);
     usageService = null;
   }
-  registerCoreIpc(gateway, usageService);
+  try {
+    monitorService = createMonitorService();
+  } catch (error) {
+    console.error("Failed to create monitor service:", error);
+    monitorService = null;
+  }
+  registerCoreIpc(gateway, usageService, monitorService);
+  if (monitorService !== null) {
+    const service = monitorService;
+    void service.start().catch((error) => {
+      console.error("Failed to start monitor service:", error);
+    });
+  }
   if (usageService !== null) {
     const service = usageService;
     void service.start().catch((error) => {
@@ -317,6 +332,8 @@ app.on("before-quit", () => {
   void gateway.dispose();
   usageService?.dispose();
   usageService = null;
+  monitorService?.dispose();
+  monitorService = null;
 });
 
 app.on("window-all-closed", () => {

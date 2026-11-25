@@ -1,0 +1,610 @@
+/* ==========================================================================
+   Monitor 页：逐行用量记录。
+   与用量页同一套语言：不使用卡片阴影，只用细分割线、留白与字重分层；
+   汇总是一块浅底区域，事件表是细线列表，页面本身不滚动。
+   ========================================================================== */
+
+.page--monitor {
+  display: flex;
+  flex-direction: column;
+  padding-top: 36px;
+  padding-bottom: 20px;
+
+  --monitor-fg: var(--harbor-text, #0b0b0b);
+  --monitor-muted: var(--harbor-text-secondary, #52514e);
+  --monitor-faint: var(--harbor-text-tertiary, #898781);
+  --monitor-line: color-mix(in srgb, var(--monitor-fg) 12%, transparent);
+  --monitor-line-strong: color-mix(in srgb, var(--monitor-fg) 24%, transparent);
+  --monitor-line-soft: color-mix(in srgb, var(--monitor-fg) 7%, transparent);
+  --monitor-hover: color-mix(in srgb, var(--monitor-fg) 5%, transparent);
+  --monitor-blue: #2a78d6;
+  --monitor-blue-soft: color-mix(in srgb, var(--monitor-blue) 11%, transparent);
+  --monitor-positive: #006c10;
+  --monitor-danger: #b83a3a;
+}
+
+html[data-theme="dark"] .page--monitor {
+  --monitor-positive: #53c556;
+  --monitor-danger: #ef8585;
+}
+
+.page--monitor .page-header {
+  flex: none;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.page--monitor .page-heading h1 {
+  font-family: var(--harbor-font-display);
+}
+
+.page--monitor .page-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.page--monitor .monitor-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.page--monitor .monitor-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- 按钮与搜索：与供应商/档案页同款方块 ---- */
+
+.page--monitor .monitor-square {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--harbor-surface-muted, #f3f3f0);
+  color: var(--monitor-muted);
+  transition: background-color 0.14s var(--harbor-ease), color 0.14s var(--harbor-ease);
+}
+
+.page--monitor .monitor-square:hover {
+  background: var(--harbor-active, rgba(11, 11, 11, 0.1));
+  color: var(--monitor-fg);
+}
+
+.page--monitor .monitor-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.page--monitor .monitor-search {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--harbor-surface-muted, #f3f3f0);
+  transition: width 0.18s var(--harbor-ease), background-color 0.14s var(--harbor-ease),
+    border-color 0.14s var(--harbor-ease), box-shadow 0.14s var(--harbor-ease);
+}
+
+.page--monitor .monitor-search:hover {
+  background: var(--harbor-active, rgba(11, 11, 11, 0.1));
+}
+
+.page--monitor .monitor-search[data-open="true"] {
+  width: 248px;
+  border-color: var(--harbor-focus, #2a78d6);
+  background: var(--harbor-surface, #fff);
+  box-shadow: 0 0 0 3px var(--harbor-focus-soft, rgba(42, 120, 214, 0.18));
+}
+
+.page--monitor [data-monitor-action="search-open"] {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--monitor-muted);
+}
+
+.page--monitor .monitor-search[data-open="true"] [data-monitor-action="search-open"] {
+  display: none;
+}
+
+.page--monitor .monitor-search-field {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 0 9px;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.page--monitor .monitor-search[data-open="true"] .monitor-search-field {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.page--monitor .monitor-search-icon {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  opacity: 0.4;
+}
+
+.page--monitor .monitor-search-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--monitor-fg);
+  font-size: 12px;
+  user-select: text;
+}
+
+.page--monitor .monitor-search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.page--monitor .monitor-search-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: var(--monitor-faint);
+}
+
+.page--monitor .monitor-search-close:hover {
+  background: var(--monitor-hover);
+  color: var(--monitor-fg);
+}
+
+/* ---- 模块分栏：用量页同款分段按钮 ---- */
+
+.page--monitor .monitor-tabs {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.page--monitor .monitor-tabs button {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--monitor-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.14s var(--harbor-ease), color 0.14s var(--harbor-ease);
+}
+
+.page--monitor .monitor-tabs button:hover {
+  color: var(--monitor-fg);
+  background: var(--monitor-hover);
+}
+
+.page--monitor .monitor-tabs button[aria-pressed="true"] {
+  color: var(--monitor-blue);
+  background: var(--monitor-blue-soft);
+  font-weight: 600;
+}
+
+/* ---- 汇总：一块浅底区域，三列由竖线分隔 ---- */
+
+/* ---- 区块标题：与用量页 usage-block 同构 ---- */
+
+.page--monitor .monitor-block {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+}
+
+.page--monitor .monitor-block--events {
+  flex: 0 0 auto;
+}
+
+.page--monitor .monitor-summary {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.page--monitor .monitor-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 78px;
+  padding: 12px 16px 10px;
+  border: 1px solid var(--monitor-line-soft);
+  border-radius: 12px;
+  background: var(--harbor-surface, #fff);
+}
+
+.page--monitor .monitor-card > span {
+  color: var(--monitor-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.page--monitor .monitor-card > strong {
+  margin: 6px 0 4px;
+  overflow: hidden;
+  color: var(--monitor-fg);
+  font-family: var(--harbor-font-display);
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page--monitor .monitor-card > small {
+  margin-top: auto;
+  overflow: hidden;
+  color: var(--monitor-faint);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- 事件表：细线列表，撑满剩余高度，页面不滚动 ---- */
+
+.page--monitor .monitor-events {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--monitor-line-soft);
+  border-radius: 12px;
+  background: var(--harbor-surface, #fff);
+}
+
+.page--monitor .monitor-table {
+  overflow-x: auto;
+}
+
+.page--monitor .monitor-table > .monitor-head,
+.page--monitor .monitor-table > .monitor-rows {
+  min-width: 756px;
+}
+
+.page--monitor .monitor-head,
+.page--monitor .monitor-row {
+  display: grid;
+  grid-template-columns: 72px 52px 56px 58px 58px 58px 66px 52px 58px 66px minmax(48px, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.page--monitor .monitor-head {
+  flex: none;
+  min-height: 32px;
+  border-bottom: 1px solid var(--monitor-line-soft);
+  background: var(--harbor-surface-muted, #f3f3f0);
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.page--monitor .monitor-head > span {
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
+.page--monitor .monitor-rows {
+  flex: none;
+  overflow: hidden;
+}
+
+.page--monitor .monitor-row {
+  position: relative;
+  height: 33px;
+  border-bottom: 1px solid var(--monitor-line-soft);
+  color: var(--monitor-fg);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 0.12s var(--harbor-ease);
+}
+
+.page--monitor .monitor-row.is-error::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  content: "";
+  background: var(--monitor-danger);
+}
+
+.page--monitor .monitor-row:hover,
+.page--monitor .monitor-row:focus-visible {
+  background: var(--monitor-hover);
+}
+
+.page--monitor .monitor-cell {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--monitor-muted);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page--monitor .monitor-cell--time {
+  color: var(--monitor-fg);
+}
+
+.page--monitor .monitor-status {
+  color: var(--monitor-positive);
+}
+
+.page--monitor .monitor-status.is-error {
+  color: var(--monitor-danger);
+}
+
+.page--monitor .monitor-rows:empty {
+  display: none;
+}
+
+.page--monitor .monitor-empty {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 330px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.page--monitor .monitor-empty[hidden] {
+  display: none;
+}
+
+.page--monitor .monitor-empty > span {
+  color: var(--monitor-faint);
+  font-family: var(--harbor-font-display);
+  font-size: 34px;
+}
+
+.page--monitor .monitor-empty h2 {
+  margin: 8px 0 4px;
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.page--monitor .monitor-empty p {
+  margin: 0;
+  color: var(--monitor-faint);
+  font-size: 12px;
+}
+
+.page--monitor .monitor-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 34px;
+  margin-top: auto;
+  padding: 4px 12px 0;
+}
+
+.page--monitor .monitor-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--monitor .monitor-pager button {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 6px;
+  color: var(--monitor-muted);
+}
+
+.page--monitor .monitor-pager button:hover:not(:disabled) {
+  background: var(--monitor-hover);
+  color: var(--monitor-fg);
+}
+
+.page--monitor .monitor-pager button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.page--monitor .monitor-pager .monitor-page-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: 22px;
+  margin: 0 -4px;
+  padding: 0 6px;
+  border-radius: 5px;
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--monitor .monitor-pager .monitor-page-display:hover {
+  background: var(--monitor-hover);
+  color: var(--monitor-fg);
+}
+
+.page--monitor .monitor-pager .monitor-page-display[hidden],
+.page--monitor .monitor-page-entry[hidden] {
+  display: none;
+}
+
+.page--monitor .monitor-page-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--monitor .monitor-page-entry input {
+  width: 36px;
+  height: 20px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--monitor-blue);
+  outline: none;
+  background: transparent;
+  color: var(--monitor-fg);
+  font: inherit;
+  font-size: 10.5px;
+  text-align: center;
+}
+
+.page--monitor .monitor-pager-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.page--monitor .monitor-pager-icon--prev {
+  transform: rotate(180deg);
+}
+
+/* ---- 详情弹窗 ---- */
+
+.page--monitor .monitor-dialog {
+  width: min(720px, calc(100% - 32px));
+  max-height: 85vh;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--monitor-line);
+  border-radius: 12px;
+  background: var(--harbor-surface, #fff);
+  color: var(--monitor-fg);
+  box-shadow: var(--harbor-shadow-popover, 0 8px 24px rgba(0, 0, 0, 0.12));
+}
+
+.page--monitor .monitor-dialog:focus {
+  outline: none;
+}
+
+.page--monitor .monitor-dialog::backdrop {
+  background: rgba(11, 11, 11, 0.32);
+}
+
+.page--monitor .monitor-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--monitor-line-soft);
+}
+
+.page--monitor .monitor-dialog-head h2 {
+  margin: 0 0 3px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.page--monitor .monitor-dialog-head p {
+  margin: 0;
+  color: var(--monitor-faint);
+  font-size: 11px;
+}
+
+.page--monitor .monitor-dialog-body {
+  max-height: calc(85vh - 75px);
+  padding: 18px 20px 20px;
+  overflow-y: auto;
+  user-select: text;
+}
+
+.page--monitor .monitor-detail {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0 0 22px;
+  font-size: 12px;
+}
+
+.page--monitor .monitor-detail dt {
+  color: var(--monitor-faint);
+}
+
+.page--monitor .monitor-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--monitor-muted);
+  white-space: pre-line;
+}
+
+.page--monitor .monitor-raw-heading {
+  margin: 0 0 8px;
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.page--monitor .monitor-raw {
+  max-height: 320px;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--harbor-surface-muted, #f3f3f0);
+  color: var(--monitor-muted);
+  font-family: var(--harbor-font-mono);
+  font-size: 10.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+@media (max-width: 980px) {
+  .page--monitor .monitor-card {
+    padding: 0 11px;
+  }
+
+  .page--monitor .monitor-card > strong {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 760px) {
+  .page--monitor .monitor-card > small {
+    display: none;
+  }
+
+  .page--monitor .monitor-detail {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+}

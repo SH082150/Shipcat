@@ -154,8 +154,8 @@ test("sidebar v2: 顶部品牌移除，四导航与底部结构保留", () => {
   assert.doesNotMatch(html, /ClaudeHarbor/);
   assert.doesNotMatch(html, /class="brand-copy"/);
 
-  assert.equal((html.match(/data-page="/g) ?? []).length, 4);
-  for (const page of ["overview", "providers", "profiles", "usage"]) {
+  assert.equal((html.match(/data-page="/g) ?? []).length, 5);
+  for (const page of ["overview", "providers", "profiles", "usage", "monitor"]) {
     assert.match(html, new RegExp(`data-page="${page}"`));
   }
   assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
