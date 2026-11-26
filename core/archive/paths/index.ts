@@ -21,6 +21,10 @@ export interface HarborPaths {
   readonly providersMeta: string;
   /** profiles/_meta.json 全路径（profile 索引 + 激活记录）。 */
   readonly profilesMeta: string;
+  /** limitprofiles 目录（供应商额度查询配置，一供应商一个）。 */
+  readonly limitProfilesDir: string;
+  /** limitprofiles/_meta.json 全路径。 */
+  readonly limitProfilesMeta: string;
 }
 
 /** Claude 侧（Desktop configLibrary）的全部路径。 */
@@ -36,12 +40,15 @@ export function harborPaths(home: string = resolveHome(), opts?: PlatformOptions
   const harborHome = harborRoot(home, opts);
   const providersDir = join(harborHome, "providers");
   const profilesDir = join(harborHome, "profiles");
+  const limitProfilesDir = join(harborHome, "limitprofiles");
   return {
     harborHome,
     providersDir,
     profilesDir,
     providersMeta: join(providersDir, "_meta.json"),
     profilesMeta: join(profilesDir, "_meta.json"),
+    limitProfilesDir,
+    limitProfilesMeta: join(limitProfilesDir, "_meta.json"),
   };
 }
 

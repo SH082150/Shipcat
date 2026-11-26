@@ -688,3 +688,91 @@ html[data-theme="dark"] .pv-savebar .pv-button--primary {
     transition: none;
   }
 }
+
+/* ---- 额度查询配置 ---- */
+
+.page--provider-detail .pv-limit {
+  margin-top: 22px;
+}
+
+.page--provider-detail .pv-limit-note {
+  margin: -4px 0 16px;
+}
+
+.page--provider-detail .pv-textarea {
+  width: 100%;
+  min-height: 190px;
+  padding: 12px 14px;
+  border: 1px solid var(--pv-line);
+  border-radius: 10px;
+  background: var(--pv-fill);
+  color: var(--pv-text);
+  font-family: var(--pv-mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+  resize: vertical;
+  outline: none;
+}
+
+.page--provider-detail .pv-textarea:focus {
+  border-color: var(--pv-line-strong);
+  background: var(--harbor-surface, transparent);
+}
+
+.page--provider-detail .pv-limit-options {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.page--provider-detail .pv-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pv-muted);
+  font-size: 12px;
+}
+
+.page--provider-detail .pv-limit-timeout {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pv-muted);
+  font-size: 12px;
+}
+
+.page--provider-detail .pv-input--short {
+  width: 110px;
+}
+
+.page--provider-detail .pv-limit-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.page--provider-detail .pv-limit-delete {
+  margin-left: auto;
+}
+
+.page--provider-detail .pv-limit-result {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--pv-fill);
+  color: var(--pv-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.page--provider-detail .pv-limit-result[data-tone="error"] {
+  color: var(--pv-danger);
+}
+
+.page--provider-detail .pv-limit-result[data-tone="ok"] {
+  color: var(--pv-green, #0a7a3d);
+}

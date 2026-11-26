@@ -18,8 +18,10 @@ const context = (language: "zh" | "en") => ({
 test("Monitor 页：标题、三张汇总卡与 11 列表头", () => {
   const html = renderMonitorPage(context("zh"));
   assert.match(html, /page--monitor/);
-  assert.match(html, /<h1>事件监测<\/h1>/);
-  assert.match(html, /实时事件/);
+  assert.match(html, /<h1>额度<\/h1>/);
+  assert.match(html, /滚动窗口/);
+  assert.match(html, /data-monitor-limit/);
+  assert.match(html, /data-monitor-limit-select/);
   assert.equal((html.match(/class="monitor-card"/g) ?? []).length, 3);
   const headers = html.match(/<div class="monitor-head">([\s\S]*?)<\/div>/)?.[1] ?? "";
   assert.equal((headers.match(/<span[\s>]/g) ?? []).length, 11);

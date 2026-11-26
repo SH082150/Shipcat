@@ -39,7 +39,15 @@ import {
   pickClickAction,
 } from "./components/mascot.ts";
 import type { GreetingWeather } from "./greeting.ts";
-import { gatewayApi, overviewApi, profilesApi, providersApi, syncApi, usageApi } from "./api/core.ts";
+import {
+  gatewayApi,
+  limitProfilesApi,
+  overviewApi,
+  profilesApi,
+  providersApi,
+  syncApi,
+  usageApi,
+} from "./api/core.ts";
 import { createSyncModal } from "./sync/sync-modal.ts";
 import type { SyncDecisions, SyncPlan } from "../../core/sync/index.ts";
 import type {
@@ -632,6 +640,46 @@ root.addEventListener("click", (event) => {
       void submitProviderForm(action === "create-provider");
       return;
     }
+    case "save-limit-profile": {
+      void submitLimitProfile();
+      return;
+    }
+    case "test-limit-profile": {
+      void testLimitProfile();
+      return;
+    }
+    case "delete-limit-profile": {
+      event.preventDefault();
+      const section = workspace.querySelector<HTMLElement>('[data-role="limit-profile-form"]');
+      const profileId = actionable.dataset.limitProfileId ?? section?.dataset.limitProfileId ?? "";
+      if (!profileId) return;
+      openConfirmDialog({
+        title: "删除额度查询",
+        message: "确定要删除这家供应商的额度查询配置吗？脚本会一并删除，供应商本身不受影响。",
+        confirmLabel: "删除",
+        tone: "danger",
+        onConfirm: () => {
+          void (async () => {
+            try {
+              await limitProfilesApi.remove(profileId);
+              showFloatingNotice({ title: "已删除额度查询", tone: "success" });
+              await renderWorkspace();
+            } catch (error) {
+              console.error("delete limit profile failed", error);
+              showFloatingNotice({
+                title: "删除额度查询失败",
+                message: "删除失败，请稍后重试。",
+                tone: "danger",
+              });
+            }
+          })();
+        },
+        onClose: () => {
+          actionable.focus();
+        },
+      });
+      return;
+    }
     case "save-profile":
     case "create-profile-submit": {
       void submitProfileForm(action === "create-profile-submit");
@@ -1179,8 +1227,11 @@ async function renderProvidersPage(context: PageContext, detailId: string | null
   const renderer = DETAIL_RENDERERS.providers;
   try {
     if (detailId !== null && detailId !== PROVIDER_CREATE_ID && renderer) {
-      const detail = await providersApi.get(detailId);
-      const html = renderer(context, detailId, providerPageDetail(detail));
+      const [detail, limitProfile] = await Promise.all([
+        providersApi.get(detailId),
+        limitProfilesApi.getByProvider(detailId).catch(() => null),
+      ]);
+      const html = renderer(context, detailId, providerPageDetail(detail), limitProfile);
       if (typeof html === "string" && html.trim().length > 0) return html;
     }
     if (detailId === PROVIDER_CREATE_ID && renderer) {
@@ -1684,6 +1735,143 @@ async function submitProviderForm(creating: boolean): Promise<void> {
       message: "保存失败，请检查填写内容后重试。",
       tone: "danger",
     });
+  }
+}
+
+interface LimitProfileFormValues {
+  readonly profileId: string;
+  readonly providerId: string;
+  readonly name: string;
+  readonly script: string;
+  readonly timeoutMs: number;
+  readonly enabled: boolean;
+}
+
+function readLimitProfileForm(): LimitProfileFormValues | null {
+  const section = workspace.querySelector<HTMLElement>('[data-role="limit-profile-form"]');
+  if (section === null) return null;
+  const value = (role: string): string =>
+    section.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-role="${role}"]`)?.value.trim() ??
+    "";
+  const timeout = Number.parseInt(value("limit-timeout"), 10);
+  return {
+    profileId: section.dataset.limitProfileId ?? "",
+    providerId: section.dataset.providerId ?? "",
+    name: value("limit-name"),
+    script: section.querySelector<HTMLTextAreaElement>('[data-role="limit-script"]')?.value ?? "",
+    timeoutMs: Number.isFinite(timeout) ? Math.min(60_000, Math.max(500, timeout)) : 8_000,
+    enabled: section.querySelector<HTMLInputElement>('[data-role="limit-enabled"]')?.checked !== false,
+  };
+}
+
+async function submitLimitProfile(): Promise<void> {
+  const form = readLimitProfileForm();
+  if (form === null) return;
+  if (form.providerId.length === 0) return;
+  try {
+    if (form.profileId.length > 0) {
+      await limitProfilesApi.update(form.profileId, {
+        name: form.name,
+        script: form.script,
+        timeoutMs: form.timeoutMs,
+        enabled: form.enabled,
+      });
+    } else {
+      await limitProfilesApi.create({
+        name: form.name,
+        providerId: form.providerId,
+        script: form.script,
+        timeoutMs: form.timeoutMs,
+        enabled: form.enabled,
+      });
+    }
+    showFloatingNotice({ title: "已保存额度查询", tone: "success" });
+    await renderWorkspace();
+  } catch (error) {
+    console.error("save limit profile failed", error);
+    showFloatingNotice({
+      title: "保存额度查询失败",
+      message: error instanceof Error ? error.message : "保存失败，请检查名称与脚本。",
+      tone: "danger",
+    });
+  }
+}
+
+function compactAmount(value: number): string {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return String(value);
+}
+
+function formatLimitValue(value: number, unit: string, currency?: string): string {
+  if (unit === "percent") return `${value.toFixed(1)}%`;
+  if (unit === "currency") return `${compactAmount(value)}${currency === undefined ? "" : ` ${currency}`}`;
+  return compactAmount(value);
+}
+
+async function testLimitProfile(): Promise<void> {
+  const form = readLimitProfileForm();
+  const section = workspace.querySelector<HTMLElement>('[data-role="limit-profile-form"]');
+  const result = section?.querySelector<HTMLElement>('[data-role="limit-result"]');
+  if (form === null || result === null || result === undefined) return;
+  result.hidden = false;
+  delete result.dataset.tone;
+  result.textContent = translator.t("monitor.limit.testTesting");
+  try {
+    const outcome = await limitProfilesApi.test({
+      providerId: form.providerId,
+      script: form.script,
+      timeoutMs: form.timeoutMs,
+    });
+    if (!outcome.ok) {
+      result.dataset.tone = "error";
+      result.textContent = outcome.error ?? translator.t("monitor.limit.testFailed");
+      return;
+    }
+    const parts: string[] = [];
+    for (const [key, reading] of Object.entries(outcome.result?.windows ?? {})) {
+      if (reading === undefined) continue;
+      const unit = reading.unit;
+      const value =
+        reading.remaining !== undefined
+          ? translator.t("monitor.limit.testRemaining", {
+              value: formatLimitValue(reading.remaining, unit),
+            })
+          : reading.used !== undefined
+            ? translator.t("monitor.limit.testUsed", {
+                value: formatLimitValue(reading.used, unit),
+              })
+            : reading.limit !== undefined
+              ? translator.t("monitor.limit.testLimit", {
+                  value: formatLimitValue(reading.limit, unit),
+                })
+              : reading.resetAt !== undefined
+                ? translator.t("monitor.limit.testReset", {
+                    value: new Date(reading.resetAt).toLocaleString(),
+                  })
+                : "";
+      if (value.length > 0) parts.push(`${key} ${value}`);
+    }
+    if (outcome.result?.balance !== undefined) {
+      parts.push(
+        translator.t("monitor.limit.testBalance", {
+          value: formatLimitValue(
+            outcome.result.balance.amount,
+            "currency",
+            outcome.result.balance.currency,
+          ),
+        }),
+      );
+    }
+    result.dataset.tone = "ok";
+    result.textContent =
+      parts.length === 0
+        ? translator.t("monitor.limit.testEmpty")
+        : translator.t("monitor.limit.testOk", { summary: parts.join(" · ") });
+  } catch (error) {
+    result.dataset.tone = "error";
+    result.textContent = error instanceof Error ? error.message : translator.t("monitor.limit.testFailed");
   }
 }
 

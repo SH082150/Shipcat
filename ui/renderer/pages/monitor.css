@@ -617,3 +617,335 @@ html[data-theme="dark"] .page--monitor {
     grid-template-columns: 84px minmax(0, 1fr);
   }
 }
+
+/* ---- 额度查询 ---- */
+
+.page--monitor .monitor-section-title {
+  margin: 0 0 12px;
+  color: var(--monitor-fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.page--monitor .monitor-limit {
+  margin-bottom: 22px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--monitor-line-soft);
+  border-radius: 12px;
+  background: var(--harbor-surface, #fff);
+}
+
+.page--monitor .monitor-limit-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+
+.page--monitor .monitor-limit-copy h2 {
+  margin: 0 0 3px;
+  color: var(--monitor-fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.page--monitor .monitor-limit-copy p {
+  margin: 0;
+  color: var(--monitor-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.page--monitor .monitor-limit-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.page--monitor .monitor-limit-select {
+  height: 32px;
+  min-width: 160px;
+  max-width: 240px;
+  padding: 0 10px;
+  border: 1px solid var(--monitor-line);
+  border-radius: 8px;
+  background: var(--harbor-surface-muted, #f3f3f0);
+  color: var(--monitor-fg);
+  font: inherit;
+  font-size: 11.5px;
+  outline: none;
+}
+
+.page--monitor .monitor-limit-select:disabled {
+  opacity: 0.5;
+}
+
+.page--monitor .monitor-limit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.page--monitor .monitor-limit-empty,
+.page--monitor .monitor-limit-error {
+  margin: 0;
+  padding: 6px 0;
+  color: var(--monitor-faint);
+  font-size: 11.5px;
+}
+
+.page--monitor .monitor-limit-error {
+  color: var(--monitor-danger);
+}
+
+.page--monitor .monitor-limit-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--harbor-surface-muted, #f3f3f0);
+}
+
+.page--monitor .monitor-limit-balance-label {
+  color: var(--monitor-muted);
+  font-size: 11px;
+}
+
+.page--monitor .monitor-limit-balance-value {
+  color: var(--monitor-fg);
+  font-family: var(--harbor-font-display);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.page--monitor .limit-window {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--monitor-line-soft);
+}
+
+.page--monitor .limit-window:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.page--monitor .limit-window-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page--monitor .limit-window-name {
+  color: var(--monitor-fg);
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
+.page--monitor .limit-window-reset {
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--monitor .limit-window-values {
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.page--monitor .limit-window-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.page--monitor .limit-window-value small {
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+}
+
+.page--monitor .limit-window-value strong {
+  color: var(--monitor-fg);
+  font-family: var(--harbor-font-display);
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--monitor .limit-track {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--harbor-surface-muted, #f3f3f0);
+}
+
+.page--monitor .limit-track-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--monitor-blue);
+}
+
+.page--monitor .limit-track-fill[data-warn="true"] {
+  background: #c98b1f;
+}
+
+.page--monitor .limit-track-fill[data-over="true"] {
+  background: var(--monitor-danger);
+}
+
+.page--monitor .limit-window-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--monitor .limit-window-note {
+  margin: 0;
+  color: var(--monitor-faint);
+  font-size: 11px;
+}
+
+/* ---- 额度窗口：参考订阅后台的粗进度条样式 ---- */
+
+.page--monitor .limit-window {
+  gap: 12px;
+  padding: 24px 0 20px;
+}
+
+.page--monitor .limit-window:first-child {
+  padding-top: 6px;
+}
+
+.page--monitor .limit-window-name {
+  margin: 0;
+  color: var(--monitor-fg);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.page--monitor .limit-window-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--monitor-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page--monitor .limit-window-summary {
+  color: var(--monitor-muted);
+}
+
+.page--monitor .limit-window-reset {
+  color: var(--monitor-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.page--monitor .limit-track {
+  height: 26px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--monitor-fg) 14%, transparent);
+}
+
+.page--monitor .limit-track-fill {
+  border-radius: 7px;
+  background: var(--monitor-blue);
+}
+
+.page--monitor .limit-window-side {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.page--monitor .limit-window-remaining {
+  color: var(--monitor-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 进度条：胶囊形，两端全圆角，亮蓝填充。 */
+.page--monitor .limit-track {
+  height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--monitor-fg) 13%, transparent);
+}
+
+.page--monitor .limit-track-fill {
+  border-radius: 999px;
+  background: #0b84ff;
+}
+
+.page--monitor .limit-track-fill[data-warn="true"] {
+  background: #e0a12a;
+}
+
+.page--monitor .limit-track-fill[data-over="true"] {
+  background: #e5484d;
+}
+
+/* 进度条：细条 + 小圆角 + 亮蓝填充，填充右端一条白色分割线。 */
+.page--monitor .limit-track {
+  height: 10px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--monitor-fg) 16%, transparent);
+}
+
+.page--monitor .limit-track-fill {
+  position: relative;
+  border-radius: 5px;
+  background: #0b84ff;
+}
+
+.page--monitor .limit-track-fill::after {
+  position: absolute;
+  top: -3px;
+  right: 0;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 999px;
+  background: #ffffff;
+  content: "";
+}
+
+/* 修正：填充保持绝对定位，白色分割线挂在填充右缘。 */
+.page--monitor .limit-track-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 5px;
+  background: #0b84ff;
+}
+
+/* 轨道与填充都是圆角矩形（四角同半径），不是胶囊。 */
+.page--monitor .limit-track {
+  height: 12px;
+  border-radius: 4px;
+}
+
+.page--monitor .limit-track-fill {
+  border-radius: 4px;
+}
+
+.page--monitor .monitor-limit-note {
+  margin: 0;
+  color: var(--monitor-faint);
+  font-size: 10.5px;
+}

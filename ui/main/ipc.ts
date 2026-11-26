@@ -46,7 +46,22 @@ import type { UsageService } from "../../core/usage/service.ts";
 import type { MonitorService } from "../../core/monitor/service.ts";
 import { readRecentMonitorRecords } from "../../core/monitor/query.ts";
 import type { MonitorRecord, MonitorRecordEvent } from "../../core/monitor/index.ts";
-import type { MonitorPageDto, MonitorRecordDto } from "../shared/ipc.ts";
+import type {
+  LimitRemoteDto,
+  LimitWindowKeyDto,
+  LimitProfileDetailDto,
+  LimitProfileInputDto,
+  LimitProfilePatchDto,
+  LimitProfileSummaryDto,
+  LimitTestInputDto,
+  LimitTestResultDto,
+  LimitViewDto,
+  LimitViewQueryDto,
+  MonitorPageDto,
+  MonitorRecordDto,
+} from "../shared/ipc.ts";
+import * as core from "../../core/index.ts";
+import type { QuotaQueryOutcome } from "../../core/quota/script/types.ts";
 
 const MONITOR_BUFFER_LIMIT = 500;
 /** 主进程查询缓存最多读取的历史条数；分页在缓存上完成，不再整包发给渲染层。 */
@@ -175,6 +190,112 @@ function parseMonitorQuery(value: unknown): ParsedMonitorQuery | null {
   };
 }
 
+type RawRemote = {
+  readonly used?: number;
+  readonly limit?: number;
+  readonly remaining?: number;
+  readonly resetAt?: number;
+  readonly unit?: string;
+  readonly note?: string;
+};
+
+function toRemoteDto(reading: RawRemote): LimitRemoteDto {
+  const unit =
+    reading.unit === "requests" || reading.unit === "percent" || reading.unit === "currency"
+      ? reading.unit
+      : "tokens";
+  return {
+    ...(reading.used === undefined ? {} : { used: reading.used }),
+    ...(reading.limit === undefined ? {} : { limit: reading.limit }),
+    ...(reading.remaining === undefined ? {} : { remaining: reading.remaining }),
+    ...(reading.resetAt === undefined ? {} : { resetAt: reading.resetAt }),
+    ...(reading.note === undefined ? {} : { note: reading.note }),
+    unit,
+  };
+}
+
+function toLimitViewDto(view: core.quota.LimitView): LimitViewDto {
+  return {
+    profileId: view.profileId,
+    providerId: view.providerId,
+    ok: view.ok,
+    fetchedAt: view.fetchedAt,
+    windows: view.windows.map((window) => ({
+      key: window.key as LimitWindowKeyDto,
+      range: window.range,
+      remote: toRemoteDto(window.remote),
+      local: window.local,
+    })),
+    ...(view.balance === undefined ? {} : { balance: view.balance }),
+    ...(view.error === undefined ? {} : { error: view.error }),
+    ...(view.truncated === true ? { truncated: true } : {}),
+  };
+}
+
+function requireString(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new ServiceError("INVALID", `${label}不能为空。`);
+  }
+  return value;
+}
+
+function parseLimitProfileInput(value: unknown): core.limitProfiles.CreateLimitProfileInput {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new ServiceError("INVALID", "额度配置参数不合法。");
+  }
+  const raw = value as Record<string, unknown>;
+  return {
+    name: requireString(raw.name, "名称"),
+    providerId: requireString(raw.providerId, "供应商 id"),
+    script: requireString(raw.script, "脚本"),
+    ...(typeof raw.timeoutMs === "number" ? { timeoutMs: raw.timeoutMs } : {}),
+    ...(typeof raw.enabled === "boolean" ? { enabled: raw.enabled } : {}),
+  };
+}
+
+function parseLimitProfilePatch(value: unknown): core.limitProfiles.UpdateLimitProfileInput {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new ServiceError("INVALID", "额度配置参数不合法。");
+  }
+  const raw = value as Record<string, unknown>;
+  return {
+    ...(typeof raw.name === "string" ? { name: raw.name } : {}),
+    ...(typeof raw.script === "string" ? { script: raw.script } : {}),
+    ...(typeof raw.timeoutMs === "number" ? { timeoutMs: raw.timeoutMs } : {}),
+    ...(typeof raw.enabled === "boolean" ? { enabled: raw.enabled } : {}),
+  };
+}
+
+function parseLimitTestInput(value: unknown): { providerId: string; script: string; timeoutMs: number } {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new ServiceError("INVALID", "测试参数不合法。");
+  }
+  const raw = value as Record<string, unknown>;
+  const script = requireString(raw.script, "脚本");
+  if (script.length > 200_000) {
+    throw new ServiceError("INVALID", "脚本超过 200KB 上限。");
+  }
+  return {
+    providerId: requireString(raw.providerId, "供应商 id"),
+    script,
+    timeoutMs:
+      typeof raw.timeoutMs === "number" && Number.isFinite(raw.timeoutMs)
+        ? Math.min(60_000, Math.max(500, Math.trunc(raw.timeoutMs)))
+        : 8_000,
+  };
+}
+
+function parseLimitViewQuery(value: unknown): { profileId: string; force: boolean } {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new ServiceError("INVALID", "额度查询参数不合法。");
+  }
+  const raw = value as Record<string, unknown>;
+  return {
+    profileId: requireString(raw.profileId, "额度配置 id"),
+    force: raw.force === true,
+  };
+}
+
 export function registerCoreIpc(
   gateway: GatewayService,
   usageService: UsageService | null,
@@ -288,11 +409,166 @@ export function registerCoreIpc(
           }
         }),
   );
+
+  const limitViewCache = new Map<string, { at: number; outcome: QuotaQueryOutcome }>();
+  const limitViewInflight = new Map<string, Promise<QuotaQueryOutcome>>();
+  const LIMIT_VIEW_TTL_MS = 5 * 60_000;
+  /** 配置/供应商变更后自增，使在途查询的结果不再写回缓存。 */
+  let limitViewEpoch = 0;
+  const invalidateLimitViews = (): void => {
+    limitViewEpoch += 1;
+    limitViewCache.clear();
+  };
+
+  const summarizeLimitProfile = (entry: { id: string; name: string }): LimitProfileSummaryDto => {
+    try {
+      const { profile } = core.limitProfiles.getById(entry.id);
+      return { id: entry.id, name: entry.name, providerId: profile.providerId, enabled: profile.enabled };
+    } catch {
+      return { id: entry.id, name: entry.name, providerId: "", enabled: false };
+    }
+  };
+
+  const detailLimitProfile = (
+    found: { entry: { id: string; name: string }; profile: core.limitProfiles.LimitProfile } | null,
+  ): LimitProfileDetailDto | null => {
+    if (found === null) return null;
+    return {
+      id: found.entry.id,
+      name: found.entry.name,
+      providerId: found.profile.providerId,
+      enabled: found.profile.enabled,
+      script: found.profile.script,
+      timeoutMs: found.profile.timeoutMs,
+    };
+  };
+
+  ipcMain.handle(CHANNELS.limitProfiles.list, () =>
+    run(() => core.limitProfiles.list().map(summarizeLimitProfile)),
+  );
+  ipcMain.handle(CHANNELS.limitProfiles.getByProvider, (_event, providerId: unknown) =>
+    run(() => {
+      if (typeof providerId !== "string" || providerId.length === 0) {
+        throw new ServiceError("INVALID", "供应商 id 不合法。");
+      }
+      return detailLimitProfile(core.limitProfiles.getByProvider(providerId));
+    }),
+  );
+  ipcMain.handle(CHANNELS.limitProfiles.create, (_event, input: unknown) =>
+    run(() => {
+      const parsed = parseLimitProfileInput(input);
+      const entry = core.limitProfiles.create(parsed);
+      return summarizeLimitProfile(entry);
+    }),
+  );
+  ipcMain.handle(CHANNELS.limitProfiles.update, (_event, id: unknown, patch: unknown) =>
+    run(() => {
+      if (typeof id !== "string" || id.length === 0) {
+        throw new ServiceError("INVALID", "额度配置 id 不合法。");
+      }
+      const parsed = parseLimitProfilePatch(patch);
+      const entry = core.limitProfiles.update(id, parsed);
+      invalidateLimitViews();
+      return summarizeLimitProfile(entry);
+    }),
+  );
+  ipcMain.handle(CHANNELS.limitProfiles.remove, (_event, id: unknown) =>
+    run(() => {
+      if (typeof id !== "string" || id.length === 0) {
+        throw new ServiceError("INVALID", "额度配置 id 不合法。");
+      }
+      core.limitProfiles.remove(id);
+      invalidateLimitViews();
+    }),
+  );
+  ipcMain.handle(CHANNELS.limitProfiles.test, (_event, input: unknown) =>
+    run(async (): Promise<LimitTestResultDto> => {
+      const parsed = parseLimitTestInput(input);
+      const outcome = await core.quota.script.queryProfileQuota({
+        id: "test",
+        providerId: parsed.providerId,
+        script: parsed.script,
+        timeoutMs: parsed.timeoutMs,
+        enabled: true,
+      });
+      const result = outcome.result;
+      return {
+        ok: outcome.ok,
+        fetchedAt: outcome.fetchedAt,
+        ...(result === undefined
+          ? {}
+          : {
+              result: {
+                ...(result.windows === undefined
+                  ? {}
+                  : {
+                      windows: Object.fromEntries(
+                        Object.entries(result.windows).map(([key, reading]) => [
+                          key,
+                          reading === undefined ? reading : toRemoteDto(reading),
+                        ]),
+                      ),
+                    }),
+                ...(result.balance === undefined ? {} : { balance: result.balance }),
+              },
+            }),
+        ...(outcome.error === undefined ? {} : { error: outcome.error }),
+      };
+    }),
+  );
+  ipcMain.handle(CHANNELS.limit.view, (_event, input: unknown) =>
+    run(async (): Promise<LimitViewDto> => {
+      const parsed = parseLimitViewQuery(input);
+      const found = core.limitProfiles.getById(parsed.profileId);
+      const cached = limitViewCache.get(parsed.profileId);
+      let outcome: QuotaQueryOutcome;
+      if (!parsed.force && cached !== undefined && Date.now() - cached.at < LIMIT_VIEW_TTL_MS) {
+        outcome = cached.outcome;
+      } else {
+        const epoch = limitViewEpoch;
+        let pending = parsed.force ? undefined : limitViewInflight.get(parsed.profileId);
+        if (pending === undefined) {
+          pending = core.quota.script
+            .queryProfileQuota({
+              id: found.entry.id,
+              providerId: found.profile.providerId,
+              script: found.profile.script,
+              timeoutMs: found.profile.timeoutMs,
+              enabled: found.profile.enabled,
+            })
+            .then((result) => {
+              if (epoch === limitViewEpoch) {
+                limitViewCache.set(parsed.profileId, { at: Date.now(), outcome: result });
+              }
+              return result;
+            })
+            .finally(() => {
+              if (limitViewInflight.get(parsed.profileId) === pending) {
+                limitViewInflight.delete(parsed.profileId);
+              }
+            });
+          limitViewInflight.set(parsed.profileId, pending);
+        }
+        outcome = await pending;
+      }
+      const records = monitorRecords();
+      return toLimitViewDto(
+        core.quota.buildLimitView({
+          profileId: found.entry.id,
+          providerId: found.profile.providerId,
+          outcome,
+          records,
+          truncated: records.length >= MONITOR_HISTORY_LIMIT,
+        }),
+      );
+    }),
+  );
   ipcMain.handle(CHANNELS.providers.list, () => run(() => listProviders()));
   ipcMain.handle(CHANNELS.providers.get, (_event, id: string) => run(() => getProvider(id)));
   const invalidateProviderCaches = (): void => {
     providerNamesCache = null;
     monitorCache = null;
+    invalidateLimitViews();
   };
 
   ipcMain.handle(CHANNELS.providers.create, (_event, input: ProviderInput) =>
@@ -311,8 +587,14 @@ export function registerCoreIpc(
   );
   ipcMain.handle(CHANNELS.providers.remove, (_event, id: string) =>
     run(() => {
+      const providerId = getProvider(id).id;
       const result = removeProvider(id);
       invalidateProviderCaches();
+      const limitProfile = core.limitProfiles.getByProvider(providerId);
+      if (limitProfile !== null) {
+        core.limitProfiles.remove(limitProfile.entry.id);
+        limitViewCache.delete(limitProfile.entry.id);
+      }
       return result;
     }),
   );

@@ -5,10 +5,16 @@
  * 时间按用量设置里的时区显示，分页行数随列表可用高度调整。
  */
 
-import { monitorApi, usageApi } from "../api/core.ts";
+import { limitApi, limitProfilesApi, monitorApi, usageApi } from "../api/core.ts";
 import { createTranslator } from "../components/i18n.ts";
 import type { Language, Translator } from "../components/i18n.ts";
-import type { MonitorRecordDto, MonitorTotalsDto } from "../../shared/ipc.ts";
+import type {
+  LimitProfileSummaryDto,
+  LimitViewDto,
+  LimitWindowDto,
+  MonitorRecordDto,
+  MonitorTotalsDto,
+} from "../../shared/ipc.ts";
 
 const PAGE_SIZE = 10;
 const LIVE_REFRESH_MS = 300;
@@ -21,6 +27,13 @@ interface MonitorViewState {
   query: string;
   page: number;
   timeZone: string;
+  limitProfiles: LimitProfileSummaryDto[];
+  limitProfilesLoaded: boolean;
+  limitProfilesError: string | null;
+  limitSelectedId: string;
+  limitView: LimitViewDto | null;
+  limitLoading: boolean;
+  limitError: string | null;
 }
 
 const EMPTY_TOTALS: MonitorTotalsDto = {
@@ -42,6 +55,7 @@ let unsubscribe: (() => void) | null = null;
 let language: Language = "zh";
 let t: Translator = createTranslator("zh");
 let liveTimer: number | null = null;
+let limitSeq = 0;
 let searchTimer: number | null = null;
 let unsubscribeUsage: (() => void) | null = null;
 let onDocumentClick: ((event: MouseEvent) => void) | null = null;
@@ -249,6 +263,225 @@ function openDialog(record: MonitorRecordDto): void {
   }
 }
 
+function formatStamp(ts: number, timeZone: string): string {
+  const value = partsOf(ts, timeZone);
+  return `${value.month}-${value.day} ${value.hour}:${value.minute}`;
+}
+
+function limitWindowTitle(key: LimitWindowDto["key"]): string {
+  return t.t(`monitor.limit.windowTitle.${key}` as never);
+}
+
+function formatReading(value: number, unit: string, currency?: string): string {
+  if (unit === "percent") return `${value.toFixed(1)}%`;
+  if (unit === "currency") return `${compactTokens(value)} ${currency ?? ""}`.trim();
+  return compactTokens(value);
+}
+
+function renderLimitSelect(): void {
+  const root = document.querySelector<HTMLElement>(".page--monitor");
+  const select = root?.querySelector<HTMLSelectElement>("[data-monitor-limit-select]");
+  if (select === null || select === undefined || state === null) return;
+  select.replaceChildren(
+    ...state.limitProfiles.map((profile) => {
+      const option = document.createElement("option");
+      option.value = profile.id;
+      option.textContent = profile.name;
+      option.selected = profile.id === state?.limitSelectedId;
+      return option;
+    }),
+  );
+  select.disabled = state.limitProfiles.length === 0;
+}
+
+function renderLimitBody(): void {
+  const root = document.querySelector<HTMLElement>(".page--monitor");
+  const body = root?.querySelector<HTMLElement>("[data-monitor-limit-body]");
+  if (body === null || body === undefined || state === null) return;
+
+  if (!state.limitProfilesLoaded) {
+    body.replaceChildren(el("p", "monitor-limit-empty", t.t("monitor.limit.loading")));
+    return;
+  }
+  if (state.limitProfilesError !== null && state.limitProfiles.length === 0) {
+    body.replaceChildren(
+      el("p", "monitor-limit-error", `${t.t("monitor.limit.error")}：${state.limitProfilesError}`),
+    );
+    return;
+  }
+  if (state.limitProfiles.length === 0) {
+    body.replaceChildren(el("p", "monitor-limit-empty", t.t("monitor.limit.emptyProfiles")));
+    return;
+  }
+  if (state.limitLoading) {
+    body.replaceChildren(el("p", "monitor-limit-empty", t.t("monitor.limit.loading")));
+    return;
+  }
+  if (state.limitError !== null) {
+    body.replaceChildren(el("p", "monitor-limit-error", `${t.t("monitor.limit.error")}：${state.limitError}`));
+    return;
+  }
+  const view = state.limitView;
+  if (view === null) {
+    body.replaceChildren(el("p", "monitor-limit-empty", t.t("monitor.limit.emptyWindows")));
+    return;
+  }
+  if (!view.ok) {
+    body.replaceChildren(
+      el("p", "monitor-limit-error", `${t.t("monitor.limit.error")}：${view.error ?? ""}`),
+    );
+    return;
+  }
+
+  const children: HTMLElement[] = [];
+  if (view.balance !== undefined) {
+    const balance = el("div", "monitor-limit-balance");
+    balance.append(
+      el("span", "monitor-limit-balance-label", t.t("monitor.limit.balance")),
+      el(
+        "strong",
+        "monitor-limit-balance-value",
+        formatReading(view.balance.amount, "currency", view.balance.currency),
+      ),
+    );
+    children.push(balance);
+  }
+
+  if (view.windows.length === 0 && view.balance === undefined) {
+    children.push(el("p", "monitor-limit-empty", t.t("monitor.limit.emptyWindows")));
+  }
+
+  for (const window of view.windows) {
+    children.push(limitWindowRow(window));
+  }
+  if (view.truncated === true) {
+    children.push(el("p", "monitor-limit-note", t.t("monitor.limit.truncated")));
+  }
+  body.replaceChildren(...children);
+}
+
+function remainingPercentOf(remote: LimitWindowDto["remote"]): number | null {
+  if (remote.unit === "percent") {
+    const value = remote.remaining ?? (remote.used === undefined ? undefined : 100 - remote.used);
+    return value === undefined ? null : Math.max(0, Math.min(100, value));
+  }
+  if (remote.limit === undefined || remote.limit <= 0) return null;
+  const remaining =
+    remote.remaining ?? (remote.used === undefined ? undefined : remote.limit - remote.used);
+  if (remaining === undefined) return null;
+  return Math.max(0, Math.min(100, (remaining / remote.limit) * 100));
+}
+
+function limitWindowRow(window: LimitWindowDto): HTMLElement {
+  const row = el("article", "limit-window");
+  row.dataset.key = window.key;
+
+  row.append(el("h3", "limit-window-name", limitWindowTitle(window.key)));
+
+  const meta = el("div", "limit-window-meta");
+  const summary = el("span", "limit-window-summary");
+  if (window.local === null) {
+    summary.textContent = t.t("monitor.limit.noReset");
+  } else {
+    const hit =
+      window.local.cacheHitRate === null
+        ? "—"
+        : `${(window.local.cacheHitRate * 100).toFixed(1)}%`;
+    summary.textContent = `${t.t("monitor.limit.totalUsage")} ${compactTokens(
+      window.local.totalTokens,
+    )} · ${t.t("monitor.limit.cacheHit")} ${hit}`;
+  }
+  meta.append(summary);
+
+  const side = el("span", "limit-window-side");
+  const remaining = remainingPercentOf(window.remote);
+  if (remaining !== null) {
+    side.append(
+      el(
+        "span",
+        "limit-window-remaining",
+        t.t("monitor.limit.remainingPct", { percent: remaining.toFixed(1) }),
+      ),
+    );
+  }
+  if (window.remote.resetAt !== undefined && state !== null) {
+    side.append(
+      el(
+        "span",
+        "limit-window-reset",
+        `${formatStamp(window.remote.resetAt, state.timeZone)} ${t.t("monitor.limit.resetAfter")}`,
+      ),
+    );
+  }
+  if (side.childElementCount > 0) meta.append(side);
+  row.append(meta);
+
+  // 进度条仍按脚本返回的 used / limit 计算；只做视觉参考，不展示「可用」数字。
+  if (window.remote.used !== undefined && window.remote.limit !== undefined && window.remote.limit > 0) {
+    const percent = (window.remote.used / window.remote.limit) * 100;
+    const track = el("div", "limit-track");
+    track.setAttribute("role", "progressbar");
+    track.setAttribute("aria-valuemin", "0");
+    track.setAttribute("aria-valuemax", "100");
+    track.setAttribute("aria-valuenow", String(Math.min(100, percent)));
+    const fill = el("span", "limit-track-fill");
+    fill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+    if (percent >= 100) fill.dataset.over = "true";
+    else if (percent >= 80) fill.dataset.warn = "true";
+    track.append(fill);
+    row.append(track);
+  }
+  return row;
+}
+
+async function loadLimitProfiles(): Promise<void> {
+  try {
+    const profiles = await limitProfilesApi.list();
+    if (state === null) return;
+    state.limitProfiles = profiles;
+    state.limitProfilesLoaded = true;
+    state.limitProfilesError = null;
+    const preferred = profiles.find((profile) => profile.enabled) ?? profiles[0];
+    state.limitSelectedId = preferred?.id ?? "";
+    renderLimitSelect();
+    renderLimitBody();
+    if (state.limitSelectedId.length > 0) void fetchLimit(false);
+  } catch (error) {
+    if (state === null) return;
+    state.limitProfilesLoaded = true;
+    state.limitProfilesError = error instanceof Error ? error.message : String(error);
+    renderLimitBody();
+  }
+}
+
+async function fetchLimit(force: boolean, silent = false): Promise<void> {
+  if (state === null) return;
+  if (state.limitSelectedId.length === 0) {
+    state.limitView = null;
+    renderLimitBody();
+    return;
+  }
+  const seq = ++limitSeq;
+  // 实时刷新时保留旧内容，避免整块闪烁成「正在查询…」。
+  if (!silent || state.limitView === null) {
+    state.limitLoading = true;
+    renderLimitBody();
+  }
+  state.limitError = null;
+  try {
+    const view = await limitApi.view({ profileId: state.limitSelectedId, force });
+    if (state === null || seq !== limitSeq) return;
+    state.limitView = view;
+    state.limitLoading = false;
+    renderLimitBody();
+  } catch (error) {
+    if (state === null || seq !== limitSeq) return;
+    state.limitLoading = false;
+    state.limitError = error instanceof Error ? error.message : String(error);
+    renderLimitBody();
+  }
+}
+
 function totalPages(): number {
   if (state === null) return 1;
   return Math.max(1, Math.ceil(state.total / PAGE_SIZE));
@@ -306,6 +539,8 @@ function render(): void {
   if (prev !== null) prev.disabled = state.page <= 1;
   const next = root.querySelector<HTMLButtonElement>('[data-monitor-action="next"]');
   if (next !== null) next.disabled = state.page >= pages;
+
+  renderLimitBody();
 }
 
 /** 收起搜索并清掉筛选，供 × 与点击空白处共用。 */
@@ -380,6 +615,8 @@ function scheduleLiveRefresh(): void {
   liveTimer = window.setTimeout(() => {
     liveTimer = null;
     void fetchPage();
+    // 额度视图里的本地用量随新记录变化；远端读数仍走主进程缓存。
+    void fetchLimit(false, true);
   }, LIVE_REFRESH_MS);
 }
 
@@ -395,6 +632,13 @@ export function mountMonitorView(root: HTMLElement, lang: Language): void {
     query: "",
     page: 1,
     timeZone: systemTimeZone(),
+    limitProfiles: [],
+    limitProfilesLoaded: false,
+    limitProfilesError: null,
+    limitSelectedId: "",
+    limitView: null,
+    limitLoading: false,
+    limitError: null,
   };
 
   const pageRoot = root.querySelector<HTMLElement>(".page--monitor");
@@ -428,6 +672,8 @@ export function mountMonitorView(root: HTMLElement, lang: Language): void {
       closeSearch(pageRoot);
     } else if (action === "refresh") {
       void fetchPage();
+    } else if (action === "limit-refresh" && state !== null) {
+      void fetchLimit(true);
     } else if (action === "page-edit" && state !== null) {
       setPageEditing(pageRoot, true);
     } else if (action === "dialog-close") {
@@ -447,6 +693,15 @@ export function mountMonitorView(root: HTMLElement, lang: Language): void {
     }
   });
   pageInput?.addEventListener("blur", () => commitPage(pageRoot));
+
+  pageRoot
+    .querySelector<HTMLSelectElement>("[data-monitor-limit-select]")
+    ?.addEventListener("change", (event) => {
+      if (state === null) return;
+      state.limitSelectedId = (event.target as HTMLSelectElement).value;
+      state.limitView = null;
+      void fetchLimit(false);
+    });
 
   pageRoot.querySelector<HTMLInputElement>("[data-monitor-query]")?.addEventListener("input", (event) => {
     if (state === null) return;
@@ -492,6 +747,7 @@ export function mountMonitorView(root: HTMLElement, lang: Language): void {
   });
 
   void loadTimeZone();
+  void loadLimitProfiles();
   void fetchPage();
 }
 
@@ -524,5 +780,6 @@ export function unmountMonitorView(): void {
     liveTimer = null;
   }
   requestSeq += 1;
+  limitSeq += 1;
   state = null;
 }

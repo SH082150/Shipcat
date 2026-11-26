@@ -243,6 +243,104 @@ export interface MonitorPageDto {
   readonly totals: MonitorTotalsDto;
 }
 
+/** 供应商额度查询配置（一供应商一个）。 */
+export interface LimitProfileSummaryDto {
+  readonly id: string;
+  readonly name: string;
+  readonly providerId: string;
+  readonly enabled: boolean;
+}
+
+export interface LimitProfileDetailDto extends LimitProfileSummaryDto {
+  readonly script: string;
+  readonly timeoutMs: number;
+}
+
+export interface LimitProfileInputDto {
+  readonly name: string;
+  readonly providerId: string;
+  readonly script: string;
+  readonly timeoutMs?: number;
+  readonly enabled?: boolean;
+}
+
+export interface LimitProfilePatchDto {
+  readonly name?: string;
+  readonly script?: string;
+  readonly timeoutMs?: number;
+  readonly enabled?: boolean;
+}
+
+export type LimitWindowKeyDto = "5h" | "7d" | "30d";
+export type LimitWindowUnitDto = "tokens" | "requests" | "percent" | "currency";
+
+export interface LimitRemoteDto {
+  readonly used?: number;
+  readonly limit?: number;
+  readonly remaining?: number;
+  readonly resetAt?: number;
+  readonly unit: LimitWindowUnitDto;
+  readonly note?: string;
+}
+
+export interface LimitLocalUsageDto {
+  readonly records: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
+  readonly totalTokens: number;
+  readonly cacheHitRate: number | null;
+  readonly inputShare: number | null;
+  readonly outputShare: number | null;
+}
+
+export interface LimitWindowDto {
+  readonly key: LimitWindowKeyDto;
+  readonly range: { readonly start: number; readonly end: number } | null;
+  readonly remote: LimitRemoteDto;
+  readonly local: LimitLocalUsageDto | null;
+}
+
+export interface LimitBalanceDto {
+  readonly amount: number;
+  readonly currency: string;
+  readonly note?: string;
+}
+
+export interface LimitViewDto {
+  readonly profileId: string;
+  readonly providerId: string;
+  readonly ok: boolean;
+  readonly fetchedAt: number;
+  readonly windows: readonly LimitWindowDto[];
+  readonly balance?: LimitBalanceDto;
+  readonly error?: string;
+  readonly truncated?: boolean;
+}
+
+export interface LimitViewQueryDto {
+  readonly profileId: string;
+  /** true 时跳过主进程 5 分钟缓存。 */
+  readonly force?: boolean;
+}
+
+export interface LimitTestInputDto {
+  readonly providerId: string;
+  readonly script: string;
+  readonly timeoutMs?: number;
+}
+
+export interface LimitTestResultDto {
+  readonly ok: boolean;
+  readonly fetchedAt: number;
+  readonly result?: {
+    readonly windows?: Readonly<Partial<Record<LimitWindowKeyDto, LimitRemoteDto>>>;
+    readonly balance?: LimitBalanceDto;
+  };
+  readonly error?: string;
+}
+
 /** 用量采集来源（设置页「用量」章节使用）。 */
 export interface UsageSourceDto {
   readonly id: string;
@@ -303,6 +401,17 @@ export const CHANNELS = {
     record: "claude-harbor:monitor:record",
     rebuild: "claude-harbor:monitor:rebuild",
   },
+  limitProfiles: {
+    list: "claude-harbor:limit-profiles:list",
+    getByProvider: "claude-harbor:limit-profiles:get-by-provider",
+    create: "claude-harbor:limit-profiles:create",
+    update: "claude-harbor:limit-profiles:update",
+    remove: "claude-harbor:limit-profiles:remove",
+    test: "claude-harbor:limit-profiles:test",
+  },
+  limit: {
+    view: "claude-harbor:limit:view",
+  },
   dialog: {
     pickDirectory: "claude-harbor:dialog:pick-directory",
   },
@@ -353,6 +462,17 @@ export interface CoreBridge {
     query(input: MonitorQueryDto): Promise<AppResult<MonitorPageDto>>;
     rebuild(): Promise<AppResult<unknown>>;
     onRecord(callback: (record: MonitorRecordDto) => void): () => void;
+  };
+  readonly limitProfiles: {
+    list(): Promise<AppResult<LimitProfileSummaryDto[]>>;
+    getByProvider(providerId: string): Promise<AppResult<LimitProfileDetailDto | null>>;
+    create(input: LimitProfileInputDto): Promise<AppResult<LimitProfileSummaryDto>>;
+    update(id: string, patch: LimitProfilePatchDto): Promise<AppResult<LimitProfileSummaryDto>>;
+    remove(id: string): Promise<AppResult<void>>;
+    test(input: LimitTestInputDto): Promise<AppResult<LimitTestResultDto>>;
+  };
+  readonly limit: {
+    view(input: LimitViewQueryDto): Promise<AppResult<LimitViewDto>>;
   };
   readonly dialog: {
     pickDirectory(): Promise<AppResult<string | null>>;

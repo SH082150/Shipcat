@@ -46,6 +46,22 @@ export function renderMonitorPage(context: PageContext): string {
       </div>
     </header>
 
+    <section class="monitor-block monitor-limit" data-monitor-limit>
+      <header class="monitor-limit-head">
+        <div class="monitor-limit-copy">
+          <h2>${escapeHtml(t.t("monitor.limit.title"))}</h2>
+          <p>${escapeHtml(t.t("monitor.limit.description"))}</p>
+        </div>
+        <div class="monitor-limit-tools">
+          <select class="monitor-limit-select" data-monitor-limit-select aria-label="${escapeHtml(t.t("monitor.limit.selectLabel"))}"></select>
+          <button type="button" class="monitor-square" data-monitor-action="limit-refresh" aria-label="${escapeHtml(t.t("monitor.limit.refresh"))}" title="${escapeHtml(t.t("monitor.limit.refresh"))}">${iconSvg("refresh", "monitor-icon")}</button>
+        </div>
+      </header>
+      <div class="monitor-limit-body" data-monitor-limit-body></div>
+    </section>
+
+    <h2 class="monitor-section-title">${escapeHtml(t.t("monitor.section.events"))}</h2>
+
     <section class="monitor-block">
       <div class="monitor-summary">
       <article class="monitor-card">

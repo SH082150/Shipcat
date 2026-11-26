@@ -105,6 +105,17 @@ contextBridge.exposeInMainWorld("claudeHarbor", {
       return subscribe(CHANNELS.usage.changed, callback);
     },
   },
+  limitProfiles: {
+    list: () => invoke(CHANNELS.limitProfiles.list),
+    getByProvider: (providerId: string) => invoke(CHANNELS.limitProfiles.getByProvider, providerId),
+    create: (input: unknown) => invoke(CHANNELS.limitProfiles.create, input),
+    update: (id: string, patch: unknown) => invoke(CHANNELS.limitProfiles.update, id, patch),
+    remove: (id: string) => invoke(CHANNELS.limitProfiles.remove, id),
+    test: (input: unknown) => invoke(CHANNELS.limitProfiles.test, input),
+  },
+  limit: {
+    view: (input: unknown) => invoke(CHANNELS.limit.view, input),
+  },
   monitor: {
     query: (input: unknown) => invoke(CHANNELS.monitor.query, input),
     rebuild: () => invoke(CHANNELS.monitor.rebuild),

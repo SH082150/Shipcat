@@ -10,6 +10,14 @@ import type {
   AppResult,
   CoreBridge,
   GatewayStatus,
+  LimitProfileDetailDto,
+  LimitProfileInputDto,
+  LimitProfilePatchDto,
+  LimitProfileSummaryDto,
+  LimitTestInputDto,
+  LimitTestResultDto,
+  LimitViewDto,
+  LimitViewQueryDto,
   ModelInput,
   OverviewData,
   ProfileCreateInput,
@@ -103,6 +111,23 @@ export const monitorApi = {
   rebuild: (): Promise<unknown> => unwrap(bridge().monitor.rebuild()),
   onRecord: (callback: (record: MonitorRecordDto) => void): (() => void) =>
     bridge().monitor.onRecord(callback),
+};
+
+export const limitProfilesApi = {
+  list: (): Promise<LimitProfileSummaryDto[]> => unwrap(bridge().limitProfiles.list()),
+  getByProvider: (providerId: string): Promise<LimitProfileDetailDto | null> =>
+    unwrap(bridge().limitProfiles.getByProvider(providerId)),
+  create: (input: LimitProfileInputDto): Promise<LimitProfileSummaryDto> =>
+    unwrap(bridge().limitProfiles.create(input)),
+  update: (id: string, patch: LimitProfilePatchDto): Promise<LimitProfileSummaryDto> =>
+    unwrap(bridge().limitProfiles.update(id, patch)),
+  remove: (id: string): Promise<void> => unwrap(bridge().limitProfiles.remove(id)),
+  test: (input: LimitTestInputDto): Promise<LimitTestResultDto> =>
+    unwrap(bridge().limitProfiles.test(input)),
+};
+
+export const limitApi = {
+  view: (input: LimitViewQueryDto): Promise<LimitViewDto> => unwrap(bridge().limit.view(input)),
 };
 
 export const overviewApi = { get: (): Promise<OverviewData> => unwrap(bridge().overview.get()) };

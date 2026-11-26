@@ -116,12 +116,12 @@ test("navigation: 四条导航严格对应四个主页面", () => {
   const zh = translator("zh");
   assert.deepEqual(
     NAV_ITEMS.map((item) => zh.t(item.labelKey)),
-    ["概览", "供应商", "档案", "用量", "事件监测"],
+    ["概览", "供应商", "档案", "用量", "额度"],
   );
   const en = translator("en");
   assert.deepEqual(
     NAV_ITEMS.map((item) => en.t(item.labelKey)),
-    ["Overview", "Providers", "Profiles", "Usage", "Monitor"],
+    ["Overview", "Providers", "Profiles", "Usage", "Limit"],
   );
   for (const item of NAV_ITEMS) {
     assert.equal(typeof item.hintKey, "string");
