@@ -361,7 +361,7 @@ test("菜单顺序为常规、隐私、用量、系统、关于，且不显示�
     assert.equal(roleCount(root, "nav-client"), 0);
 
     const sidebar = byRole(root, "sidebar");
-    assert.doesNotMatch(textOf(sidebar), /0\.3\.1/);
+    assert.doesNotMatch(textOf(sidebar), /0\.3\.2/);
     assert.doesNotMatch(textOf(sidebar), /版本/);
     assert.match(textOf(byRole(root, "title")), /设置/);
   } finally {
@@ -480,7 +480,7 @@ test("常规页的了解更多进入关于章节，并同步菜单高亮", () =>
     assert.equal(byRole(root, "nav-about").getAttribute("aria-current"), "page");
     const info = textOf(byRole(root, "pane-about"));
     assert.match(info, /Shipcat/);
-    assert.match(info, /0\.3\.1/);
+    assert.match(info, /0\.3\.2/);
   } finally {
     modal.cleanup();
   }
@@ -540,11 +540,11 @@ test("隐私页给出本地优先声明与存储说明", () => {
   }
 });
 
-test("系统页显示 0.3.1 与开机自启开关", () => {
+test("系统页显示 0.3.2 与开机自启开关", () => {
   const modal = mount({ section: "system" });
   try {
     const { root } = modal;
-    assert.equal(textOf(byRole(root, "app-version")), "0.3.1");
+    assert.equal(textOf(byRole(root, "app-version")), "0.3.2");
 
     const launch = byRole(root, "launch-at-login");
     assert.equal(launch.getAttribute("role"), "switch");

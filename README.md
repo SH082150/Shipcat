@@ -4,7 +4,7 @@
 
 **A Multi-Provider Local Gateway and Desktop App for Claude Desktop**
 
-版本：0.3.1 · 平台：macOS / Windows · 许可证：[Apache License 2.0](LICENSE)
+版本：0.3.2 · 平台：macOS / Windows · 许可证：[Apache License 2.0](LICENSE)
 
 ## 摘要
 
@@ -350,7 +350,7 @@ npm run typecheck
 
 ## English
 
-**Version: 0.3.1 · Platforms: macOS / Windows · License: [Apache License 2.0](LICENSE)**
+**Version: 0.3.2 · Platforms: macOS / Windows · License: [Apache License 2.0](LICENSE)**
 
 ### 1. Introduction
 
